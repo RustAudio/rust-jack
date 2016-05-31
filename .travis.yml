@@ -1,7 +1,7 @@
 language: rust
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y jackd libjack-dev
+  - sudo apt-get install -y jackd libjack-dev libjack0
 before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
