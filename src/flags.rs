@@ -1,0 +1,134 @@
+use jack_sys as j;
+
+/// port type for Jack's built in 32 bit floating audio.
+pub const DEFAULT_AUDIO_TYPE: &'static str = "32 bit float mono audio";
+
+/// port type for Jack's built in 8 bit raw midi
+pub const DEFAULT_MIDI_TYPE: &'static str = "8 bit raw midi";
+
+bitflags! {
+    /// Option flags for opening a Jack client.
+    ///
+    /// * `NULL_OPTION` - Equivalent to `ClientOptions::empty()`
+    ///
+    /// * `NO_START_SERVER`: Do not automatically start the Jack server when it
+    /// is not already running. This option is always selected if
+    /// `$JACK_NO_START_SERVER` is defined in the calling process
+    /// environment.
+    ///
+    /// * `USE_EXACT_NAME`: Use the exact client name requested. Otherwise,
+    /// Jack automatically generates a unique one if needed.
+    ///
+    /// * `SERVER_NAME`: Open with optional `server_name` parameter. TODO:
+    /// implement
+    ///
+    /// * `LOAD_NAME`: Load internal client from optional `load_name`,
+    /// otherwise use the `client_name`. TODO implement
+    ///
+    /// * `LOAD_INIT`: Pass optional `load_init` to `jack_initialize()`
+    /// entry point of an internal client. TODO: implement
+    ///
+    /// * `SESSION_ID`: Pass a SessionID token. This allows the session
+    /// manager to identify the client again.
+    pub flags ClientOptions: u32 {
+        const NULL_OPTION     = j::JackNullOption,
+        const NO_START_SERVER = j::JackNoStartServer,
+        const USE_EXACT_NAME  = j::JackUseExactName,
+        const SERVER_NAME     = j::JackServerName,
+        const LOAD_NAME       = j::JackLoadName,
+        const LOAD_INIT       = j::JackLoadInit,
+        const SESSION_ID      = j::JackSessionID,
+    }
+}
+
+bitflags! {
+    /// Status flags for Jack clients.
+    ///
+    /// * `JackFailure` - Overall operation failed.
+    ///
+    /// * `JackInvalidOption` - The operation contained an invalid or unsupported
+    /// option.
+    ///
+    /// * `JackNameNotUnique` - The desired client name was not unique. With the
+    /// JackUseExactName option this situation is fatal. Otherwise, the name was
+    /// modified by appending a dash and a two-digit number in the range "-01"
+    /// to "-99". `Client::name()` will return the exact string that was
+    /// used. If the specified client_name plus these extra characters would be
+    /// too long, the open fails instead.
+    ///
+    /// * `JackServerStarted` - The JACK server was started as a result of this
+    /// operation. Otherwise, it was running already. In either case the caller
+    /// is now connected to jackd, so there is no race condition. When the
+    /// server shuts down, the client will find out.
+    ///
+    /// * `JackServerFailed` - Unable to connect to the JACK server.
+    ///
+    /// * `JackServerError` - Communication error with the JACK server.
+    ///
+    /// * `JackNoSuchClient` - Requested client does not exist.
+    ///
+    /// * `JackLoadFailure` - Unable to load internal client
+    ///
+    /// * `JackInitFailure` - Unable to initialize client
+    ///
+    /// * `JackShmFailure` - Unable to access shared memory
+    ///
+    /// * `JackVersionError` - Client's protocol version does not match
+    ///
+    /// * `JackBackendError` - No documentation found. TODO: dig deeper
+    ///
+    /// * `JackClientZombie` - No documentation found. TODO: dig deeper
+    pub flags ClientStatus: u32 {
+        const FAILURE         = j::JackFailure,
+        const INVALID_OPTION  = j::JackInvalidOption,
+        const NAME_NOT_UNIQUE = j::JackNameNotUnique,
+        const SERVER_STARTED  = j::JackServerStarted,
+        const SERVER_FAILED   = j::JackServerFailed,
+        const SERVER_ERROR    = j::JackServerError,
+        const NO_SUCH_CLIENT  = j::JackNoSuchClient,
+        const LOAD_FAILURE    = j::JackLoadFailure,
+        const INIT_FAILURE    = j::JackInitFailure,
+        const SHM_FAILURE     = j::JackShmFailure,
+        const VERSION_ERROR   = j::JackVersionError,
+        const BACKEND_ERROR   = j::JackBackendError,
+        const CLIENT_ZOMBIE   = j::JackClientZombie,
+        const UNKNOWN_ERROR   = 0x2000, // TODO: don't use this
+    }
+}
+
+bitflags! {
+    /// Flags for specifying port options.
+    ///
+    /// * `IS_INPUT` - The port can receive data.
+    ///
+    /// * `IS_OUTPUT` - Data can be read from the port.
+    ///
+    /// * `IS_PHYSICAL` - Port corresponds to some kind of physical I/O
+    /// connector.
+    ///
+    /// * `CAN_MONITOR` - A call to `jack_port_request_monitor()` makes
+    /// sense. TODO: implement. Precisely what this means it dependent on the
+    /// client. A typical result of it being called with `true` as the second
+    /// argument is that data that would be available from an output port (with
+    /// `IS_PHYSICAL` set) is sent to a physical output connector as well, so
+    /// that it can be heard/seen/whatever.
+    ///
+    /// * `IS_TERMINAL` - For an input port, the data received by the port will
+    /// not be passed on or made available at any other port. For output, the
+    /// data available at the port does not originate from any other port. Audio
+    /// synthesizers, I/O hardware interface clients, HDR systems are examples
+    /// of clients that would set this flag for their ports.
+    pub flags PortFlags: u32 {
+        const IS_INPUT    = j::JackPortIsInput,
+        const IS_OUTPUT   = j::JackPortIsOutput,
+        const IS_PHYSICAL = j::JackPortIsPhysical,
+        const CAN_MONITOR = j::JackPortCanMonitor,
+        const IS_TERMINAL = j::JackPortIsTerminal,
+    }
+}
+
+/// Used by `JackHandler::latency()`.
+pub enum LatencyType {
+    Capture,
+    Playback,
+}
