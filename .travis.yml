@@ -1,0 +1,14 @@
+language: rust
+sudo: false
+before_script:
+- pip install 'travis-cargo<0.2' --user
+- export PATH=#HOME/.local:$PATH
+after_success:
+- travis-cargo --only stable doc-upload
+script:
+- travis-cargo test
+- travis-cargo-doc -- -j 1
+cache:
+  bundler: true
+  directories:
+    - "$HOME/.cargo/"
