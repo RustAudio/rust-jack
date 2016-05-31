@@ -1,13 +1,15 @@
 language: rust
-sudo: false
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y jackd
 before_script:
-- pip install 'travis-cargo<0.2' --user
-- export PATH=#HOME/.local:$PATH
+  - pip install 'travis-cargo<0.2' --user
+  - export PATH=#HOME/.local:$PATH
 after_success:
-- travis-cargo --only stable doc-upload
+  - travis-cargo --only stable doc-upload
 script:
-- travis-cargo test
-- travis-cargo-doc -- -j 1
+  - travis-cargo test
+  - travis-cargo doc -- -j 1
 cache:
   bundler: true
   directories:
