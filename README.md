@@ -41,3 +41,7 @@ Jack API.
 * managing support for newer/older versions of JACK - none
 * the API for starting and controlling a JACK server - none
 * * Metadata API. - none
+
+### Other TODOS
+* make safer
+* better error reporting

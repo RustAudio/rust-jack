@@ -303,9 +303,6 @@ impl<T: JackHandler> Client<T> {
     /// 1. The port types must be identical
     /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
     /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
-    ///
-    /// # TODO
-    /// * In a rare instance, Jack API specifies a possible error return value, so use that
     pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
