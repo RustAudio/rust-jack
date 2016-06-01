@@ -1,20 +1,20 @@
-# rust jack
+# Rust JACK
 
 [![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
 
-Nice rust bindings for the
+Nice Rust bindings for the
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
 
 
-## "C" & rust API differences
-* String lengths in the "C" API include the `NULL` character while these rust
+## "C" & Rust API differences
+* String lengths in the "C" API include the `NULL` character while these Rust
   bindings do not. generally `rust_size(x) = c_size(x) - 1`.
-* "C" bindings require functions to be registered while rust bindings register
+* "C" bindings require functions to be registered while Rust bindings register
   an object with the trait `JackHandler`.
 * `jack_on_shutdown` has been removed, uses only `jack_on_info_shutdown`.
-* rust enums vs C enums
-* rust bitflags vs C integers used as flags
-* deprecated Jack functions are not used/implemented in rust bindings
+* Rust enums vs C enums
+* Rust bitflags vs C integers used as flags
+* deprecated Jack functions are not used/implemented in Rust bindings
 
 
 ## Progress

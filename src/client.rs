@@ -4,6 +4,7 @@ use callbacks;
 use port;
 use flags::*;
 use port::*;
+use utils;
 use callbacks::JackHandler;
 
 /// A client to interact with a Jack server.
@@ -117,6 +118,34 @@ impl<T: JackHandler> Client<T> {
                 Some(ffi::CStr::from_ptr(uuid_ptr).to_str().unwrap())
             }
         }
+    }
+
+    /// Returns a vector of ports that match the specified arguments
+    ///
+    /// `port_name_pattern` - A regular expression used to select ports by
+    /// name. If `None` or zero lengthed, no selection based on name will be
+    /// carried out.
+    ///
+    /// `type_name_pattern` - A regular expression used to select ports by
+    /// type. If `None` or zero lengthed, no selection based on type will be
+    /// carried out.
+    ///
+    /// `flags` - A value used to select ports by their flags. Use
+    /// `PortFlags::empty()` for no flag selection.
+    pub fn ports(&self,
+                 port_name_pattern: Option<&str>,
+                 type_name_pattern: Option<&str>,
+                 flags: PortFlags) -> Vec<String> {
+        let port_name_pattern = port_name_pattern.unwrap_or("");
+        let type_name_pattern = type_name_pattern.unwrap_or("");
+        let ports_ptr = unsafe {
+            let pnp = ffi::CString::new(port_name_pattern).unwrap();
+            let tnp = ffi::CString::new(type_name_pattern).unwrap();
+            let flags = flags.bits() as u64;
+            j::jack_get_ports(self.client, pnp.as_ptr(), tnp.as_ptr(), flags)
+        };
+        let ports = unsafe { utils::collect_strs(ports_ptr) };
+        ports
     }
 
     /// Tell the Jack server that the program is ready to start processing

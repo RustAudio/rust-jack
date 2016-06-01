@@ -9,7 +9,7 @@ use flags::*;
 /// stated.
 ///
 /// # TODO
-/// * convert C enum return values to rust enums.
+/// * convert C enum return values to Rust enums.
 pub trait JackHandler {
     /// Called just once after the creation of the thread in which all other
     /// callbacks will be handled.

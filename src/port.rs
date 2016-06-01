@@ -1,6 +1,7 @@
 use std::{ffi, slice};
 use jack_sys as j;
 use flags::*;
+use utils;
 
 /// Register a port when given a jack client pointer. For use within the API.
 pub unsafe fn port_register(client: *mut j::jack_client_t,
@@ -9,7 +10,9 @@ pub unsafe fn port_register(client: *mut j::jack_client_t,
                             port_flags: PortFlags,
                             buffer_size: usize)
                             -> Result<Port, ()> {
-    assert!(!client.is_null());
+    if client.is_null() {
+        return Err(());
+    };
     let port = {
         let port_name = ffi::CString::new(port_name).unwrap();
         let port_type = ffi::CString::new(port_type).unwrap();
@@ -107,6 +110,71 @@ impl Port {
         match res {
             0 => false,
             _ => true
+        }
+    }
+
+    /// Full port names to which `self` is connected to. This combines Jack's
+    /// `jack_port_get_all_connections()` and `jack_port_get_connections()`. If
+    /// the `client` from which `port` was spawned from is the owner, then it
+    /// may be used in the graph reordered callback or else it should not be
+    /// used.
+    ///
+    /// # Unsafe
+    ///
+    /// * Can't be used in the callback for graph reordering under certain
+    /// conditions.
+    pub unsafe fn connections(&self) -> Vec<String> {
+        let connections_ptr = {
+            let ptr = if j::jack_port_is_mine(self.client, self.port)!=0 {
+                j::jack_port_get_connections(self.port)
+            } else {
+                j::jack_port_get_all_connections(self.client, self.port)
+            };
+            utils::collect_strs(ptr)
+        };
+        connections_ptr
+    }
+
+    /// Set's the short name of the port. If the full name is longer than
+    /// `Port::name_size()`, then it will be truncated.
+    pub fn set_name(&self, short_name: &str) -> Result<(), ()> {
+        let short_name = ffi::CString::new(short_name).unwrap();
+        let res = unsafe { j::jack_port_set_name(self.port, short_name.as_ptr() ) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Sets `alias` as an alias for `self`.
+    ///
+    /// May be called at any time. If the alias is longer than
+    /// `Client::name_size()`, it will be truncated.
+    ///
+    /// After a successful call, and until Jack exists, or the alias is unset,
+    /// `alias` may be used as an alternate name for the port.
+    ///
+    /// Ports can have up to two aliases - if both are already set, this
+    /// function will return an error.
+    pub fn set_alias(&self, alias: &str) -> Result<(), ()> {
+        let alias = ffi::CString::new(alias).unwrap();
+        let res = unsafe { j::jack_port_set_alias(self.port, alias.as_ptr() ) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Remove `alias` as an alias for port. May be called at any time.
+    ///
+    /// After a successful call, `alias` can no longer be used as an alternate
+    /// name for `self`.
+    pub fn unset_alias(&self, alias: &str) -> Result<(), ()> {
+        let alias = ffi::CString::new(alias).unwrap();
+        let res = unsafe { j::jack_port_unset_alias(self.port, alias.as_ptr()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
         }
     }
 

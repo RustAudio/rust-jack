@@ -7,6 +7,7 @@ mod callbacks;
 mod client;
 mod flags;
 mod port;
+mod utils;
 
 pub use client::Client;
 pub use port::Port;
