@@ -30,12 +30,12 @@ impl<T: JackHandler> Client<T> {
 
     /// The buffer size of a port type
     ///
-    /// This function may only be called in a buffer size callback.
-    pub fn type_buffer_size(&self, port_type: &str) -> usize {
+    /// # Unsafe
+    ///
+    /// * This function may only be called in a buffer size callback.
+    pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         let port_type = ffi::CString::new(port_type).unwrap();
-        let n = unsafe {
-            j::jack_port_type_get_buffer_size(self.client, port_type.as_ptr())
-        };
+        let n = j::jack_port_type_get_buffer_size(self.client, port_type.as_ptr());
         n
     }
 
@@ -67,7 +67,8 @@ impl<T: JackHandler> Client<T> {
     }
 
     /// Disconnects the client from the Jack server. This does not need to
-    /// manually be called, as the client will automatically close when the /// client object is dropped.
+    /// manually be called, as the client will automatically close when the
+    /// client object is dropped.
     pub fn close(self) {}
 
     /// Get the status of the client.
@@ -146,17 +147,13 @@ impl<T: JackHandler> Client<T> {
     pub fn ports(&self,
                  port_name_pattern: Option<&str>,
                  type_name_pattern: Option<&str>,
-                 flags: PortFlags) -> Vec<String> {
-        let pnp = ffi::CString::new(port_name_pattern.unwrap_or(""))
-            .unwrap();
-        let tnp = ffi::CString::new(type_name_pattern.unwrap_or(""))
-            .unwrap();
+                 flags: PortFlags)
+                 -> Vec<String> {
+        let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
+        let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = flags.bits() as u64;
         unsafe {
-            utils::collect_strs(j::jack_get_ports(self.client,
-                                                  pnp.as_ptr(),
-                                                  tnp.as_ptr(),
-                                                  flags))
+            utils::collect_strs(j::jack_get_ports(self.client, pnp.as_ptr(), tnp.as_ptr(), flags))
         }
     }
 
@@ -171,10 +168,7 @@ impl<T: JackHandler> Client<T> {
 
     /// Get a `Port` by its port id.
     pub fn port_by_id(&self, port_id: u32) -> Option<Port> {
-        unsafe {
-            ptrs_to_port(self.client,
-                         j::jack_port_by_id(self.client, port_id))
-        }
+        unsafe { ptrs_to_port(self.client, j::jack_port_by_id(self.client, port_id)) }
     }
 
     /// Tell the Jack server that the program is ready to start processing
@@ -251,11 +245,11 @@ impl<T: JackHandler> Client<T> {
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
     pub fn register_port(&mut self,
-                     port_name: &str,
-                     port_type: &str,
-                     flags: PortFlags,
-                     buffer_size: Option<usize>)
-                     -> Result<Port, ()> {
+                         port_name: &str,
+                         port_type: &str,
+                         flags: PortFlags,
+                         buffer_size: Option<usize>)
+                         -> Result<Port, ()> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let port_type = ffi::CString::new(port_type).unwrap();
         let port_flags = flags.bits() as u64;
@@ -270,7 +264,7 @@ impl<T: JackHandler> Client<T> {
         };
         match port {
             Some(p) => Ok(p),
-            None => Err(())
+            None => Err(()),
         }
     }
 
@@ -289,14 +283,11 @@ impl<T: JackHandler> Client<T> {
     pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), ()> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let onoff = match enable_monitor {
-            true  => 1,
+            true => 1,
             false => 0,
         };
-        let res = unsafe {
-            j::jack_port_request_monitor_by_name(self.client,
-                                                 port_name.as_ptr(),
-                                                 onoff)
-        };
+        let res =
+            unsafe { j::jack_port_request_monitor_by_name(self.client, port_name.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(()),
@@ -318,10 +309,12 @@ impl<T: JackHandler> Client<T> {
     pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
-        match unsafe { j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr()) } {
-            0              => Ok(()),
+        match unsafe {
+            j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr())
+        } {
+            0 => Ok(()),
             ::libc::EEXIST => Err(()),
-            _              => Err(())
+            _ => Err(()),
         }
     }
 
@@ -329,12 +322,13 @@ impl<T: JackHandler> Client<T> {
     pub fn disconnect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
-        match unsafe { j::jack_disconnect(self.client, source_port.as_ptr(), destination_port.as_ptr()) } {
+        match unsafe {
+            j::jack_disconnect(self.client, source_port.as_ptr(), destination_port.as_ptr())
+        } {
             0 => Ok(()),
-            _ => Err(())
+            _ => Err(()),
         }
     }
-
 }
 
 /// Closes the client, no need to manually call `Client::close()`.
