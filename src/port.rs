@@ -11,7 +11,10 @@ pub unsafe fn ptrs_to_port(client: *mut j::jack_client_t,
     if client.is_null() || port.is_null() {
         None
     } else {
-        Some(Port { client: client, port: port })
+        Some(Port {
+            client: client,
+            port: port,
+        })
     }
 }
 
@@ -191,13 +194,11 @@ impl Port {
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
-        let res = unsafe {
-            let onoff = match enable_monitor {
-                true => 1,
-                false => 0,
-            };
-            j::jack_port_request_monitor(self.port, onoff)
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
         };
+        let res = unsafe { j::jack_port_request_monitor(self.port, onoff) };
         match res {
             0 => Ok(()),
             _ => Err(()),
@@ -208,13 +209,11 @@ impl Port {
     /// turned on if it was off, and turns it off if only one request has been
     /// made to turn it on. Otherwise it does nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
-        let res = unsafe {
-            let onoff = match enable_monitor {
-                true => 1,
-                false => 0,
-            };
-            j::jack_port_ensure_monitor(self.port, onoff)
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
         };
+        let res = unsafe { j::jack_port_ensure_monitor(self.port, onoff) };
         match res {
             0 => Ok(()),
             _ => Err(()),

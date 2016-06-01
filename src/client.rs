@@ -147,16 +147,17 @@ impl<T: JackHandler> Client<T> {
                  port_name_pattern: Option<&str>,
                  type_name_pattern: Option<&str>,
                  flags: PortFlags) -> Vec<String> {
-        let port_name_pattern = port_name_pattern.unwrap_or("");
-        let type_name_pattern = type_name_pattern.unwrap_or("");
-        let ports_ptr = unsafe {
-            let pnp = ffi::CString::new(port_name_pattern).unwrap();
-            let tnp = ffi::CString::new(type_name_pattern).unwrap();
-            let flags = flags.bits() as u64;
-            j::jack_get_ports(self.client, pnp.as_ptr(), tnp.as_ptr(), flags)
-        };
-        let ports = unsafe { utils::collect_strs(ports_ptr) };
-        ports
+        let pnp = ffi::CString::new(port_name_pattern.unwrap_or(""))
+            .unwrap();
+        let tnp = ffi::CString::new(type_name_pattern.unwrap_or(""))
+            .unwrap();
+        let flags = flags.bits() as u64;
+        unsafe {
+            utils::collect_strs(j::jack_get_ports(self.client,
+                                                  pnp.as_ptr(),
+                                                  tnp.as_ptr(),
+                                                  flags))
+        }
     }
 
     /// Get a `Port` by its port name.
@@ -287,11 +288,11 @@ impl<T: JackHandler> Client<T> {
     /// happens.
     pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), ()> {
         let port_name = ffi::CString::new(port_name).unwrap();
+        let onoff = match enable_monitor {
+            true  => 1,
+            false => 0,
+        };
         let res = unsafe {
-            let onoff = match enable_monitor {
-                true  => 1,
-                false => 0,
-            };
             j::jack_port_request_monitor_by_name(self.client,
                                                  port_name.as_ptr(),
                                                  onoff)
@@ -318,9 +319,9 @@ impl<T: JackHandler> Client<T> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
         match unsafe { j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr()) } {
-            0 => Ok(()),
+            0              => Ok(()),
             ::libc::EEXIST => Err(()),
-            _ => Err(())
+            _              => Err(())
         }
     }
 

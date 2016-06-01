@@ -71,13 +71,17 @@ pub trait JackHandler {
     fn ports_connected(&mut self, _port_id_a: u32, _port_id_b: u32, _are_connected: bool) {}
 
     /// Called whenever the processing graph is reordered.
-    fn graph_reorder(&mut self) -> i32 { 0 }
+    fn graph_reorder(&mut self) -> i32 {
+        0
+    }
 
     /// Called whenever an xrun occurs.
     ///
     /// An xrun is a buffer under or over run, which means some data has been
     /// missed.
-    fn xrun(&mut self) -> i32 { 0 }
+    fn xrun(&mut self) -> i32 {
+        0
+    }
 
     /// Called whenever it is necessary to recompute the latencies for some or
     /// all Jack ports.
@@ -126,7 +130,7 @@ pub trait JackHandler {
     /// callback should operate. Remember that the mode argument given to the
     /// latency callback will need to be passed into
     /// jack_port_set_latency_range()
-    fn latency(&mut self, _mode: LatencyType) { }
+    fn latency(&mut self, _mode: LatencyType) {}
 }
 
 unsafe fn from_void<'a, T: JackHandler>(ptr: *mut c_void) -> &'a mut T {
@@ -234,8 +238,7 @@ extern "C" fn xrun<T: JackHandler>(data: *mut c_void) -> i32 {
     obj.xrun()
 }
 
-extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t,
-                                      data: *mut c_void) {
+extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, data: *mut c_void) {
     let obj: &mut T = unsafe { from_void(data) };
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,

@@ -13,7 +13,7 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
         let mut len = 0;
         while !ptr.offset(len).is_null() {
             len += 1;
-        };
+        }
         len
     };
     let mut strs = Vec::with_capacity(len as usize);
