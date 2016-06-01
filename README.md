@@ -5,6 +5,8 @@
 Nice rust bindings for the
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
 
+[Documentation](https://wmedrano.github.io/rust-jack/jack/index.html)
+
 
 ## "C" & rust API differences
 * String lengths in the "C" API include the `NULL` character while these rust
