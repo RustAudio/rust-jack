@@ -44,40 +44,43 @@ bitflags! {
 bitflags! {
     /// Status flags for Jack clients.
     ///
-    /// * `JackFailure` - Overall operation failed.
+    /// * `FAILURE` - Overall operation failed.
     ///
-    /// * `JackInvalidOption` - The operation contained an invalid or unsupported
+    /// * `INVALID_OPTION` - The operation contained an invalid or unsupported
     /// option.
     ///
-    /// * `JackNameNotUnique` - The desired client name was not unique. With the
-    /// JackUseExactName option this situation is fatal. Otherwise, the name was
+    /// * `NAME_NOT_UNIQUE` - The desired client name was not unique. With the
+    /// `USE_EXACT_NAME` option this situation is fatal. Otherwise, the name was
     /// modified by appending a dash and a two-digit number in the range "-01"
     /// to "-99". `Client::name()` will return the exact string that was
     /// used. If the specified client_name plus these extra characters would be
     /// too long, the open fails instead.
     ///
-    /// * `JackServerStarted` - The JACK server was started as a result of this
+    /// * `SERVER_STARTED` - The JACK server was started as a result of this
     /// operation. Otherwise, it was running already. In either case the caller
     /// is now connected to jackd, so there is no race condition. When the
     /// server shuts down, the client will find out.
     ///
-    /// * `JackServerFailed` - Unable to connect to the JACK server.
+    /// * `SERVER_FAILED` - Unable to connect to the JACK server.
     ///
-    /// * `JackServerError` - Communication error with the JACK server.
+    /// * `SERVER_ERROR` - Communication error with the JACK server.
     ///
-    /// * `JackNoSuchClient` - Requested client does not exist.
+    /// * `NO_SUCH_CLIENT` - Requested client does not exist.
     ///
-    /// * `JackLoadFailure` - Unable to load internal client
+    /// * `LOAD_FAILURE` - Unable to load internal client
     ///
-    /// * `JackInitFailure` - Unable to initialize client
+    /// * `INIT_FAILURE` - Unable to initialize client
     ///
-    /// * `JackShmFailure` - Unable to access shared memory
+    /// * `SHM_FAILURE` - Unable to access shared memory
     ///
-    /// * `JackVersionError` - Client's protocol version does not match
+    /// * `VERSION_ERROR` - Client's protocol version does not match
     ///
-    /// * `JackBackendError` - No documentation found. TODO: dig deeper
+    /// * `BACKEND_ERROR` - No documentation found. TODO: dig deeper
     ///
-    /// * `JackClientZombie` - No documentation found. TODO: dig deeper
+    /// * `CLIENT_ZOZMBIE` - No documentation found. TODO: dig deeper
+    ///
+    /// * `UNKNOWN_ERROR` - Not part of jack and shouldn't occur ever.
+    /// File an issue if you can get it to appear.
     pub flags ClientStatus: u32 {
         const FAILURE         = j::JackFailure,
         const INVALID_OPTION  = j::JackInvalidOption,
