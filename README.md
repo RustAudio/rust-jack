@@ -2,8 +2,10 @@
 
 [![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
 
-Nice Rust bindings for the
+Nice Rust bindings for
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
+
+[Documentation](https://wmedrano.github.io/rust-jack/jack/index.html)
 
 
 ## "C" & Rust API differences
