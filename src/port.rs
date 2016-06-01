@@ -1,30 +1,17 @@
 use std::{ffi, slice};
 use jack_sys as j;
 use flags::*;
+use utils;
 
-/// Register a port when given a jack client pointer. For use within the API.
-pub unsafe fn port_register(client: *mut j::jack_client_t,
-                            port_name: &str,
-                            port_type: &str,
-                            port_flags: PortFlags,
-                            buffer_size: usize)
-                            -> Result<Port, ()> {
-    assert!(!client.is_null());
-    let port = {
-        let port_name = ffi::CString::new(port_name).unwrap();
-        let port_type = ffi::CString::new(port_type).unwrap();
-        let port_flags = port_flags.bits() as u64;
-        let buffer_size = buffer_size as u64;
-        j::jack_port_register(client,
-                              port_name.as_ptr(),
-                              port_type.as_ptr(),
-                              port_flags,
-                              buffer_size)
-    };
-    if port.is_null() {
-        Err(())
+/// Converts a jack client handle and jack port handle in a `Port`. If either
+/// `client` or `port` is `null`, then `None` is returned.
+pub unsafe fn ptrs_to_port(client: *mut j::jack_client_t,
+                           port: *mut j::jack_port_t)
+                           -> Option<Port> {
+    if client.is_null() || port.is_null() {
+        None
     } else {
-        Ok(Port {
+        Some(Port {
             client: client,
             port: port,
         })
@@ -49,8 +36,19 @@ impl Port {
     ///
     /// The port's full name contains the owning client name concatenated with a
     /// colon (:) followed by its short name.
+    ///
+    /// This value is constant
     pub fn name_size() -> usize {
         let s = unsafe { j::jack_port_name_size() - 1 };
+        s as usize
+    }
+
+    /// The maximum length of a port type. Unlike the "C" Jack API, this does
+    /// not count the `NULL` character and corresponds to a string's `.len()`.
+    ///
+    /// This value is constant.
+    pub fn type_size() -> usize {
+        let s = unsafe { j::jack_port_type_size() - 1 };
         s as usize
     }
 
@@ -106,7 +104,134 @@ impl Port {
         };
         match res {
             0 => false,
-            _ => true
+            _ => true,
+        }
+    }
+
+    /// Full port names to which `self` is connected to. This combines Jack's
+    /// `jack_port_get_all_connections()` and `jack_port_get_connections()`. If
+    /// the `client` from which `port` was spawned from is the owner, then it
+    /// may be used in the graph reordered callback or else it should not be
+    /// used.
+    ///
+    /// # Unsafe
+    ///
+    /// * Can't be used in the callback for graph reordering under certain
+    /// conditions.
+    pub unsafe fn connections(&self) -> Vec<String> {
+        let connections_ptr = {
+            let ptr = if j::jack_port_is_mine(self.client, self.port) != 0 {
+                j::jack_port_get_connections(self.port)
+            } else {
+                j::jack_port_get_all_connections(self.client, self.port)
+            };
+            utils::collect_strs(ptr)
+        };
+        connections_ptr
+    }
+
+    /// Get the alias names for `self`.
+    ///
+    /// Will return a vector of strings of up to 2 elements.
+    ///
+    /// # TODO: Implement
+    pub fn aliases(&self) -> Vec<String> {
+        unimplemented!();
+    }
+
+    /// Returns `true` if monitoring has been requested for `self`.
+    pub fn is_monitoring_input(&self) -> bool {
+        match unsafe { j::jack_port_monitoring_input(self.port) } {
+            0 => false,
+            _ => true,
+        }
+    }
+
+    /// Set's the short name of the port. If the full name is longer than
+    /// `Port::name_size()`, then it will be truncated.
+    pub fn set_name(&self, short_name: &str) -> Result<(), ()> {
+        let short_name = ffi::CString::new(short_name).unwrap();
+        let res = unsafe { j::jack_port_set_name(self.port, short_name.as_ptr()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Sets `alias` as an alias for `self`.
+    ///
+    /// May be called at any time. If the alias is longer than
+    /// `Client::name_size()`, it will be truncated.
+    ///
+    /// After a successful call, and until Jack exists, or the alias is unset,
+    /// `alias` may be used as an alternate name for the port.
+    ///
+    /// Ports can have up to two aliases - if both are already set, this
+    /// function will return an error.
+    pub fn set_alias(&self, alias: &str) -> Result<(), ()> {
+        let alias = ffi::CString::new(alias).unwrap();
+        let res = unsafe { j::jack_port_set_alias(self.port, alias.as_ptr()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Remove `alias` as an alias for port. May be called at any time.
+    ///
+    /// After a successful call, `alias` can no longer be used as an alternate
+    /// name for `self`.
+    pub fn unset_alias(&self, alias: &str) -> Result<(), ()> {
+        let alias = ffi::CString::new(alias).unwrap();
+        let res = unsafe { j::jack_port_unset_alias(self.port, alias.as_ptr()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Turn input monitoring for the port on or off.
+    ///
+    /// This only works if the port has the `CAN_MONITOR` flag set.
+    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
+        };
+        let res = unsafe { j::jack_port_request_monitor(self.port, onoff) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is
+    /// turned on if it was off, and turns it off if only one request has been
+    /// made to turn it on. Otherwise it does nothing.
+    pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
+        };
+        let res = unsafe { j::jack_port_ensure_monitor(self.port, onoff) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Perform the same function as `Client::disconnect_ports()`, but with a
+    /// port handle instead.
+    ///
+    /// Avoids the name lookup inherent in the name-based version.
+    ///
+    /// Clients connecting their own ports are likely to use this function,
+    /// while generic connection clients (e.g. patchbays) would use
+    /// `Client::disconnect_ports()`.
+    pub fn disconnect(&self) -> Result<(), ()> {
+        match unsafe { j::jack_port_disconnect(self.client, self.port) } {
+            0 => Ok(()),
+            _ => Err(()),
         }
     }
 
@@ -130,7 +255,7 @@ impl Port {
 
     /// Interprets the buffer as a mutable slice of type `T` with length
     /// `n_frames`.
-    pub unsafe fn as_slice_mut<T>(&self, n_frames: u32) -> &mut[T] {
+    pub unsafe fn as_slice_mut<T>(&self, n_frames: u32) -> &mut [T] {
         let buffer = self.buffer(n_frames) as *mut T;
         slice::from_raw_parts_mut(buffer, n_frames as usize)
     }

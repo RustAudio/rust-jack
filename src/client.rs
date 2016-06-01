@@ -4,6 +4,7 @@ use callbacks;
 use port;
 use flags::*;
 use port::*;
+use utils;
 use callbacks::JackHandler;
 
 /// A client to interact with a Jack server.
@@ -25,6 +26,17 @@ impl<T: JackHandler> Client<T> {
     pub fn name_size() -> usize {
         let s = unsafe { j::jack_client_name_size() - 1 };
         s as usize
+    }
+
+    /// The buffer size of a port type
+    ///
+    /// # Unsafe
+    ///
+    /// * This function may only be called in a buffer size callback.
+    pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
+        let port_type = ffi::CString::new(port_type).unwrap();
+        let n = j::jack_port_type_get_buffer_size(self.client, port_type.as_ptr());
+        n
     }
 
     /// Opens a Jack client with the given name and options. If the client is
@@ -55,7 +67,8 @@ impl<T: JackHandler> Client<T> {
     }
 
     /// Disconnects the client from the Jack server. This does not need to
-    /// manually be called, as the client will automatically close when the /// client object is dropped.
+    /// manually be called, as the client will automatically close when the
+    /// client object is dropped.
     pub fn close(self) {}
 
     /// Get the status of the client.
@@ -117,6 +130,45 @@ impl<T: JackHandler> Client<T> {
                 Some(ffi::CStr::from_ptr(uuid_ptr).to_str().unwrap())
             }
         }
+    }
+
+    /// Returns a vector of ports that match the specified arguments
+    ///
+    /// `port_name_pattern` - A regular expression used to select ports by
+    /// name. If `None` or zero lengthed, no selection based on name will be
+    /// carried out.
+    ///
+    /// `type_name_pattern` - A regular expression used to select ports by
+    /// type. If `None` or zero lengthed, no selection based on type will be
+    /// carried out.
+    ///
+    /// `flags` - A value used to select ports by their flags. Use
+    /// `PortFlags::empty()` for no flag selection.
+    pub fn ports(&self,
+                 port_name_pattern: Option<&str>,
+                 type_name_pattern: Option<&str>,
+                 flags: PortFlags)
+                 -> Vec<String> {
+        let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
+        let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
+        let flags = flags.bits() as u64;
+        unsafe {
+            utils::collect_strs(j::jack_get_ports(self.client, pnp.as_ptr(), tnp.as_ptr(), flags))
+        }
+    }
+
+    /// Get a `Port` by its port name.
+    pub fn port_by_name(&self, port_name: &str) -> Option<Port> {
+        let port_name = ffi::CString::new(port_name).unwrap();
+        unsafe {
+            ptrs_to_port(self.client,
+                         j::jack_port_by_name(self.client, port_name.as_ptr()))
+        }
+    }
+
+    /// Get a `Port` by its port id.
+    pub fn port_by_id(&self, port_id: u32) -> Option<Port> {
+        unsafe { ptrs_to_port(self.client, j::jack_port_by_id(self.client, port_id)) }
     }
 
     /// Tell the Jack server that the program is ready to start processing
@@ -193,17 +245,26 @@ impl<T: JackHandler> Client<T> {
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
     pub fn register_port(&mut self,
-                     port_name: &str,
-                     port_type: &str,
-                     flags: PortFlags,
-                     buffer_size: Option<usize>)
-                     -> Result<Port, ()> {
-        unsafe {
-            port::port_register(self.client,
-                                port_name,
-                                port_type,
-                                flags,
-                                buffer_size.unwrap_or(0))
+                         port_name: &str,
+                         port_type: &str,
+                         flags: PortFlags,
+                         buffer_size: Option<usize>)
+                         -> Result<Port, ()> {
+        let port_name = ffi::CString::new(port_name).unwrap();
+        let port_type = ffi::CString::new(port_type).unwrap();
+        let port_flags = flags.bits() as u64;
+        let buffer_size = buffer_size.unwrap_or(0) as u64;
+        let port = unsafe {
+            let ptr = j::jack_port_register(self.client,
+                                            port_name.as_ptr(),
+                                            port_type.as_ptr(),
+                                            port_flags,
+                                            buffer_size);
+            ptrs_to_port(self.client, ptr)
+        };
+        match port {
+            Some(p) => Ok(p),
+            None => Err(()),
         }
     }
 
@@ -212,6 +273,60 @@ impl<T: JackHandler> Client<T> {
         match unsafe { j::jack_port_is_mine(self.client, port::port_pointer(port)) } {
             0 => false,
             _ => true,
+        }
+    }
+
+    /// Toggle input monitoring for the port with name `port_name`.
+    ///
+    /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
+    /// happens.
+    pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), ()> {
+        let port_name = ffi::CString::new(port_name).unwrap();
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
+        };
+        let res =
+            unsafe { j::jack_port_request_monitor_by_name(self.client, port_name.as_ptr(), onoff) };
+        match res {
+            0 => Ok(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Establish a connection between two ports.
+    ///
+    /// When a connection exists, data written to the source port will be
+    /// available to be read at the destination port.
+    ///
+    /// # Preconditions
+    /// 1. The port types must be identical
+    /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
+    /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
+    ///
+    /// # TODO
+    /// * In a rare instance, Jack API specifies a possible error return value, so use that
+    pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
+        let source_port = ffi::CString::new(source_port).unwrap();
+        let destination_port = ffi::CString::new(destination_port).unwrap();
+        match unsafe {
+            j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr())
+        } {
+            0 => Ok(()),
+            ::libc::EEXIST => Err(()),
+            _ => Err(()),
+        }
+    }
+
+    /// Remove a connection between two ports.
+    pub fn disconnect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
+        let source_port = ffi::CString::new(source_port).unwrap();
+        let destination_port = ffi::CString::new(destination_port).unwrap();
+        match unsafe {
+            j::jack_disconnect(self.client, source_port.as_ptr(), destination_port.as_ptr())
+        } {
+            0 => Ok(()),
+            _ => Err(()),
         }
     }
 }

@@ -1,22 +1,22 @@
-# rust jack
+# Rust JACK
 
 [![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
 
-Nice rust bindings for the
+Nice Rust bindings for
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
 
 [Documentation](https://wmedrano.github.io/rust-jack/jack/index.html)
 
 
-## "C" & rust API differences
-* String lengths in the "C" API include the `NULL` character while these rust
+## "C" & Rust API differences
+* String lengths in the "C" API include the `NULL` character while these Rust
   bindings do not. generally `rust_size(x) = c_size(x) - 1`.
-* "C" bindings require functions to be registered while rust bindings register
+* "C" bindings require functions to be registered while Rust bindings register
   an object with the trait `JackHandler`.
 * `jack_on_shutdown` has been removed, uses only `jack_on_info_shutdown`.
-* rust enums vs C enums
-* rust bitflags vs C integers used as flags
-* deprecated Jack functions are not used/implemented in rust bindings
+* Rust enums vs C enums
+* Rust bitflags vs C integers used as flags
+* deprecated Jack functions are not used/implemented in Rust bindings
 
 
 ## Progress
@@ -29,8 +29,8 @@ Jack API.
 * Setting Client Callbacks - completed, in `callbacks.rs`
 * Creating and managing client threads - none
 * Controlling & querying JACK server operation - none
-* Creating & manipulating ports - about half, registering/unregistering and getting/setting data, add to `port.rs`, ports created in `client.rs`.
-* Looking up ports - none
+* Creating & manipulating ports - complete, but there is a major TODO. In `ports.rs` and some in `client.rs`
+* Looking up ports - completed, in `client.rs`
 * Managing and determining latency - none
 * Handling time - none
 * Transport and Timebase control - none
