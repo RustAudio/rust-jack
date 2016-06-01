@@ -29,8 +29,8 @@ Jack API.
 * Setting Client Callbacks - completed, in `callbacks.rs`
 * Creating and managing client threads - none
 * Controlling & querying JACK server operation - none
-* Creating & manipulating ports - about half, registering/unregistering and getting/setting data, add to `port.rs`, ports created in `client.rs`.
-* Looking up ports - none
+* Creating & manipulating ports - complete, but there is a major TODO. In `ports.rs` and some in `client.rs`
+* Looking up ports - completed, in `client.rs`
 * Managing and determining latency - none
 * Handling time - none
 * Transport and Timebase control - none
