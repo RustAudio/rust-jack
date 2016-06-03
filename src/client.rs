@@ -2,6 +2,7 @@ use std::{ffi, ptr};
 use jack_sys as j;
 use callbacks;
 use port;
+use enums::*;
 use flags::*;
 use port::*;
 use utils;
@@ -41,12 +42,12 @@ impl<T: JackHandler> Client<T> {
 
     /// Opens a Jack client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(ClientStatus)` will be returned.
+    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
     ///
     /// Although the client may be successful in opening, there still may be
     /// some errors minor errors when attempting to opening. To access these,
     /// check `Client::status()`.
-    pub fn open(client_name: &str, options: ClientOptions) -> Result<Self, ClientStatus> {
+    pub fn open(client_name: &str, options: ClientOptions) -> Result<Self, JackErr> {
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
@@ -56,7 +57,7 @@ impl<T: JackHandler> Client<T> {
         };
         let status = ClientStatus::from_bits(status_bits).unwrap_or(UNKNOWN_ERROR);
         if client.is_null() {
-            Err(status)
+            Err(JackErr::ClientError(status))
         } else {
             Ok(Client {
                 client: client,
@@ -174,11 +175,17 @@ impl<T: JackHandler> Client<T> {
     /// Tell the Jack server that the program is ready to start processing
     /// audio. Jack will call the methods specified by the `JackHandler` trait, from `handler`.
     ///
-    /// `handler` is consumed, but it is returned when `Client::deactivate` is called.
-    pub fn activate(&mut self, handler: T) -> Result<(), ()> {
-        let handler = unsafe { callbacks::register_callbacks(self.client, handler).unwrap() };
+    /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
+    /// `Err(JackErr::ClientActivationError)` is returned.
+    ///
+    /// `handler` is consumed, but it is returned when `Client::deactivate` is
+    /// called.
+    pub fn activate(&mut self, handler: T) -> Result<(), JackErr> {
+        let handler = try!(unsafe {
+            callbacks::register_callbacks(self.client, handler)
+        });
         if handler.is_null() {
-            Err(())
+            Err(JackErr::CallbackRegistrationError)
         } else {
             let res = unsafe { j::jack_activate(self.client) };
             match res {
@@ -188,7 +195,7 @@ impl<T: JackHandler> Client<T> {
                 }
                 _ => {
                     unsafe { Box::from_raw(handler) };
-                    Err(())
+                    Err(JackErr::ClientActivationError)
                 }
             }
         }
@@ -200,18 +207,17 @@ impl<T: JackHandler> Client<T> {
     ///
     /// The `handler` that was used for `Client::activate` is returned on
     /// success. Its state may have changed due to Jack calling its methods.
-    pub fn deactivate(&mut self) -> Result<Box<T>, ()> {
-        if !self.handler.is_null() {
-            let res = unsafe { j::jack_deactivate(self.client) };
-            let handler_ptr = self.handler;
-            self.handler = ptr::null_mut();
-            unsafe { callbacks::clear_callbacks(self.client) };
-            match res {
-                0 => Ok(unsafe { Box::from_raw(handler_ptr) }),
-                _ => Err(()),
-            }
-        } else {
-            Err(())
+    pub fn deactivate(&mut self) -> Result<Box<T>, JackErr> {
+        if self.handler.is_null() {
+            return Err(JackErr::InvalidDeactivation);
+        }
+        let res = unsafe { j::jack_deactivate(self.client) };
+        let handler_ptr = self.handler;
+        self.handler = ptr::null_mut();
+        try!(unsafe { callbacks::clear_callbacks(self.client) });
+        match res {
+            0 => Ok(unsafe { Box::from_raw(handler_ptr) }),
+            _ => Err(JackErr::ClientDeactivationError),
         }
     }
 
@@ -249,7 +255,7 @@ impl<T: JackHandler> Client<T> {
                          port_type: &str,
                          flags: PortFlags,
                          buffer_size: Option<usize>)
-                         -> Result<Port, ()> {
+                         -> Result<Port, JackErr> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let port_type = ffi::CString::new(port_type).unwrap();
         let port_flags = flags.bits() as u64;
@@ -264,7 +270,7 @@ impl<T: JackHandler> Client<T> {
         };
         match port {
             Some(p) => Ok(p),
-            None => Err(()),
+            None => Err(JackErr::PortRegistrationError),
         }
     }
 
@@ -278,9 +284,11 @@ impl<T: JackHandler> Client<T> {
 
     /// Toggle input monitoring for the port with name `port_name`.
     ///
+    /// `Err(JackErr::PortMonitorError)` is returned on failure.
+    ///
     /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
     /// happens.
-    pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), ()> {
+    pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), JackErr> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let onoff = match enable_monitor {
             true => 1,
@@ -290,7 +298,7 @@ impl<T: JackHandler> Client<T> {
             unsafe { j::jack_port_request_monitor_by_name(self.client, port_name.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortMonitorError),
         }
     }
 
@@ -299,31 +307,60 @@ impl<T: JackHandler> Client<T> {
     /// When a connection exists, data written to the source port will be
     /// available to be read at the destination port.
     ///
+    /// On failure, either a `PortNotFound` or `PortConnectionError` is returned.
+    ///
     /// # Preconditions
     /// 1. The port types must be identical
     /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
     /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
-    pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
+    pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), JackErr> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
-        match unsafe {
+
+        let res = unsafe {
             j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr())
-        } {
-            0 => Ok(()),
-            ::libc::EEXIST => Err(()),
-            _ => Err(()),
+        };
+        match res {
+            0              => Ok(()),
+            ::libc::EEXIST => Err(JackErr::PortNotFound),
+            _              => Err(JackErr::PortConnectionError),
         }
     }
 
     /// Remove a connection between two ports.
-    pub fn disconnect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), ()> {
+    pub fn disconnect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), JackErr> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
-        match unsafe {
+        let res = unsafe {
             j::jack_disconnect(self.client, source_port.as_ptr(), destination_port.as_ptr())
-        } {
+        };
+        match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortDisconnectionError),
+        }
+    }
+
+    /// Start/Stop Jack's "freewheel" mode.
+    ///
+    /// When in "freewheel" mode, Jack no longer waits for any external event to
+    /// begin the start of the next process cycle. As a result, freewheel mode
+    /// causes "faster than real-time" execution of a Jack graph. If possessed,
+    /// real-time scheduling is dropped when entering freewheel mode, and if
+    /// appropriate it is reacquired when stopping.
+    ///
+    /// IMPORTANT: on systems using capabilities to provide real-time scheduling
+    /// (i.e. Linux Kernel 2.4), if enabling freewheel, this function must be
+    /// called from the thread that originally called `self.activate()`. This
+    /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
+    /// X).
+    pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
+        let onoff = match enable {
+            true => 0,
+            false => 1,
+        };
+        match unsafe { j::jack_set_freewheel(self.client, onoff) } {
+            0 => Ok(()),
+            _ => Err(JackErr::FreewheelError),
         }
     }
 }

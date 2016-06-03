@@ -1,6 +1,7 @@
 use std::{ffi, mem};
 use libc::c_void;
 use jack_sys as j;
+use enums::*;
 use flags::*;
 
 /// Specifies callbacks for Jack.
@@ -249,17 +250,24 @@ extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, dat
 }
 
 /// Clears the callbacks registered to `client`.
+///
+/// Returns `Err(JackErr::CallbackDeregistrationError)` on failure.
+///
 /// # Unsafe
 /// * Uses ffi calls, be careful.
 ///
 /// # TODO
 /// * Implement correctly. Freezes on my system.
-pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) {
+pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), JackErr>{
     // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
     // j::jack_set_process_callback(client, None, ptr::null_mut());
+    Ok(())
 }
 
 /// Registers methods from `handler` to be used by Jack with `client`.
+///
+/// Returns `Ok(handler_ptr)` on success, or
+/// `Err(JackErr::CallbackRegistrationError)` on failure.
 ///
 /// Registers `handler` with jack. All jack calls to `client` will be handled by
 /// `handler`. `handler` is consumed, but it is not deallocated. `handler`
@@ -275,7 +283,7 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) {
 /// * `handler` will not be automatically deallocated.
 pub unsafe fn register_callbacks<T: JackHandler>(client: *mut j::jack_client_t,
                                                  handler: T)
-                                                 -> Result<*mut T, ()> {
+                                                 -> Result<*mut T, JackErr> {
     let handler_ptr: *mut T = Box::into_raw(Box::new(handler));
     let data_ptr = mem::transmute(handler_ptr);
     j::jack_set_thread_init_callback(client, Some(thread_init_callback::<T>), data_ptr);
