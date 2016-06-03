@@ -48,8 +48,8 @@ fn test() {
     let mut client = Client::open("rj-test", NO_START_SERVER).unwrap();
     assert_eq!(client.status(), ClientStatus::empty());
     assert_eq!(client.name(), "rj-test");
-    let audio_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_AUDIO_TYPE) };
-    let midi_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_MIDI_TYPE) };
+    let _audio_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_AUDIO_TYPE) };
+    let _midi_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_MIDI_TYPE) };
     client.activate(TestHandler::new()).unwrap();
     thread::sleep(time::Duration::from_secs(1));
     let tested_handler = client.deactivate().unwrap();
