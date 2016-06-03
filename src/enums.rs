@@ -14,6 +14,7 @@ pub enum JackErr {
     PortMonitorError,
     PortNotFound,
     PortRegistrationError,
+    SetBufferSizeError,
     UnknownError,
 }
 
@@ -31,7 +32,7 @@ pub enum JackControl {
 }
 
 impl JackControl {
-    fn to_ffi(self) -> i32 {
+    pub fn to_ffi(self) -> i32 {
         match self {
             JackControl::Continue => 0,
             JackControl::Quit     => -1,

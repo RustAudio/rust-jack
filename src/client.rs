@@ -340,6 +340,34 @@ impl<T: JackHandler> Client<T> {
         }
     }
 
+    /// The sample rate of the jack system, as set by the user when jackd was
+    /// started.
+    pub fn sample_rate(&self) -> usize {
+        let srate = unsafe { j::jack_get_sample_rate(self.client) };
+        srate as usize
+    }
+
+    /// The current maximum size that will every be passed to the process
+    /// callback.
+    ///
+    /// It should only be used *before* the client has been activated. This size
+    /// may change,c lients that depend on it must register a buffer size
+    /// callback so they will be notified if it does.
+    pub fn buffer_size(&self) -> usize {
+        let bsize = unsafe { j::jack_get_buffer_size(self.client) };
+        bsize as usize
+    }
+
+    /// The current CPU load estimated by Jack.
+    ///
+    /// This is a running average of the time it takes to execute a full process
+    /// cycle for all clients as a percentage of the real time available per
+    /// cycle determined by the buffer size and sample rate.
+    pub fn cpu_load(&self) -> f32 {
+        let load = unsafe { j::jack_cpu_load(self.client) };
+        load
+    }
+
     /// Start/Stop Jack's "freewheel" mode.
     ///
     /// When in "freewheel" mode, Jack no longer waits for any external event to
@@ -361,6 +389,23 @@ impl<T: JackHandler> Client<T> {
         match unsafe { j::jack_set_freewheel(self.client, onoff) } {
             0 => Ok(()),
             _ => Err(JackErr::FreewheelError),
+        }
+    }
+
+    /// Change the buffer size passed to the process callback.
+    ///
+    /// This operation stops the jack engine process cycle, then calls all
+    /// registered buffer size callback functions before restarting the process
+    /// cycle. This will cause a gap in the audio flow, so it should only be
+    /// done at appropriate stopping points.
+    pub fn set_buffer_size(&self, n_frames: usize) -> Result<(), JackErr> {
+        let n_frames = n_frames as u32;
+        let res = unsafe {
+            j::jack_set_buffer_size(self.client, n_frames)
+        };
+        match res {
+            0 => Ok(()),
+            _ => Err(JackErr::SetBufferSizeError),
         }
     }
 }

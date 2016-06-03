@@ -35,8 +35,8 @@ pub trait JackHandler {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, _n_frames: u32) -> i32 {
-        0
+    fn process(&mut self, _n_frames: u32) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever "freewheel" mode is entered or leaving.
@@ -44,13 +44,13 @@ pub trait JackHandler {
 
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change.
-    fn buffer_size(&mut self, _size: u32) -> i32 {
-        0
+    fn buffer_size(&mut self, _size: u32) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever the system sample rate changes.
-    fn sample_rate(&mut self, _srate: u32) -> i32 {
-        0
+    fn sample_rate(&mut self, _srate: u32) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever a client is registered or unregistered
@@ -64,24 +64,24 @@ pub trait JackHandler {
     /// # TODO
     /// * Possibly fix description, Jack API docs have same description
     /// for this as port registration.
-    fn port_rename(&mut self, _port_id: u32, _old_name: &str, _new_name: &str) -> i32 {
-        0
+    fn port_rename(&mut self, _port_id: u32, _old_name: &str, _new_name: &str) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever ports are connected/disconnected to/from each other.
     fn ports_connected(&mut self, _port_id_a: u32, _port_id_b: u32, _are_connected: bool) {}
 
     /// Called whenever the processing graph is reordered.
-    fn graph_reorder(&mut self) -> i32 {
-        0
+    fn graph_reorder(&mut self) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever an xrun occurs.
     ///
     /// An xrun is a buffer under or over run, which means some data has been
     /// missed.
-    fn xrun(&mut self) -> i32 {
-        0
+    fn xrun(&mut self) -> JackControl {
+        JackControl::Continue
     }
 
     /// Called whenever it is necessary to recompute the latencies for some or
@@ -162,7 +162,7 @@ extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
 
 extern "C" fn process<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
     let obj: &mut T = unsafe { from_void(data) };
-    obj.process(n_frames)
+    obj.process(n_frames).to_ffi()
 }
 
 extern "C" fn freewheel<T: JackHandler>(starting: i32, data: *mut c_void) {
@@ -176,12 +176,12 @@ extern "C" fn freewheel<T: JackHandler>(starting: i32, data: *mut c_void) {
 
 extern "C" fn buffer_size<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
     let obj: &mut T = unsafe { from_void(data) };
-    obj.buffer_size(n_frames)
+    obj.buffer_size(n_frames).to_ffi()
 }
 
 extern "C" fn sample_rate<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
     let obj: &mut T = unsafe { from_void(data) };
-    obj.sample_rate(n_frames)
+    obj.sample_rate(n_frames).to_ffi()
 }
 
 extern "C" fn client_registration<T: JackHandler>(name: *const i8,
@@ -214,7 +214,7 @@ extern "C" fn port_rename<T: JackHandler>(port_id: u32,
     let obj: &mut T = unsafe { from_void(data) };
     let old_name = unsafe { ffi::CStr::from_ptr(old_name).to_str().unwrap() };
     let new_name = unsafe { ffi::CStr::from_ptr(new_name).to_str().unwrap() };
-    obj.port_rename(port_id, old_name, new_name)
+    obj.port_rename(port_id, old_name, new_name).to_ffi()
 }
 
 extern "C" fn port_connect<T: JackHandler>(port_id_a: u32,
@@ -231,12 +231,12 @@ extern "C" fn port_connect<T: JackHandler>(port_id_a: u32,
 
 extern "C" fn graph_order<T: JackHandler>(data: *mut c_void) -> i32 {
     let obj: &mut T = unsafe { from_void(data) };
-    obj.graph_reorder()
+    obj.graph_reorder().to_ffi()
 }
 
 extern "C" fn xrun<T: JackHandler>(data: *mut c_void) -> i32 {
     let obj: &mut T = unsafe { from_void(data) };
-    obj.xrun()
+    obj.xrun().to_ffi()
 }
 
 extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, data: *mut c_void) {
@@ -258,7 +258,7 @@ extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, dat
 ///
 /// # TODO
 /// * Implement correctly. Freezes on my system.
-pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), JackErr>{
+pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), JackErr> {
     // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
     // j::jack_set_process_callback(client, None, ptr::null_mut());
     Ok(())

@@ -27,14 +27,14 @@ Jack API.
 
 * Creating & manipulating clients - completed, in `client.rs`
 * Setting Client Callbacks - completed, in `callbacks.rs`
-* Creating and managing client threads - none
-* Controlling & querying JACK server operation - none
-* Creating & manipulating ports - complete, but there is a major TODO. In `ports.rs` and some in `client.rs`
+* Creating and managing client threads - none, not a priority
+* Controlling & querying JACK server operation - completed, in `client.rs`
+* Creating & manipulating ports - mostly complete, some `unimplemented!()`. In `ports.rs` and some in `client.rs`
 * Looking up ports - completed, in `client.rs`
 * Managing and determining latency - none
 * Handling time - none
 * Transport and Timebase control - none
-* Controlling error/information output - none
+* Controlling error/information output - complete, in `lib.rs`
 * The non-callback API - none
 * Reading and writing MIDI data - none
 * Session API for clients. - none

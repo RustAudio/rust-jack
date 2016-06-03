@@ -7,6 +7,7 @@ mod callbacks;
 mod client;
 mod enums;
 mod flags;
+mod info;
 mod port;
 mod utils;
 
@@ -15,6 +16,7 @@ pub use client::Client;
 pub use enums::*;
 pub use flags::*;
 pub use port::Port;
+pub use info::set_info_callbacks;
 
 #[cfg(test)]
 mod tests {
