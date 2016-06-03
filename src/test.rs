@@ -42,14 +42,27 @@ impl JackHandler for TestHandler {
 }
 
 #[test]
+fn static_fns() {
+    Client::<TestHandler>::name_size();
+    Port::name_size();
+    Port::type_size();
+}
+
+#[test]
 fn test() {
+    // info/error handling
     set_info_callbacks(Some(info_handler), Some(error_handler));
-    let _ = Client::<TestHandler>::name_size();
+
+    // create client
     let mut client = Client::open("rj-test", NO_START_SERVER).unwrap();
     assert_eq!(client.status(), ClientStatus::empty());
     assert_eq!(client.name(), "rj-test");
+
+    // query parameters
     let _audio_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_AUDIO_TYPE) };
     let _midi_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_MIDI_TYPE) };
+
+    // test run
     client.activate(TestHandler::new()).unwrap();
     thread::sleep(time::Duration::from_secs(1));
     let tested_handler = client.deactivate().unwrap();
@@ -57,5 +70,7 @@ fn test() {
     for s in expected_called.iter() {
         assert!(tested_handler.callbacks_used.contains(s));
     };
+
+    // close
     client.close();
 }

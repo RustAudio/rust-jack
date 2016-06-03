@@ -1,6 +1,7 @@
 use std::{ffi, slice};
 use jack_sys as j;
 use flags::*;
+use enums::*;
 use utils;
 
 /// Converts a jack client handle and jack port handle in a `Port`. If either
@@ -53,11 +54,11 @@ impl Port {
     }
 
     /// Remove the port from the client, disconnecting any existing connections.
-    pub fn unregister(self) -> Result<(), ()> {
+    pub fn unregister(self) -> Result<(), JackErr> {
         let res = unsafe { j::jack_port_unregister(self.client, self.port) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::CallbackDeregistrationError),
         }
     }
 
@@ -149,12 +150,12 @@ impl Port {
 
     /// Set's the short name of the port. If the full name is longer than
     /// `Port::name_size()`, then it will be truncated.
-    pub fn set_name(&self, short_name: &str) -> Result<(), ()> {
+    pub fn set_name(&self, short_name: &str) -> Result<(), JackErr> {
         let short_name = ffi::CString::new(short_name).unwrap();
         let res = unsafe { j::jack_port_set_name(self.port, short_name.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortNamingError),
         }
     }
 
@@ -168,12 +169,12 @@ impl Port {
     ///
     /// Ports can have up to two aliases - if both are already set, this
     /// function will return an error.
-    pub fn set_alias(&self, alias: &str) -> Result<(), ()> {
+    pub fn set_alias(&self, alias: &str) -> Result<(), JackErr> {
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_set_alias(self.port, alias.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortAliasError),
         }
     }
 
@@ -181,19 +182,19 @@ impl Port {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate
     /// name for `self`.
-    pub fn unset_alias(&self, alias: &str) -> Result<(), ()> {
+    pub fn unset_alias(&self, alias: &str) -> Result<(), JackErr> {
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_unset_alias(self.port, alias.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortAliasError),
         }
     }
 
     /// Turn input monitoring for the port on or off.
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
-    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
+    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -201,14 +202,14 @@ impl Port {
         let res = unsafe { j::jack_port_request_monitor(self.port, onoff) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortMonitorError),
         }
     }
 
     /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is
     /// turned on if it was off, and turns it off if only one request has been
     /// made to turn it on. Otherwise it does nothing.
-    pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), ()> {
+    pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -216,7 +217,7 @@ impl Port {
         let res = unsafe { j::jack_port_ensure_monitor(self.port, onoff) };
         match res {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortMonitorError),
         }
     }
 
@@ -228,10 +229,10 @@ impl Port {
     /// Clients connecting their own ports are likely to use this function,
     /// while generic connection clients (e.g. patchbays) would use
     /// `Client::disconnect_ports()`.
-    pub fn disconnect(&self) -> Result<(), ()> {
+    pub fn disconnect(&self) -> Result<(), JackErr> {
         match unsafe { j::jack_port_disconnect(self.client, self.port) } {
             0 => Ok(()),
-            _ => Err(()),
+            _ => Err(JackErr::PortDisconnectionError),
         }
     }
 
