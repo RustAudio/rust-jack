@@ -129,9 +129,3 @@ bitflags! {
         const IS_TERMINAL = j::JackPortIsTerminal,
     }
 }
-
-/// Used by `JackHandler::latency()`.
-pub enum LatencyType {
-    Capture,
-    Playback,
-}
