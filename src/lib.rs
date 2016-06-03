@@ -19,7 +19,4 @@ pub use port::Port;
 pub use info::set_info_callbacks;
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn it_builds() {}
-}
+mod test;
