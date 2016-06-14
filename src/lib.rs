@@ -18,5 +18,9 @@ pub use flags::*;
 pub use port::Port;
 pub use info::set_info_callbacks;
 
+pub fn get_time() -> u64 {
+    unsafe { jack_sys::jack_get_time() }
+}
+
 #[cfg(test)]
 mod test;

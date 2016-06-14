@@ -17,6 +17,7 @@ pub enum JackErr {
     PortNotFound,
     PortRegistrationError,
     SetBufferSizeError,
+    TimeError,
     UnknownError,
 }
 

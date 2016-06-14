@@ -25,22 +25,16 @@ Sections based on the
 [main page](http://jackaudio.org/files/docs/html/index.html) sections on the
 Jack API.
 
-* Creating & manipulating clients - completed, in `client.rs`
-* Setting Client Callbacks - completed, in `callbacks.rs`
-* Creating and managing client threads - none, not a priority
-* Controlling & querying JACK server operation - completed, in `client.rs`
-* Creating & manipulating ports - mostly complete, some `unimplemented!()`. In `ports.rs` and some in `client.rs`
-* Looking up ports - completed, in `client.rs`
-* Managing and determining latency - none
-* Handling time - none
-* Transport and Timebase control - none
-* Controlling error/information output - complete, in `lib.rs`
-* The non-callback API - none
-* Reading and writing MIDI data - none
-* Session API for clients. - none
-* managing support for newer/older versions of JACK - none
-* the API for starting and controlling a JACK server - none
-* * Metadata API. - none
+### TODO
+* implement things with `unimplemented!()`
+* Managing and determining latency
+* Transport and Timebase control
+* The non-callback API
+* Reading and writing MIDI data
+* Session API for clients.
+* managing support for newer/older versions of JACK
+* the API for starting and controlling a JACK server
+* * Metadata API.
 
 ### Other TODOS
 * make safer
