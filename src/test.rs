@@ -54,8 +54,8 @@ fn test() {
     set_info_callbacks(Some(info_handler), Some(error_handler));
 
     // create client
-    let mut client = Client::open("rj-test", NO_START_SERVER).unwrap();
-    assert_eq!(client.status(), ClientStatus::empty());
+    let (mut client, status) = Client::open("rj-test", NO_START_SERVER).unwrap();
+    assert_eq!(status, ClientStatus::empty());
     assert_eq!(client.name(), "rj-test");
 
     // query parameters

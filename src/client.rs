@@ -26,7 +26,6 @@ pub struct CycleTimes {
 pub struct Client<T: JackHandler> {
     client: *mut j::jack_client_t,
     handler: *mut T,
-    status: ClientStatus,
 }
 
 impl<T: JackHandler> Client<T> {
@@ -55,8 +54,8 @@ impl<T: JackHandler> Client<T> {
     ///
     /// Although the client may be successful in opening, there still may be
     /// some errors minor errors when attempting to opening. To access these,
-    /// check `Client::status()`.
-    pub fn open(client_name: &str, options: ClientOptions) -> Result<Self, JackErr> {
+    /// check the returned `ClientStatus`.
+    pub fn open(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), JackErr> {
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
@@ -68,11 +67,10 @@ impl<T: JackHandler> Client<T> {
         if client.is_null() {
             Err(JackErr::ClientError(status))
         } else {
-            Ok(Client {
+            Ok((Client {
                 client: client,
                 handler: ptr::null_mut(),
-                status: status,
-            })
+            }, status))
         }
     }
 
@@ -83,15 +81,11 @@ impl<T: JackHandler> Client<T> {
         drop(self)
     }
 
-    /// Get the status of the client.
-    pub fn status(&self) -> ClientStatus {
-        self.status
-    }
-
     /// Get the name of the current client. This may differ from the name
     /// requested by `Client::open` as Jack will may rename a client if
-    /// necessary (ie: name collision, name too long). If the name has changed,
-    /// it should be indicated by `Client::status`.
+    /// necessary (ie: name collision, name too long). The name will only
+    /// the be different than the one passed to `Client::open` if the
+    /// `ClientStatus` was `NAME_NOT_UNIQUE`.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe {
             let ptr = j::jack_get_client_name(self.client);
