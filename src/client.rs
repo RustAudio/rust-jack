@@ -138,7 +138,7 @@ impl<T: JackHandler> Client<T> {
         }
     }
 
-    /// Returns a vector of ports that match the specified arguments
+    /// Returns a vector of port names that match the specified arguments
     ///
     /// `port_name_pattern` - A regular expression used to select ports by
     /// name. If `None` or zero lengthed, no selection based on name will be
