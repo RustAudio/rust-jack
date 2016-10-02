@@ -79,7 +79,9 @@ impl<T: JackHandler> Client<T> {
     /// Disconnects the client from the Jack server. This does not need to
     /// manually be called, as the client will automatically close when the
     /// client object is dropped.
-    pub fn close(self) {}
+    pub fn close(self) {
+        drop(self)
+    }
 
     /// Get the status of the client.
     pub fn status(&self) -> ClientStatus {
