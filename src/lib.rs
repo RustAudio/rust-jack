@@ -12,7 +12,7 @@ mod port;
 mod utils;
 
 pub use callbacks::JackHandler;
-pub use client::Client;
+pub use client::{Client, ActiveClient, JackClient, client_name_size};
 pub use enums::*;
 pub use flags::*;
 pub use port::{Port, Input, Output, UnknownOwned, Unowned, port_name_size, port_type_size};

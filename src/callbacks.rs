@@ -24,8 +24,8 @@ pub trait JackHandler {
     /// another thread. A typical funcion might set a flag or write to a pipe so
     /// that the rest of the application knows that the Jack client thread has
     /// shut down.
-
     fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
+
     /// Called whenever there is work to be done.
     ///
     /// It needs to be suitable for real-time execution. That means that it

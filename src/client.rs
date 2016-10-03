@@ -6,8 +6,16 @@ use enums::*;
 use flags::*;
 use port::*;
 use utils;
-use std::mem::transmute;
 use callbacks::JackHandler;
+use std::mem;
+
+/// The maximum length of the Jack client name string. Unlike the "C" Jack
+/// API, this does not take into account the final `NULL` character and
+/// instead corresponds directly to `.len()`. This value is constant.
+pub fn client_name_size() -> usize {
+    let s = unsafe { j::jack_client_name_size() - 1 };
+    s as usize
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct CycleTimes {
@@ -24,62 +32,71 @@ pub struct CycleTimes {
 /// // TODO: make example
 /// ```
 #[derive(Debug)]
-pub struct Client<T: JackHandler> {
+pub struct Client {
     client: *mut j::jack_client_t,
-    handler: *mut T,
 }
 
-impl<T: JackHandler> Client<T> {
-    /// The maximum length of the Jack client name string. Unlike the "C" Jack
-    /// API, this does not take into account the final `NULL` character and
-    /// instead corresponds directly to `.len()`. This value is constant.
-    pub fn name_size() -> usize {
-        let s = unsafe { j::jack_client_name_size() - 1 };
-        s as usize
+#[derive(Debug)]
+pub struct ActiveClient<JH: JackHandler> {
+    client: *mut j::jack_client_t,
+    handler: *mut JH,
+}
+
+unsafe impl JackClient for Client {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t { self.client }
+}
+
+unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t { self.client }
+}
+
+pub unsafe trait JackClient: Sized {
+
+    #[inline(always)]
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t;
+
+    /// Manually close the client, deactivating if necessary.
+    /// This will happen automatically on drop.
+    fn close(self) -> () { drop(self) }
+
+    /// The sample rate of the jack system, as set by the user when jackd was
+    /// started.
+    fn sample_rate(&self) -> usize {
+        let srate = unsafe { j::jack_get_sample_rate(self.client_ptr()) };
+        srate as usize
     }
+
+    /// The current maximum size that will every be passed to the process
+    /// callback.
+    ///
+    /// It should only be used *before* the client has been activated. This size
+    /// may change,c lients that depend on it must register a buffer size
+    /// callback so they will be notified if it does.
+    fn buffer_size(&self) -> usize {
+        let bsize = unsafe { j::jack_get_buffer_size(self.client_ptr()) };
+        bsize as usize
+    }
+
+    /// The current CPU load estimated by Jack.
+    ///
+    /// This is a running average of the time it takes to execute a full process
+    /// cycle for all clients as a percentage of the real time available per
+    /// cycle determined by the buffer size and sample rate.
+    fn cpu_load(&self) -> f32 {
+        let load = unsafe { j::jack_cpu_load(self.client_ptr()) };
+        load
+    }
+
 
     /// The buffer size of a port type
     ///
     /// # Unsafe
     ///
     /// * This function may only be called in a buffer size callback.
-    pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
+    unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         let port_type = ffi::CString::new(port_type).unwrap();
-        let n = j::jack_port_type_get_buffer_size(self.client, port_type.as_ptr());
+        let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
         n
-    }
-
-    /// Opens a Jack client with the given name and options. If the client is
-    /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
-    ///
-    /// Although the client may be successful in opening, there still may be
-    /// some errors minor errors when attempting to opening. To access these,
-    /// check the returned `ClientStatus`.
-    pub fn open(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), JackErr> {
-        let mut status_bits = 0;
-        let client = unsafe {
-            let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(ffi::CString::new(client_name).unwrap().as_ptr(),
-                                options.bits(),
-                                &mut status_bits)
-        };
-        let status = ClientStatus::from_bits(status_bits).unwrap_or(UNKNOWN_ERROR);
-        if client.is_null() {
-            Err(JackErr::ClientError(status))
-        } else {
-            Ok((Client {
-                client: client,
-                handler: ptr::null_mut(),
-            }, status))
-        }
-    }
-
-    /// Disconnects the client from the Jack server. This does not need to
-    /// manually be called, as the client will automatically close when the
-    /// client object is dropped.
-    pub fn close(self) {
-        drop(self)
     }
 
     /// Get the name of the current client. This may differ from the name
@@ -87,16 +104,16 @@ impl<T: JackHandler> Client<T> {
     /// necessary (ie: name collision, name too long). The name will only
     /// the be different than the one passed to `Client::open` if the
     /// `ClientStatus` was `NAME_NOT_UNIQUE`.
-    pub fn name<'a>(&'a self) -> &'a str {
+    fn name<'a>(&'a self) -> &'a str {
         unsafe {
-            let ptr = j::jack_get_client_name(self.client);
+            let ptr = j::jack_get_client_name(self.client_ptr());
             let cstr = ffi::CStr::from_ptr(ptr);
             cstr.to_str().unwrap()
         }
     }
 
     /// Get the uuid of the current client.
-    pub fn uuid<'a>(&'a self) -> &'a str {
+    fn uuid<'a>(&'a self) -> &'a str {
         self.uuid_by_name(self.name()).unwrap()
     }
 
@@ -105,17 +122,17 @@ impl<T: JackHandler> Client<T> {
     /// # TODO
     /// * Integrate a pthread library
     /// * Implement, do people need this though?
-    pub fn thread_id<P>(&self) -> P {
+    fn thread_id<P>(&self) -> P {
         unimplemented!();
     }
 
     /// Get the name of the client with the UUID specified by `uuid`. If the
     /// client is found then `Some(name)` is returned, if not, then `None` is
     /// returned.
-    pub fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
+    fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
         unsafe {
             let uuid = ffi::CString::new(uuid).unwrap();
-            let name_ptr = j::jack_get_client_name_by_uuid(self.client, uuid.as_ptr());
+            let name_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), uuid.as_ptr());
             if name_ptr.is_null() {
                 None
             } else {
@@ -127,10 +144,10 @@ impl<T: JackHandler> Client<T> {
     /// Get the uuid of the client with the name specified by `name`. If the
     /// client is found then `Some(uuid)` is returned, if not, then `None` is
     /// returned.
-    pub fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
+    fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
         unsafe {
             let name = ffi::CString::new(name).unwrap();
-            let uuid_ptr = j::jack_get_client_name_by_uuid(self.client, name.as_ptr());
+            let uuid_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), name.as_ptr());
             if uuid_ptr.is_null() {
                 None
             } else {
@@ -151,7 +168,7 @@ impl<T: JackHandler> Client<T> {
     ///
     /// `flags` - A value used to select ports by their flags. Use
     /// `PortFlags::empty()` for no flag selection.
-    pub fn ports(&self,
+    fn ports(&self,
                  port_name_pattern: Option<&str>,
                  type_name_pattern: Option<&str>,
                  flags: PortFlags)
@@ -160,23 +177,124 @@ impl<T: JackHandler> Client<T> {
         let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = flags.bits() as u64;
         unsafe {
-            utils::collect_strs(j::jack_get_ports(self.client, pnp.as_ptr(), tnp.as_ptr(), flags))
-        }
-    }
-
-    /// Get a `Port` by its port name.
-    pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
-        let port_name = ffi::CString::new(port_name).unwrap();
-        unsafe {
-            ptrs_to_port(self.client,
-                         j::jack_port_by_name(self.client, port_name.as_ptr()))
+            utils::collect_strs(j::jack_get_ports(self.client_ptr(), pnp.as_ptr(), tnp.as_ptr(), flags))
         }
     }
 
     /// Get a `Port` by its port id.
-    pub fn port_by_id(&self, port_id: u32) -> Option<Port<Unowned>> {
-        unsafe { ptrs_to_port(self.client, j::jack_port_by_id(self.client, port_id)) }
+    fn port_by_id(&self, port_id: u32) -> Option<Port<Unowned>> {
+        unsafe { ptrs_to_port(self.client_ptr(), j::jack_port_by_id(self.client_ptr(), port_id)) }
     }
+
+    /// Get a `Port` by its port name.
+    fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
+        let port_name = ffi::CString::new(port_name).unwrap();
+        unsafe {
+            ptrs_to_port(self.client_ptr(),
+                         j::jack_port_by_name(self.client_ptr(), port_name.as_ptr()))
+        }
+    }
+
+    /// The estimated time in frames that has passed since the Jack server began
+    /// the current process cycle.
+    fn frames_since_cycle_start(&self) -> u32 {
+        unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
+    }
+
+    /// The estimated current time in frames. This function is intended for use
+    /// in other threads (not the process callback). The return value can be
+    /// compared with the value of `last_frame_time` to relate time in other
+    /// threads to Jack time.
+    fn frame_time(&self) -> u32 {
+        unsafe { j::jack_frame_time(self.client_ptr()) }
+    }
+
+    /// The precise time at the start of the current process cycle. This
+    /// function may only be used from the process callback, and can be used to
+    /// interpret timestamps generated by `self.frame_time()` in other threads,
+    /// with respect to the current process cycle.
+    fn last_frame_time(&self) -> u32 {
+        unsafe { j::jack_last_frame_time(self.client_ptr()) }
+    }
+
+    /// This function may only be used from the process callback. It provides
+    /// the internal cycle timing information as used by most of the other time
+    /// related functions. This allows the caller to map between frame counts
+    /// and microseconds with full precision (i.e. without rounding frame times
+    /// to integers), and also provides e.g. the microseconds time of the start
+    /// of the current cycle directly (it has to be computed otherwise).
+    ///
+    /// `Err(JackErr::TimeError)` is returned on failure.
+    fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
+        let mut current_frames: u32 = 0;
+        let mut current_usecs: u64 = 0;
+        let mut next_usecs: u64 = 0;
+        let mut period_usecs: f32 = 0.0;
+        let res = unsafe {
+            j::jack_get_cycle_times(self.client_ptr(),
+                                    &mut current_frames,
+                                    &mut current_usecs,
+                                    &mut next_usecs,
+                                    &mut period_usecs)
+        };
+        match res {
+            0 => {
+                Ok(CycleTimes {
+                    current_frames: current_frames,
+                    current_usecs: current_usecs,
+                    next_usecs: next_usecs,
+                    period_usecs: period_usecs,
+                })
+            },
+            _ => Err(JackErr::TimeError),
+        }
+    }
+
+    /// The estimated time in microseconds of the specified frame time
+    fn frames_to_time(&self, n_frames: u32) -> u64 {
+        unsafe { j::jack_frames_to_time(self.client_ptr(), n_frames) }
+    }
+
+    /// The estimated time in frames for the specified system time.
+    fn time_to_frames(&self, t: u64) -> u32 {
+        unsafe { j::jack_time_to_frames(self.client_ptr(), t) }
+    }
+
+    /// Returns `true` if the port `port` belongs to this client.
+    fn is_mine<PKind: PortKind>(&self, port: &Port<PKind>) -> bool {
+        match unsafe { j::jack_port_is_mine(self.client_ptr(), port::port_pointer(port)) } {
+            1 => true,
+            _ => false,
+        }
+    }
+}
+
+impl Client {
+
+    /// Opens a Jack client with the given name and options. If the client is
+    /// successfully opened, then `Ok(client)` is returned. If there is a
+    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
+    ///
+    /// Although the client may be successful in opening, there still may be
+    /// some errors minor errors when attempting to opening. To access these,
+    /// check the returned `ClientStatus`.
+    pub fn open(client_name: &str, options: ClientOptions) ->
+            Result<(Self, ClientStatus), JackErr> {
+        let mut status_bits = 0;
+        let client = unsafe {
+            let client_name = ffi::CString::new(client_name).unwrap();
+            j::jack_client_open(ffi::CString::new(client_name).unwrap().as_ptr(),
+                                options.bits(),
+                                &mut status_bits)
+        };
+        let status = ClientStatus::from_bits(status_bits).unwrap_or(UNKNOWN_ERROR);
+        if client.is_null() {
+            Err(JackErr::ClientError(status))
+        } else {
+            Ok((Client { client: client, }, status))
+        }
+    }
+
 
     /// Tell the Jack server that the program is ready to start processing
     /// audio. Jack will call the methods specified by the `JackHandler` trait, from `handler`.
@@ -186,7 +304,7 @@ impl<T: JackHandler> Client<T> {
     ///
     /// `handler` is consumed, but it is returned when `Client::deactivate` is
     /// called.
-    pub fn activate(&mut self, handler: T) -> Result<(), JackErr> {
+    pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
         let handler = try!(unsafe { callbacks::register_callbacks(self.client, handler) });
         if handler.is_null() {
             Err(JackErr::CallbackRegistrationError)
@@ -194,34 +312,21 @@ impl<T: JackHandler> Client<T> {
             let res = unsafe { j::jack_activate(self.client) };
             match res {
                 0 => {
-                    self.handler = handler;
-                    Ok(())
+                    let client = self.client;
+
+                    // Don't run destructor -- we want the client to stay open
+                    mem::forget(self);
+
+                    Ok(ActiveClient {
+                        client: client,
+                        handler: handler,
+                    })
                 }
                 _ => {
                     unsafe { Box::from_raw(handler) };
                     Err(JackErr::ClientActivationError)
                 }
             }
-        }
-    }
-
-    /// Tell the Jack server to remove this client from the process graph. Also,
-    /// disconnect all ports belonging to it since inactive clients have no port
-    /// connections.
-    ///
-    /// The `handler` that was used for `Client::activate` is returned on
-    /// success. Its state may have changed due to Jack calling its methods.
-    pub fn deactivate(&mut self) -> Result<Box<T>, JackErr> {
-        if self.handler.is_null() {
-            return Err(JackErr::InvalidDeactivation);
-        }
-        let res = unsafe { j::jack_deactivate(self.client) };
-        let handler_ptr = self.handler;
-        self.handler = ptr::null_mut();
-        try!(unsafe { callbacks::clear_callbacks(self.client) });
-        match res {
-            0 => Ok(unsafe { Box::from_raw(handler_ptr) }),
-            _ => Err(JackErr::ClientDeactivationError),
         }
     }
 
@@ -275,14 +380,6 @@ impl<T: JackHandler> Client<T> {
         match port {
             Some(p) => Ok(unsafe{ claim_kind(p) }),
             None => Err(JackErr::PortRegistrationError),
-        }
-    }
-
-    /// Returns `true` if the port `port` belongs to this client.
-    pub fn is_mine<PKind: PortKind>(&self, port: &Port<PKind>) -> bool {
-        match unsafe { j::jack_port_is_mine(self.client, port::port_pointer(port)) } {
-            1 => true,
-            _ => false,
         }
     }
 
@@ -347,34 +444,6 @@ impl<T: JackHandler> Client<T> {
         }
     }
 
-    /// The sample rate of the jack system, as set by the user when jackd was
-    /// started.
-    pub fn sample_rate(&self) -> usize {
-        let srate = unsafe { j::jack_get_sample_rate(self.client) };
-        srate as usize
-    }
-
-    /// The current maximum size that will every be passed to the process
-    /// callback.
-    ///
-    /// It should only be used *before* the client has been activated. This size
-    /// may change,c lients that depend on it must register a buffer size
-    /// callback so they will be notified if it does.
-    pub fn buffer_size(&self) -> usize {
-        let bsize = unsafe { j::jack_get_buffer_size(self.client) };
-        bsize as usize
-    }
-
-    /// The current CPU load estimated by Jack.
-    ///
-    /// This is a running average of the time it takes to execute a full process
-    /// cycle for all clients as a percentage of the real time available per
-    /// cycle determined by the buffer size and sample rate.
-    pub fn cpu_load(&self) -> f32 {
-        let load = unsafe { j::jack_cpu_load(self.client) };
-        load
-    }
-
     /// Start/Stop Jack's "freewheel" mode.
     ///
     /// When in "freewheel" mode, Jack no longer waits for any external event to
@@ -413,76 +482,6 @@ impl<T: JackHandler> Client<T> {
             _ => Err(JackErr::SetBufferSizeError),
         }
     }
-
-    /// The estimated time in frames that has passed since the Jack server began
-    /// the current process cycle.
-    pub fn frames_since_cycle_start(&self) -> u32 {
-        unsafe { j::jack_frames_since_cycle_start(self.client) }
-    }
-
-    /// The estimated current time in frames. This function is intended for use
-    /// in other threads (not the process callback). The return value can be
-    /// compared with the value of `last_frame_time` to relate time in other
-    /// threads to Jack time.
-    pub fn frame_time(&self) -> u32 {
-        unsafe { j::jack_frame_time(self.client) }
-    }
-
-    /// The precise time at the start of the current process cycle. This
-    /// function may only be used from the process callback, and can be used to
-    /// interpret timestamps generated by `self.frame_time()` in other threads,
-    /// with respect to the current process cycle.
-    pub fn last_frame_time(&self) -> u32 {
-        unsafe { j::jack_last_frame_time(self.client) }
-    }
-
-    /// This function may only be used from the process callback. It provides
-    /// the internal cycle timing information as used by most of the other time
-    /// related functions. This allows the caller to map between frame counts
-    /// and microseconds with full precision (i.e. without rounding frame times
-    /// to integers), and also provides e.g. the microseconds time of the start
-    /// of the current cycle directly (it has to be computed otherwise).
-    ///
-    /// `Err(JackErr::TimeError)` is returned on failure.
-    pub fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
-        let mut current_frames: u32 = 0;
-        let mut current_usecs: u64 = 0;
-        let mut next_usecs: u64 = 0;
-        let mut period_usecs: f32 = 0.0;
-        let res = unsafe {
-            j::jack_get_cycle_times(self.client,
-                                    &mut current_frames,
-                                    &mut current_usecs,
-                                    &mut next_usecs,
-                                    &mut period_usecs)
-        };
-        match res {
-            0 => {
-                Ok(CycleTimes {
-                    current_frames: current_frames,
-                    current_usecs: current_usecs,
-                    next_usecs: next_usecs,
-                    period_usecs: period_usecs,
-                })
-            },
-            _ => Err(JackErr::TimeError),
-        }
-    }
-
-    /// The estimated time in microseconds of the specified frame time
-    pub fn frames_to_time(&self, n_frames: u32) -> u64 {
-        unsafe { j::jack_frames_to_time(self.client, n_frames) }
-    }
-
-    /// The estimated time in frames for the specified system time.
-    pub fn time_to_frames(&self, t: u64) -> u32 {
-        unsafe { j::jack_time_to_frames(self.client, t) }
-    }
-
-    pub fn client_ptr(&self) -> &j::jack_client_t {
-        unsafe { transmute(self.client) }
-    }
-
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with this client.
     pub fn unregister_port<OPKind: OwnedPortKind>(&mut self, port: Port<OPKind>) -> Result<(), JackErr> {
@@ -490,13 +489,73 @@ impl<T: JackHandler> Client<T> {
     }
 }
 
-/// Closes the client, no need to manually call `Client::close()`.
-impl<T: JackHandler> Drop for Client<T> {
+impl<JH: JackHandler> ActiveClient<JH> {
+    /// Tell the Jack server to remove this client from the process graph. Also,
+    /// disconnect all ports belonging to it since inactive clients have no port
+    /// connections.
+    ///
+    /// The `handler` that was used for `Client::activate` is returned on
+    /// success. Its state may have changed due to Jack calling its methods.
+    ///
+    /// In the case of error, the `Client` is destroyed because its state is
+    /// unknown, and it is therefore unsafe to continue using.
+    pub fn deactivate(self) -> Result<(Client, Box<JH>), JackErr> {
+        unsafe {
+            let client = self.client;
+            let handler = self.handler;
+
+            // Prevent destructor from running, as this would cause double-deactivation
+            mem::forget(self);
+
+            let res = match j::jack_deactivate(client) {
+                // We own the handler post-deactivation
+                0 => Ok(Box::from_raw(handler)),
+
+                // We may still own the handler here, but it's not safe to say
+                // without more information about the error condition
+                _ => Err(JackErr::ClientDeactivationError)
+            };
+
+            let callback_res = callbacks::clear_callbacks(client);
+
+            match (res, callback_res) {
+                (Ok(handler), Ok(())) =>
+                    Ok(( Client { client: client }, handler )),
+                (Err(err), _) | (_, Err(err)) => {
+                    // We've invalidated the client, so it must be closed
+                    j::jack_client_close(client);
+                    Err(err)
+                }
+            }
+        }
+    }
+}
+
+/// Closes the client, no need to manually call `JackClient::close()`.
+impl Drop for Client {
     fn drop(&mut self) {
-        let _ = self.deactivate(); // may be Ok or Err, doesn't matter. TODO: fix style
         debug_assert!(!self.client.is_null()); // Rep invariant
-        let res = unsafe { j::jack_client_close(self.client) };
+
+        // Client isn't active, so no need to deactivate
+
+        let res = unsafe { j::jack_client_close(self.client) }; // close the client
         assert_eq!(res, 0);
         self.client = ptr::null_mut();
+    }
+}
+
+/// Closes the client, no need to manually call `JackClient::close()`.
+impl<JH: JackHandler> Drop for ActiveClient<JH> {
+    fn drop(&mut self) {
+        unsafe {
+            debug_assert!(!self.client.is_null()); // Rep invariant
+
+            j::jack_deactivate(self.client); // result doesn't matter
+            drop( Box::from_raw(self.handler) ); // drop the handler
+
+            let res = j::jack_client_close(self.client); // close the client
+            assert_eq!(res, 0);
+            self.client = ptr::null_mut();
+        }
     }
 }

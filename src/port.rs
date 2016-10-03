@@ -1,6 +1,6 @@
 use std::{ffi, slice};
 use jack_sys as j;
-use client::Client;
+use client::*;
 use callbacks::JackHandler;
 use flags::*;
 use enums::*;
@@ -113,18 +113,20 @@ pub struct Port<Kind: PortKind> {
     buffer_size: u32,
 }
 
+/*
 // It's only safe to change the given port as long as there are no other
 // references to the port. The client must be the client used to create
 // the port and must also be alive for the duration of the borrow.
 pub fn port_mut_pointer<'a, OKind: OwnedPortKind, T: JackHandler>(
-    port: &'a mut Port<OKind>, owner_client: &'a Client<T>) -> &'a mut j::jack_port_t {
+    port: &'a mut Port<OKind>, owner_client: &'a mut Client) -> &'a mut j::jack_port_t {
     unsafe {
         assert_eq!(
-            owner_client.client_ptr() as *const j::jack_client_t,
+            owner_client.client_ as *mut j::jack_client_t,
             port.client as *const j::jack_client_t);
         transmute(port.port)
     }
 }
+*/
 
 impl Port<Input> {
     pub fn input_buffer(&self) -> &[f32] {
@@ -149,7 +151,7 @@ impl Port<Output> {
 impl<OKind: OwnedPortKind> Port<OKind> {
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
-    pub fn unregister<T: JackHandler>(self, client: &mut Client<T>) -> Result<(), JackErr> {
+    pub fn unregister(self, client: &mut Client) -> Result<(), JackErr> {
         let res = unsafe {
             assert_eq!(client.client_ptr() as *const j::jack_client_t, self.client as *const j::jack_client_t);
             j::jack_port_unregister(self.client, self.port)
@@ -293,7 +295,7 @@ impl<Kind: PortKind> Port<Kind> {
     ///
     /// * Can't be used in the callback for graph reordering under certain
     /// conditions.
-    pub unsafe fn connections<T: JackHandler>(&self, client: &Client<T>) -> Vec<String> {
+    pub unsafe fn connections<T: JackHandler>(&self, _client: &Client) -> Vec<String> {
         let connections_ptr = {
             let ptr = if j::jack_port_is_mine(self.client, self.port) == 1 {
                 j::jack_port_get_connections(self.port)
