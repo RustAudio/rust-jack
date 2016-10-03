@@ -44,8 +44,8 @@ impl JackHandler for TestHandler {
 #[test]
 fn static_fns() {
     Client::<TestHandler>::name_size();
-    Port::name_size();
-    Port::type_size();
+    port_name_size();
+    port_type_size();
 }
 
 #[test]

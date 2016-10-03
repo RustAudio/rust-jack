@@ -6,6 +6,7 @@ use enums::*;
 use flags::*;
 use port::*;
 use utils;
+use std::mem::transmute;
 use callbacks::JackHandler;
 
 #[derive(Clone, Copy, Debug)]
@@ -164,7 +165,7 @@ impl<T: JackHandler> Client<T> {
     }
 
     /// Get a `Port` by its port name.
-    pub fn port_by_name(&self, port_name: &str) -> Option<Port> {
+    pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
         let port_name = ffi::CString::new(port_name).unwrap();
         unsafe {
             ptrs_to_port(self.client,
@@ -173,7 +174,7 @@ impl<T: JackHandler> Client<T> {
     }
 
     /// Get a `Port` by its port id.
-    pub fn port_by_id(&self, port_id: u32) -> Option<Port> {
+    pub fn port_by_id(&self, port_id: u32) -> Option<Port<Unowned>> {
         unsafe { ptrs_to_port(self.client, j::jack_port_by_id(self.client, port_id)) }
     }
 
@@ -253,15 +254,15 @@ impl<T: JackHandler> Client<T> {
     ///
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
-    pub fn register_port(&mut self,
+    pub fn register_port<OPKind: OwnedPortKind>(&mut self,
                          port_name: &str,
                          port_type: &str,
                          flags: PortFlags,
                          buffer_size: Option<usize>)
-                         -> Result<Port, JackErr> {
+                         -> Result<Port<OPKind>, JackErr> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let port_type = ffi::CString::new(port_type).unwrap();
-        let port_flags = flags.bits() as u64;
+        let port_flags = (flags | OPKind::necessary_flags()).bits() as u64;
         let buffer_size = buffer_size.unwrap_or(0) as u64;
         let port = unsafe {
             let ptr = j::jack_port_register(self.client,
@@ -272,16 +273,16 @@ impl<T: JackHandler> Client<T> {
             ptrs_to_port(self.client, ptr)
         };
         match port {
-            Some(p) => Ok(p),
+            Some(p) => Ok(unsafe{ claim_kind(p) }),
             None => Err(JackErr::PortRegistrationError),
         }
     }
 
     /// Returns `true` if the port `port` belongs to this client.
-    pub fn is_mine(&self, port: &Port) -> bool {
+    pub fn is_mine<PKind: PortKind>(&self, port: &Port<PKind>) -> bool {
         match unsafe { j::jack_port_is_mine(self.client, port::port_pointer(port)) } {
-            0 => false,
-            _ => true,
+            1 => true,
+            _ => false,
         }
     }
 
@@ -478,16 +479,24 @@ impl<T: JackHandler> Client<T> {
         unsafe { j::jack_time_to_frames(self.client, t) }
     }
 
+    pub fn client_ptr(&self) -> &j::jack_client_t {
+        unsafe { transmute(self.client) }
+    }
+
+    /// Remove the port from the client, disconnecting any existing connections.
+    /// The port must have been created with this client.
+    pub fn unregister_port<OPKind: OwnedPortKind>(&mut self, port: Port<OPKind>) -> Result<(), JackErr> {
+        port.unregister(self)
+    }
 }
 
 /// Closes the client, no need to manually call `Client::close()`.
 impl<T: JackHandler> Drop for Client<T> {
     fn drop(&mut self) {
         let _ = self.deactivate(); // may be Ok or Err, doesn't matter. TODO: fix style
-        if !self.client.is_null() {
-            let res = unsafe { j::jack_client_close(self.client) };
-            assert_eq!(res, 0);
-            self.client = ptr::null_mut();
-        }
+        debug_assert!(!self.client.is_null()); // Rep invariant
+        let res = unsafe { j::jack_client_close(self.client) };
+        assert_eq!(res, 0);
+        self.client = ptr::null_mut();
     }
 }
