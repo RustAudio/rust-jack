@@ -1,4 +1,5 @@
 extern crate jack;
+use jack::JackClient;
 use std::io;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::str::FromStr;
@@ -6,14 +7,14 @@ use std::str::FromStr;
 pub struct SinWave {
     frame_t: f64,
     frequency: f64,
-    out_port: jack::Port,
+    out_port: jack::Port<jack::Output>,
     time: f64,
     receiver: Receiver<f64>,
     sender: Sender<f64>,
 }
 
 impl SinWave {
-    pub fn new(out_port: jack::Port, freq: f64, sample_rate: f64) -> Self {
+    pub fn new(out_port: jack::Port<jack::Output>, freq: f64, sample_rate: f64) -> Self {
         let (tx, rx) = channel();
         SinWave {
             frame_t: 1.0 / sample_rate,
@@ -31,9 +32,9 @@ impl SinWave {
 }
 
 impl jack::JackHandler for SinWave {
-    fn process(&mut self, n_frames: u32) -> jack::JackControl {
+    fn process(&mut self, process_scope: &mut jack::ProcessScope) -> jack::JackControl {
         // Get output buffer
-        let out: &mut [f32] = unsafe { self.out_port.as_slice_mut(n_frames) };
+        let out: &mut [f32] = self.out_port.output_buffer(process_scope);
 
         // Check frequency requests
         while let Ok(f) = self.receiver.try_recv() {
@@ -69,11 +70,11 @@ fn main() {
         .unwrap();
     let app = SinWave::new(out_port, 220.0, client.sample_rate() as f64);
     let freq_request = app.frequency_requester();
-    client.activate(app).unwrap();
+    let active_client = client.activate(app).unwrap();
 
     while let Some(f) = read_freq() {
         freq_request.send(f).unwrap();
     }
 
-    client.deactivate().unwrap();
+    active_client.deactivate().unwrap();
 }

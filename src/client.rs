@@ -39,7 +39,7 @@ pub struct Client {
 #[derive(Debug)]
 pub struct ActiveClient<JH: JackHandler> {
     client: *mut j::jack_client_t,
-    handler: *mut JH,
+    handler: *mut (JH, *mut j::jack_client_t),
 }
 
 unsafe impl JackClient for Client {
@@ -305,26 +305,28 @@ impl Client {
     /// `handler` is consumed, but it is returned when `Client::deactivate` is
     /// called.
     pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
-        let handler = try!(unsafe { callbacks::register_callbacks(self.client, handler) });
-        if handler.is_null() {
-            Err(JackErr::CallbackRegistrationError)
-        } else {
-            let res = unsafe { j::jack_activate(self.client) };
-            match res {
-                0 => {
-                    let client = self.client;
+        unsafe {
+            let handler_ptr = try!(callbacks::register_callbacks(self.client, handler));
+            if handler_ptr.is_null() {
+                Err(JackErr::CallbackRegistrationError)
+            } else {
+                let res = j::jack_activate(self.client);
+                match res {
+                    0 => {
+                        let client = self.client;
 
-                    // Don't run destructor -- we want the client to stay open
-                    mem::forget(self);
+                        // Don't run destructor -- we want the client to stay open
+                        mem::forget(self);
 
-                    Ok(ActiveClient {
-                        client: client,
-                        handler: handler,
-                    })
-                }
-                _ => {
-                    unsafe { Box::from_raw(handler) };
-                    Err(JackErr::ClientActivationError)
+                        Ok(ActiveClient {
+                            client: client,
+                            handler: handler_ptr,
+                        })
+                    }
+                    _ => {
+                        drop(Box::from_raw(handler_ptr));
+                        Err(JackErr::ClientActivationError)
+                    }
                 }
             }
         }
@@ -499,17 +501,17 @@ impl<JH: JackHandler> ActiveClient<JH> {
     ///
     /// In the case of error, the `Client` is destroyed because its state is
     /// unknown, and it is therefore unsafe to continue using.
-    pub fn deactivate(self) -> Result<(Client, Box<JH>), JackErr> {
+    pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
         unsafe {
             let client = self.client;
-            let handler = self.handler;
+            let handler_ptr = self.handler;
 
             // Prevent destructor from running, as this would cause double-deactivation
             mem::forget(self);
 
             let res = match j::jack_deactivate(client) {
                 // We own the handler post-deactivation
-                0 => Ok(Box::from_raw(handler)),
+                0 => Ok(Box::from_raw(handler_ptr)),
 
                 // We may still own the handler here, but it's not safe to say
                 // without more information about the error condition
@@ -519,8 +521,10 @@ impl<JH: JackHandler> ActiveClient<JH> {
             let callback_res = callbacks::clear_callbacks(client);
 
             match (res, callback_res) {
-                (Ok(handler), Ok(())) =>
-                    Ok(( Client { client: client }, handler )),
+                (Ok(handler_ptr), Ok(())) => {
+                    let (handler, _) = *handler_ptr;
+                    Ok(( Client { client: client }, handler ))
+                },
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed
                     j::jack_client_close(client);

@@ -4,6 +4,28 @@ use jack_sys as j;
 use enums::*;
 use flags::*;
 
+pub struct ProcessScope {
+    // To be used _only_ for runtime verification that the client who wrote
+    // that the only ports being used are ones created by the client whose
+    // handler is being run.
+    client: *mut j::jack_client_t,
+
+    // Used to allow safe access to IO port buffers
+    n_frames: u32,
+}
+
+impl ProcessScope {
+    #[inline(always)]
+    pub fn client_equals(&self, client: *mut j::jack_client_t) -> bool {
+        self.client == client
+    }
+
+    #[inline(always)]
+    pub fn n_frames(&self) -> u32 {
+        self.n_frames
+    }
+}
+
 /// Specifies callbacks for Jack.
 ///
 /// All callbacks happen on the same thread (not concurrently), unless otherwise
@@ -11,7 +33,7 @@ use flags::*;
 ///
 /// # TODO
 /// * convert C enum return values to Rust enums.
-pub trait JackHandler {
+pub trait JackHandler: Send {
     /// Called just once after the creation of the thread in which all other
     /// callbacks will be handled.
     ///
@@ -35,7 +57,8 @@ pub trait JackHandler {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, _n_frames: u32) -> JackControl {
+    fn process(&mut self, process_scope: &mut ProcessScope) -> JackControl {
+        let _ = process_scope;
         JackControl::Continue
     }
 
@@ -134,119 +157,122 @@ pub trait JackHandler {
     fn latency(&mut self, _mode: LatencyType) {}
 }
 
-unsafe fn from_void<'a, T: JackHandler>(ptr: *mut c_void) -> &'a mut T {
+unsafe fn from_void<'a, T: JackHandler>(ptr: *mut c_void) ->
+        &'a mut (T, *mut j::jack_client_t) {
     assert!(!ptr.is_null());
-    let obj_ptr: *mut T = mem::transmute(ptr);
+    let obj_ptr: *mut (T, *mut j::jack_client_t) = mem::transmute(ptr);
     &mut *obj_ptr
 }
 
-extern "C" fn thread_init_callback<T: JackHandler>(data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.thread_init()
+unsafe extern "C" fn thread_init_callback<T: JackHandler>(data: *mut c_void) {
+    let obj: &mut (T, _) = from_void(data);
+    obj.0.thread_init()
 }
 
-extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
+unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
                                        reason: *const i8,
                                        data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
-    let reason_str = unsafe {
-        let cstr = ffi::CStr::from_ptr(reason);
-        match cstr.to_str() {
-            Ok(s) => s,
-            Err(_) => "Failed to interpret error.",
-        }
+    let obj: &mut (T, _) = from_void(data);
+    let cstr = ffi::CStr::from_ptr(reason);
+    let reason_str = match cstr.to_str() {
+        Ok(s) => s,
+        Err(_) => "Failed to interpret error.",
     };
-    obj.shutdown(ClientStatus::from_bits(code).unwrap_or(UNKNOWN_ERROR),
+    obj.0.shutdown(ClientStatus::from_bits(code).unwrap_or(UNKNOWN_ERROR),
                  reason_str)
 }
 
-extern "C" fn process<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.process(n_frames).to_ffi()
+unsafe extern "C" fn process<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
+    let obj: &mut (T, *mut j::jack_client_t) = from_void(data);
+    let mut scope = ProcessScope {
+        client: obj.1,
+        n_frames: n_frames,
+    };
+    obj.0.process(&mut scope).to_ffi()
 }
 
-extern "C" fn freewheel<T: JackHandler>(starting: i32, data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
+unsafe extern "C" fn freewheel<T: JackHandler>(starting: i32, data: *mut c_void) {
+    let obj: &mut (T, _) = from_void(data);
     let is_starting = match starting {
         0 => false,
         _ => true,
     };
-    obj.freewheel(is_starting)
+    obj.0.freewheel(is_starting)
 }
 
-extern "C" fn buffer_size<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.buffer_size(n_frames).to_ffi()
+unsafe extern "C" fn buffer_size<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
+    let obj: &mut (T, _) = from_void(data);
+    obj.0.buffer_size(n_frames).to_ffi()
 }
 
-extern "C" fn sample_rate<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.sample_rate(n_frames).to_ffi()
+unsafe extern "C" fn sample_rate<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
+    let obj: &mut (T, _) = from_void(data);
+    obj.0.sample_rate(n_frames).to_ffi()
 }
 
-extern "C" fn client_registration<T: JackHandler>(name: *const i8,
+unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
                                                   register: i32,
                                                   data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
-    let name = unsafe { ffi::CStr::from_ptr(name).to_str().unwrap() };
+    let obj: &mut (T, _) = from_void(data);
+    let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
         0 => false,
         _ => true,
     };
-    obj.client_registration(name, register)
+    obj.0.client_registration(name, register)
 }
 
-extern "C" fn port_registration<T: JackHandler>(port_id: u32, register: i32, data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
+unsafe extern "C" fn port_registration<T: JackHandler>(port_id: u32, register: i32, data: *mut c_void) {
+    let obj: &mut (T, _) = from_void(data);
     let register = match register {
         0 => false,
         _ => true,
     };
-    obj.port_registration(port_id, register)
+    obj.0.port_registration(port_id, register)
 }
 
 #[allow(dead_code)] // TODO: remove once it can be registered
-extern "C" fn port_rename<T: JackHandler>(port_id: u32,
+unsafe extern "C" fn port_rename<T: JackHandler>(port_id: u32,
                                           old_name: *const i8,
                                           new_name: *const i8,
                                           data: *mut c_void)
                                           -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    let old_name = unsafe { ffi::CStr::from_ptr(old_name).to_str().unwrap() };
-    let new_name = unsafe { ffi::CStr::from_ptr(new_name).to_str().unwrap() };
-    obj.port_rename(port_id, old_name, new_name).to_ffi()
+    let obj: &mut (T, _) = from_void(data);
+    let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
+    let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
+    obj.0.port_rename(port_id, old_name, new_name).to_ffi()
 }
 
-extern "C" fn port_connect<T: JackHandler>(port_id_a: u32,
+unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: u32,
                                            port_id_b: u32,
                                            connect: i32,
                                            data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
+    let obj: &mut (T, _) = from_void(data);
     let are_connected = match connect {
         0 => false,
         _ => true,
     };
-    obj.ports_connected(port_id_a, port_id_b, are_connected)
+    obj.0.ports_connected(port_id_a, port_id_b, are_connected)
 }
 
-extern "C" fn graph_order<T: JackHandler>(data: *mut c_void) -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.graph_reorder().to_ffi()
+unsafe extern "C" fn graph_order<T: JackHandler>(data: *mut c_void) -> i32 {
+    let obj: &mut (T, _) = from_void(data);
+    obj.0.graph_reorder().to_ffi()
 }
 
-extern "C" fn xrun<T: JackHandler>(data: *mut c_void) -> i32 {
-    let obj: &mut T = unsafe { from_void(data) };
-    obj.xrun().to_ffi()
+unsafe extern "C" fn xrun<T: JackHandler>(data: *mut c_void) -> i32 {
+    let obj: &mut (T, _) = from_void(data);
+    obj.0.xrun().to_ffi()
 }
 
-extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, data: *mut c_void) {
-    let obj: &mut T = unsafe { from_void(data) };
+unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, data: *mut c_void) {
+    let obj: &mut (T, _) = from_void(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
         j::JackPlaybackLatency => LatencyType::Playback,
         _ => unreachable!(),
     };
-    obj.latency(mode)
+    obj.0.latency(mode)
 }
 
 /// Clears the callbacks registered to `client`.
@@ -269,6 +295,8 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 /// Returns `Ok(handler_ptr)` on success, or
 /// `Err(JackErr::CallbackRegistrationError)` on failure.
 ///
+/// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut j::jack_client_t)`.
+///
 /// Registers `handler` with jack. All jack calls to `client` will be handled by
 /// `handler`. `handler` is consumed, but it is not deallocated. `handler`
 /// should be manually deallocated when jack will no longer make calls to it,
@@ -283,8 +311,9 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 /// * `handler` will not be automatically deallocated.
 pub unsafe fn register_callbacks<T: JackHandler>(client: *mut j::jack_client_t,
                                                  handler: T)
-                                                 -> Result<*mut T, JackErr> {
-    let handler_ptr: *mut T = Box::into_raw(Box::new(handler));
+                                                 -> Result<*mut (T, *mut j::jack_client_t), JackErr> {
+    let handler_ptr: *mut (T, *mut j::jack_client_t) =
+        Box::into_raw(Box::new((handler, client)));
     let data_ptr = mem::transmute(handler_ptr);
     j::jack_set_thread_init_callback(client, Some(thread_init_callback::<T>), data_ptr);
     j::jack_on_info_shutdown(client, Some(shutdown::<T>), data_ptr);

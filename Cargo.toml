@@ -5,5 +5,5 @@ authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 
 [dependencies]
 bitflags = "0.7.0"
-jack-sys = "0.1.0"
+jack-sys = { git = "https://github.com/cramertj/jack-sys.git", branch = "cramertj/unsafe-extern" }
 libc = "0.2"

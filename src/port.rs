@@ -1,7 +1,7 @@
 use std::{ffi, slice};
 use jack_sys as j;
 use client::*;
-use callbacks::JackHandler;
+use callbacks::{ProcessScope, JackHandler};
 use flags::*;
 use enums::*;
 use utils;
@@ -46,7 +46,6 @@ pub unsafe fn ptrs_to_port(client: *mut j::jack_client_t,
             client: client,
             port: port,
             _kind: PhantomData,
-            buffer_size: 0,
         })
     }
 }
@@ -107,11 +106,14 @@ pub struct Port<Kind: PortKind> {
     // Input, Output, UnknownOwned, or Unowned
     // This stores the type that describes how the port can be used
     _kind: PhantomData<Kind>,
-
-    // The current size of the buffer (n_frames) to be used to ensure
-    // safe slicing
-    buffer_size: u32,
 }
+
+// The `port` field is only used to query Jack, and the `client`
+// field is only used to ensure that the port isn't accessed from
+// non-owning clients. Neither is explicitly dereferenced, so it's
+// safe to send them across thread boundaries (so long as Jack itself
+// handles concurrent requests properly).
+unsafe impl<Kind: PortKind> Send for Port<Kind> {}
 
 /*
 // It's only safe to change the given port as long as there are no other
@@ -129,19 +131,25 @@ pub fn port_mut_pointer<'a, OKind: OwnedPortKind, T: JackHandler>(
 */
 
 impl Port<Input> {
-    pub fn input_buffer(&self) -> &[f32] {
+    pub fn input_buffer(&self, process_scope: &ProcessScope) -> &[f32] {
         unsafe {
-            let buffer = buffer(self.port, self.buffer_size) as *const f32;
-            slice::from_raw_parts(buffer, self.buffer_size as usize)
+            assert!(process_scope.client_equals(self.client),
+                "Port buffers may only be from handler of the client that created the port.");
+            let n_frames = process_scope.n_frames();
+            let buffer = buffer(self.port, n_frames) as *const f32;
+            slice::from_raw_parts(buffer, n_frames as usize)
         }
     }
 }
 
 impl Port<Output> {
-    pub fn output_buffer(&mut self) -> &mut [f32] {
+    pub fn output_buffer(&mut self, process_scope: &mut ProcessScope) -> &mut [f32] {
         unsafe {
-            let buffer = buffer(self.port, self.buffer_size) as *mut f32;
-            slice::from_raw_parts_mut(buffer, self.buffer_size as usize)
+            assert!(process_scope.client_equals(self.client),
+                "Port buffers may only be from handler of the client that created the port.");
+            let n_frames = process_scope.n_frames();
+            let buffer = buffer(self.port, n_frames) as *mut f32;
+            slice::from_raw_parts_mut(buffer, n_frames as usize)
         }
     }
 }
@@ -149,6 +157,7 @@ impl Port<Output> {
 // These functions mutate the Port, and should only be usable if we are
 // the owner.
 impl<OKind: OwnedPortKind> Port<OKind> {
+
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self, client: &mut Client) -> Result<(), JackErr> {

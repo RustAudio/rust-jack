@@ -31,7 +31,7 @@ impl JackHandler for TestHandler {
         self.callbacks_used.insert("shutdown");
     }
 
-    fn process(&mut self, _: u32) -> JackControl {
+    fn process(&mut self, _: &mut ProcessScope) -> JackControl {
         self.callbacks_used.insert("process");
         JackControl::Continue
     }

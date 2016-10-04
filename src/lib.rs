@@ -11,7 +11,7 @@ mod info;
 mod port;
 mod utils;
 
-pub use callbacks::JackHandler;
+pub use callbacks::{JackHandler, ProcessScope};
 pub use client::{Client, ActiveClient, JackClient, client_name_size};
 pub use enums::*;
 pub use flags::*;
