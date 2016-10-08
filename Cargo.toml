@@ -6,4 +6,5 @@ authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 [dependencies]
 bitflags = "0.7.0"
 jack-sys = "0.1.0"
+lazy_static = "0.2.1"
 libc = "0.2"

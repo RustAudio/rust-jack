@@ -1,76 +1,92 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::{thread, time};
 use super::*;
 
-fn info_handler(msg: &str) {
-    panic!("Info: {}", msg);
+lazy_static! {
+    static ref DEFAULT_SLEEP_TIME: time::Duration = time::Duration::from_secs(1);
 }
 
-fn error_handler(msg: &str) {
-    panic!("Error Occurred!: {}", msg);
+
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
+enum TestCallbackTypes {
+    ThreadInit,
+    Process,
 }
 
+#[derive(Clone,Debug)]
 struct TestHandler {
-    pub callbacks_used: HashSet<&'static str>,
+    pub callback_counts: HashMap<TestCallbackTypes, usize>,
 }
 
 impl TestHandler {
     pub fn new() -> Self {
         TestHandler {
-            callbacks_used: HashSet::new(),
+            callback_counts: HashMap::new(),
         }
+    }
+
+    pub fn get_callback_count(&self, tp: TestCallbackTypes) -> usize {
+        match self.callback_counts.get(&tp) {
+            Some(&n) => n,
+            None => 0,
+        }
+    }
+
+    fn increment_callback_count(&mut self, tp: TestCallbackTypes) {
+        let n = self.get_callback_count(tp);
+        self.callback_counts.insert(tp, n + 1);
     }
 }
 
 impl JackHandler for TestHandler {
     fn thread_init(&mut self) {
-        self.callbacks_used.insert("thread_init");
-    }
-
-    fn shutdown(&mut self, _: ClientStatus, _: &str) {
-        self.callbacks_used.insert("shutdown");
+        self.increment_callback_count(TestCallbackTypes::ThreadInit);
     }
 
     fn process(&mut self, _: u32) -> JackControl {
-        self.callbacks_used.insert("process");
+        self.increment_callback_count(TestCallbackTypes::Process);
         JackControl::Continue
     }
+}
 
-    fn freewheel(&mut self, _: bool) {
-        self.callbacks_used.insert("freewheel");
-    }
+fn open_test_client(name: &str) -> Client<TestHandler> {
+    thread::sleep(*DEFAULT_SLEEP_TIME);
+    Client::<TestHandler>::open(name, NO_START_SERVER).unwrap()
 }
 
 #[test]
-fn static_fns() {
-    Client::<TestHandler>::name_size();
-    Port::name_size();
-    Port::type_size();
+fn querying_jack_sizes_returns_valid_values() {
+    assert!(Client::<TestHandler>::name_size() > 0);
+    assert!(Port::name_size() > 0);
+    assert!(Port::type_size() > 0);
 }
 
 #[test]
-fn test() {
-    // info/error handling
-    set_info_callbacks(Some(info_handler), Some(error_handler));
-
-    // create client
-    let mut client = Client::open("rj-test", NO_START_SERVER).unwrap();
+fn opening_returns_healthy_client() {
+    let name: &'static str = "orhc";
+    let client = open_test_client(name);
     assert_eq!(client.status(), ClientStatus::empty());
-    assert_eq!(client.name(), "rj-test");
+    assert_eq!(client.name(), name);
+}
 
-    // query parameters
-    let _audio_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_AUDIO_TYPE) };
-    let _midi_type_buffer_size = unsafe { client.type_buffer_size(DEFAULT_MIDI_TYPE) };
+// TODO: investigate why thread_init gets called more than once.
+// Or, most likely, abandon functionality
+#[test]
+fn activating_a_client_calls_thread_init_once() {
+    let mut client = open_test_client("aacctio");
+    let handler = TestHandler::new();
+    client.activate(handler).unwrap();
+    thread::sleep(*DEFAULT_SLEEP_TIME);
+    let handler = client.deactivate().unwrap();
+    assert!(handler.get_callback_count(TestCallbackTypes::ThreadInit) > 0);
+}
 
-    // test run
-    client.activate(TestHandler::new()).unwrap();
-    thread::sleep(time::Duration::from_secs(1));
-    let tested_handler = client.deactivate().unwrap();
-    let expected_called = ["thread_init", "process"];
-    for s in expected_called.iter() {
-        assert!(tested_handler.callbacks_used.contains(s));
-    };
-
-    // close
-    client.close();
+#[test]
+fn activating_a_client_calls_process_callback_several_times() {
+    let mut client = open_test_client("aaccpcst");
+    let handler = TestHandler::new();
+    client.activate(handler).unwrap();
+    thread::sleep(*DEFAULT_SLEEP_TIME);
+    let handler = client.deactivate().unwrap();
+    assert!(handler.get_callback_count(TestCallbackTypes::Process) > 1);
 }
