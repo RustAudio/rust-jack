@@ -11,7 +11,7 @@ Nice Rust bindings for
 
 * `libjack` is required. Consult your package manager or the [official](http://www.jackaudio.org/downloads/) website.
 
-* The general workflow for a jack application is to start up a jack daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a nice way to convinient way to configure and bring up a jack server through a GUI.
+* The general workflow for a jack application is to start up a jack daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a jack server through a GUI.
 
 
 ## "C" & Rust API differences
