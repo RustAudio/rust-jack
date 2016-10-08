@@ -29,7 +29,7 @@ $ jackd -r -ddummy -r44100 -p1024 & # Start the dummy jack server
 
 If the tests are failing, a possible gotcha may be timing issues.
 
-1. Rust runs tests in parallel, it may be possible that the jack server is not keeping up. Set the environment variable `RUN_TEST_THREADS` to 1.
+1. Rust runs tests in parallel, it may be possible that the jack server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
 2. Increase the value of `DEFAULT_SLEEP_TIME` in `test.rs`.
 
 Another case can be that libjack is broke. Try switching between libjack and
