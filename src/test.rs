@@ -35,7 +35,7 @@ impl TestHandler {
 
     pub fn get_callback_count(&self, tp: TestCallbackTypes) -> usize {
         match self.callback_counts.get(&tp) {
-            Some(n) => n.clone(),
+            Some(&n) => n,
             None    => 0,
         }
     }
