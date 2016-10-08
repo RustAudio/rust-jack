@@ -1,6 +1,6 @@
-#[macro_use]
-extern crate bitflags;
+#[macro_use] extern crate bitflags;
 extern crate jack_sys;
+#[macro_use] extern crate lazy_static;
 extern crate libc;
 
 mod callbacks;
