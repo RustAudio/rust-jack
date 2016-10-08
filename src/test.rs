@@ -70,7 +70,7 @@ fn querying_jack_sizes_returns_valid_values() {
 
 #[test]
 fn opening_returns_healthy_client() {
-    let name: &'static str = "opening_returns_healthy_client";
+    let name: &'static str = "orhc";
     let client = open_test_client(name);
     assert_eq!(client.status(), ClientStatus::empty());
     assert_eq!(client.name(), name);
@@ -79,7 +79,7 @@ fn opening_returns_healthy_client() {
 // TODO: investigate why thread_init gets called 3 times instead of once.
 #[test]
 fn activating_a_client_calls_thread_init_once() {
-    let mut client = open_test_client("calls_thread_init_once");
+    let mut client = open_test_client("aacctio");
     let handler = TestHandler::new();
     client.activate(handler).unwrap();
     thread::sleep(*DEFAULT_SLEEP_TIME);
@@ -89,7 +89,7 @@ fn activating_a_client_calls_thread_init_once() {
 
 #[test]
 fn activating_a_client_calls_process_callback_several_times() {
-    let mut client = open_test_client("activating_a_client_calls_process_callback_several_times");
+    let mut client = open_test_client("aaccpcst");
     let handler = TestHandler::new();
     client.activate(handler).unwrap();
     thread::sleep(*DEFAULT_SLEEP_TIME);
@@ -99,7 +99,7 @@ fn activating_a_client_calls_process_callback_several_times() {
 
 #[test]
 fn returning_quit_in_process_callback_stops_processing() {
-    let mut client = open_test_client("returning_quit_in_process_callback_stops_processing");
+    let mut client = open_test_client("rqipcsp");
     let handler = TestHandler::new().with_quit_on_process();
     client.activate(handler).unwrap();
     thread::sleep(*DEFAULT_SLEEP_TIME);
