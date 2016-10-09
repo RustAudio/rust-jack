@@ -7,14 +7,14 @@ use std::str::FromStr;
 pub struct SinWave {
     frame_t: f64,
     frequency: f64,
-    out_port: jack::Port<jack::Output>,
+    out_port: jack::Port<jack::Owned<jack::Output<jack::Audio>>>,
     time: f64,
     receiver: Receiver<f64>,
     sender: Sender<f64>,
 }
 
 impl SinWave {
-    pub fn new(out_port: jack::Port<jack::Output>, freq: f64, sample_rate: f64) -> Self {
+    pub fn new(out_port: jack::Port<jack::Owned<jack::Output<jack::Audio>>>, freq: f64, sample_rate: f64) -> Self {
         let (tx, rx) = channel();
         SinWave {
             frame_t: 1.0 / sample_rate,
@@ -66,8 +66,7 @@ fn read_freq() -> Option<f64> {
 fn main() {
     let (mut client, _status) = jack::Client::open("rust_jack_sine", jack::NO_START_SERVER).unwrap();
 
-    let out_port = client.register_port("sine_out", jack::DEFAULT_AUDIO_TYPE, jack::IS_OUTPUT, None)
-        .unwrap();
+    let out_port = client.register_port("sine_out", jack::IS_OUTPUT, None).unwrap();
     let app = SinWave::new(out_port, 220.0, client.sample_rate() as f64);
     let freq_request = app.frequency_requester();
     let active_client = client.activate(app).unwrap();

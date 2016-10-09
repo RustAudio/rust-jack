@@ -1,12 +1,11 @@
 use std::{ffi, slice};
 use jack_sys as j;
 use client::*;
-use callbacks::{ProcessScope, JackHandler};
+use callbacks::ProcessScope;
 use flags::*;
 use enums::*;
 use utils;
 use std::marker::PhantomData;
-use std::mem::transmute;
 
 /// The maximum length of a full Jack port name. Unlike the "C" Jack API,
 /// this does not count the `NULL` character and corresponds to a string's
@@ -30,7 +29,7 @@ pub fn port_type_size() -> usize {
     s as usize
 }
 
-pub unsafe fn port_pointer<K: PortKind>(port: &Port<K>) -> *mut j::jack_port_t {
+pub unsafe fn port_pointer<K: PortOwnershipKind>(port: &Port<K>) -> *mut j::jack_port_t {
     port.port
 }
 
@@ -43,11 +42,16 @@ pub unsafe fn ptrs_to_port(client: *mut j::jack_client_t,
         None
     } else {
         Some(Port {
-            client: client,
             port: port,
-            _kind: PhantomData,
+            kind: Unowned {},
         })
     }
+}
+
+pub unsafe fn port_to_owned<InKind: PortOwnershipKind, OutType: PortType>
+    (port: Port<InKind>, client_id: ClientId)
+    -> Port<Owned<OutType>> {
+    Port { port: port.port, kind: Owned { client_id: client_id, _type: PhantomData } }
 }
 
 /// Returns a pointer to the memory area associated with the specified
@@ -63,49 +67,80 @@ pub unsafe fn buffer(port: *mut j::jack_port_t, n_frames: u32) -> *mut ::libc::c
     j::jack_port_get_buffer(port, n_frames)
 }
 
-pub trait PortKind {}
-pub unsafe trait OwnedPortKind: PortKind {
+pub trait PortOwnershipKind: Sized {}
+pub unsafe trait PortType: Sized + Copy {
+    type DataType: PortDataType;
     fn necessary_flags() -> PortFlags;
 }
+pub unsafe trait PortDataType: Sized + Copy {
+    type BufferType: Sized;
+    fn type_identifier() -> &'static str;
+}
 
-pub struct Input;
-pub struct Output;
-pub struct UnknownOwned;
+#[derive(Debug, Copy, Clone)]
+pub struct Owned<PType: PortType> {
+    // The id of the client that created the Port. This is used to ensure
+    // that the port's buffers are only read or mutated in the process fn
+    // of the client that owns the Port
+    client_id: ClientId,
+
+    // Marker type for compile-time information about how the port can be
+    // used
+    _type: PhantomData<PType>,
+}
+#[derive(Debug, Copy, Clone)]
 pub struct Unowned;
 
-impl PortKind for Input {}
-impl PortKind for Output {}
-impl PortKind for UnknownOwned {}
-impl PortKind for Unowned {}
+impl<PType: PortType> PortOwnershipKind for Owned<PType> {}
+impl PortOwnershipKind for Unowned {}
 
-unsafe impl OwnedPortKind for Input {
+#[derive(Debug, Copy, Clone)]
+pub struct Input<PDT: Sized + Copy> { data_type: PDT }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Output<PDT: Sized + Copy> { data_type: PDT }
+
+#[derive(Debug, Copy, Clone)]
+pub struct UnknownOwned;
+
+unsafe impl<PDT: PortDataType> PortType for Input<PDT> {
+    type DataType = PDT;
     fn necessary_flags() -> PortFlags { IS_INPUT }
 }
-unsafe impl OwnedPortKind for Output {
+unsafe impl<PDT: PortDataType> PortType for Output<PDT> {
+    type DataType = PDT;
     fn necessary_flags() -> PortFlags { IS_OUTPUT }
 }
-unsafe impl OwnedPortKind for UnknownOwned {
-    fn necessary_flags() -> PortFlags { NO_PORT_FLAGS }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Audio {}
+
+unsafe impl PortDataType for Audio {
+    type BufferType = f32;
+    fn type_identifier() -> &'static str {
+        DEFAULT_AUDIO_TYPE
+    }
 }
 
-pub unsafe fn claim_kind<B: PortKind, A: PortKind>(port: Port<B>) -> Port<A> {
-    transmute(port)
-}
+// TODO(cramertj) finish implementing MIDI input tyupe
+//
+//#[derive(Debug, Copy, Clone)]
+//pub struct Midi {}
+//
+//unsafe impl PortAudioType for Midi {
+//    type BufferType =
+//}
 
 /// An endpoint to interact with Jack data streams, for audio, midi, etc...
 #[derive(Debug)]
-pub struct Port<Kind: PortKind> {
-    // The client that created the given port.
-    // Only to be used to check that the client passed in to mutative
-    // methods is the same as the client that created the port.
-    client: *mut j::jack_client_t,
+pub struct Port<Kind: PortOwnershipKind> {
 
     // The Jack port itself
     port: *mut j::jack_port_t,
 
-    // Input, Output, UnknownOwned, or Unowned
+    // Owned<some PortType> or Unowned
     // This stores the type that describes how the port can be used
-    _kind: PhantomData<Kind>,
+    kind: Kind,
 }
 
 // The `port` field is only used to query Jack, and the `client`
@@ -113,7 +148,7 @@ pub struct Port<Kind: PortKind> {
 // non-owning clients. Neither is explicitly dereferenced, so it's
 // safe to send them across thread boundaries (so long as Jack itself
 // handles concurrent requests properly).
-unsafe impl<Kind: PortKind> Send for Port<Kind> {}
+unsafe impl<Kind: PortOwnershipKind> Send for Port<Kind> {}
 
 /*
 // It's only safe to change the given port as long as there are no other
@@ -130,40 +165,40 @@ pub fn port_mut_pointer<'a, OKind: OwnedPortKind, T: JackHandler>(
 }
 */
 
-impl Port<Input> {
-    pub fn input_buffer(&self, process_scope: &ProcessScope) -> &[f32] {
+impl<PDT: PortDataType> Port<Owned<Input<PDT>>> {
+    pub fn input_buffer(&self, process_scope: &ProcessScope) -> &[PDT::BufferType] {
         unsafe {
-            assert!(process_scope.client_equals(self.client),
+            assert!(process_scope.client_equals(self.kind.client_id),
                 "Port buffers may only be from handler of the client that created the port.");
             let n_frames = process_scope.n_frames();
-            let buffer = buffer(self.port, n_frames) as *const f32;
+            let buffer = buffer(self.port, n_frames) as *const PDT::BufferType;
             slice::from_raw_parts(buffer, n_frames as usize)
         }
     }
 }
 
-impl Port<Output> {
-    pub fn output_buffer(&mut self, process_scope: &mut ProcessScope) -> &mut [f32] {
+impl<PDT: PortDataType> Port<Owned<Output<PDT>>> {
+    pub fn output_buffer(&mut self, process_scope: &mut ProcessScope) -> &mut [PDT::BufferType] {
         unsafe {
-            assert!(process_scope.client_equals(self.client),
+            assert!(process_scope.client_equals(self.kind.client_id),
                 "Port buffers may only be from handler of the client that created the port.");
             let n_frames = process_scope.n_frames();
-            let buffer = buffer(self.port, n_frames) as *mut f32;
+            let buffer = buffer(self.port, n_frames) as *mut PDT::BufferType;
             slice::from_raw_parts_mut(buffer, n_frames as usize)
         }
     }
 }
 
-// These functions mutate the Port, and should only be usable if we are
+// These functions mutate the Port, and should are be usable if we are
 // the owner.
-impl<OKind: OwnedPortKind> Port<OKind> {
+impl<Type: PortType> Port<Owned<Type>> {
 
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self, client: &mut Client) -> Result<(), JackErr> {
         let res = unsafe {
-            assert_eq!(client.client_ptr() as *const j::jack_client_t, self.client as *const j::jack_client_t);
-            j::jack_port_unregister(self.client, self.port)
+            assert!(client.id() == self.kind.client_id);
+            j::jack_port_unregister(client.client_ptr(), self.port)
         };
         match res {
             0 => Ok(()),
@@ -237,15 +272,18 @@ impl<OKind: OwnedPortKind> Port<OKind> {
     /// Clients connecting their own ports are likely to use this function,
     /// while generic connection clients (e.g. patchbays) would use
     /// `Client::disconnect_ports()`.
-    pub fn disconnect(self) -> Result<(), JackErr> {
-        match unsafe { j::jack_port_disconnect(self.client, self.port) } {
+    pub fn disconnect(self, client: &mut Client) -> Result<(), JackErr> {
+        match unsafe {
+            assert!(client.id() == self.kind.client_id);
+            j::jack_port_disconnect(client.client_ptr(), self.port)
+        } {
             0 => Ok(()),
             _ => Err(JackErr::PortDisconnectionError),
         }
     }
 }
 
-impl<Kind: PortKind> Port<Kind> {
+impl<Kind: PortOwnershipKind> Port<Kind> {
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
@@ -299,17 +337,13 @@ impl<Kind: PortKind> Port<Kind> {
     /// the `client` from which `port` was spawned from is the owner, then it
     /// may be used in the graph reordered callback or else it should not be
     /// used.
-    ///
-    /// # Unsafe
-    ///
-    /// * Can't be used in the callback for graph reordering under certain
-    /// conditions.
-    pub unsafe fn connections<T: JackHandler>(&self, _client: &Client) -> Vec<String> {
+    pub unsafe fn connections(&self, client: &Client) -> Vec<String> {
+        let client_ptr = client.client_ptr();
         let connections_ptr = {
-            let ptr = if j::jack_port_is_mine(self.client, self.port) == 1 {
+            let ptr = if j::jack_port_is_mine(client_ptr, self.port) == 1 {
                 j::jack_port_get_connections(self.port)
             } else {
-                j::jack_port_get_all_connections(self.client, self.port)
+                j::jack_port_get_all_connections(client_ptr, self.port)
             };
             utils::collect_strs(ptr)
         };
