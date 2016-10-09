@@ -38,7 +38,7 @@ impl JackControl {
     pub fn to_ffi(self) -> i32 {
         match self {
             JackControl::Continue => 0,
-            JackControl::Quit     => -1,
+            JackControl::Quit => -1,
         }
     }
 }

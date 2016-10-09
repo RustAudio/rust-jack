@@ -159,8 +159,7 @@ pub trait JackHandler: Send {
     fn latency(&mut self, _mode: LatencyType) {}
 }
 
-unsafe fn handler_and_id_from_void<'a, T: JackHandler>(ptr: *mut c_void) ->
-        &'a mut (T, ClientId) {
+unsafe fn handler_and_id_from_void<'a, T: JackHandler>(ptr: *mut c_void) -> &'a mut (T, ClientId) {
     assert!(!ptr.is_null());
     let obj_ptr: *mut (T, ClientId) = mem::transmute(ptr);
     &mut *obj_ptr
@@ -172,8 +171,8 @@ unsafe extern "C" fn thread_init_callback<T: JackHandler>(data: *mut c_void) {
 }
 
 unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
-                                       reason: *const i8,
-                                       data: *mut c_void) {
+                                              reason: *const i8,
+                                              data: *mut c_void) {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let cstr = ffi::CStr::from_ptr(reason);
     let reason_str = match cstr.to_str() {
@@ -181,7 +180,7 @@ unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
         Err(_) => "Failed to interpret error.",
     };
     obj.0.shutdown(ClientStatus::from_bits(code).unwrap_or(UNKNOWN_ERROR),
-                 reason_str)
+                   reason_str)
 }
 
 unsafe extern "C" fn process<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
@@ -213,8 +212,8 @@ unsafe extern "C" fn sample_rate<T: JackHandler>(n_frames: u32, data: *mut c_voi
 }
 
 unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
-                                                  register: i32,
-                                                  data: *mut c_void) {
+                                                         register: i32,
+                                                         data: *mut c_void) {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
@@ -225,7 +224,9 @@ unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
 }
 
 
-unsafe extern "C" fn port_registration<T: JackHandler>(port_id: u32, register: i32, data: *mut c_void) {
+unsafe extern "C" fn port_registration<T: JackHandler>(port_id: u32,
+                                                       register: i32,
+                                                       data: *mut c_void) {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let register = match register {
         0 => false,
@@ -236,10 +237,10 @@ unsafe extern "C" fn port_registration<T: JackHandler>(port_id: u32, register: i
 
 #[allow(dead_code)] // TODO: remove once it can be registered
 unsafe extern "C" fn port_rename<T: JackHandler>(port_id: u32,
-                                          old_name: *const i8,
-                                          new_name: *const i8,
-                                          data: *mut c_void)
-                                          -> i32 {
+                                                 old_name: *const i8,
+                                                 new_name: *const i8,
+                                                 data: *mut c_void)
+                                                 -> i32 {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
     let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
@@ -247,9 +248,9 @@ unsafe extern "C" fn port_rename<T: JackHandler>(port_id: u32,
 }
 
 unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: u32,
-                                           port_id_b: u32,
-                                           connect: i32,
-                                           data: *mut c_void) {
+                                                  port_id_b: u32,
+                                                  connect: i32,
+                                                  data: *mut c_void) {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let are_connected = match connect {
         0 => false,
@@ -268,7 +269,8 @@ unsafe extern "C" fn xrun<T: JackHandler>(data: *mut c_void) -> i32 {
     obj.0.xrun().to_ffi()
 }
 
-unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t, data: *mut c_void) {
+unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t,
+                                             data: *mut c_void) {
     let obj: &mut (T, _) = handler_and_id_from_void(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
@@ -316,8 +318,7 @@ pub unsafe fn register_callbacks<T: JackHandler>(handler: T,
                                                  client: *mut j::jack_client_t,
                                                  client_id: ClientId)
                                                  -> Result<*mut (T, ClientId), JackErr> {
-    let handler_ptr: *mut (T, ClientId) =
-        Box::into_raw(Box::new((handler, client_id)));
+    let handler_ptr: *mut (T, ClientId) = Box::into_raw(Box::new((handler, client_id)));
     let data_ptr = mem::transmute(handler_ptr);
     j::jack_set_thread_init_callback(client, Some(thread_init_callback::<T>), data_ptr);
     j::jack_on_info_shutdown(client, Some(shutdown::<T>), data_ptr);

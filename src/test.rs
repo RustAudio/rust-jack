@@ -16,9 +16,7 @@ struct TestHandler {
 
 impl TestHandler {
     pub fn new() -> Self {
-        TestHandler {
-            callbacks_used: HashSet::new(),
-        }
+        TestHandler { callbacks_used: HashSet::new() }
     }
 }
 
@@ -69,7 +67,7 @@ fn test() {
     let expected_called = ["thread_init", "process"];
     for s in expected_called.iter() {
         assert!(tested_handler.callbacks_used.contains(s));
-    };
+    }
 
     // close
     deactivated_client.close();

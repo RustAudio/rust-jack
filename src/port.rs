@@ -49,9 +49,16 @@ pub unsafe fn ptrs_to_port(client: *mut j::jack_client_t,
 }
 
 pub unsafe fn port_to_owned<InKind: PortOwnershipKind, OutType: PortType>
-    (port: Port<InKind>, client_id: ClientId)
-    -> Port<Owned<OutType>> {
-    Port { port: port.port, kind: Owned { client_id: client_id, _type: PhantomData } }
+    (port: Port<InKind>,
+     client_id: ClientId)
+     -> Port<Owned<OutType>> {
+    Port {
+        port: port.port,
+        kind: Owned {
+            client_id: client_id,
+            _type: PhantomData,
+        },
+    }
 }
 
 /// Returns a pointer to the memory area associated with the specified
@@ -95,21 +102,29 @@ impl<PType: PortType> PortOwnershipKind for Owned<PType> {}
 impl PortOwnershipKind for Unowned {}
 
 #[derive(Debug, Copy, Clone)]
-pub struct Input<PDT: Sized + Copy> { data_type: PDT }
+pub struct Input<PDT: Sized + Copy> {
+    data_type: PDT,
+}
 
 #[derive(Debug, Copy, Clone)]
-pub struct Output<PDT: Sized + Copy> { data_type: PDT }
+pub struct Output<PDT: Sized + Copy> {
+    data_type: PDT,
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct UnknownOwned;
 
 unsafe impl<PDT: PortDataType> PortType for Input<PDT> {
     type DataType = PDT;
-    fn necessary_flags() -> PortFlags { IS_INPUT }
+    fn necessary_flags() -> PortFlags {
+        IS_INPUT
+    }
 }
 unsafe impl<PDT: PortDataType> PortType for Output<PDT> {
     type DataType = PDT;
-    fn necessary_flags() -> PortFlags { IS_OUTPUT }
+    fn necessary_flags() -> PortFlags {
+        IS_OUTPUT
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -124,17 +139,16 @@ unsafe impl PortDataType for Audio {
 
 // TODO(cramertj) finish implementing MIDI input tyupe
 //
-//#[derive(Debug, Copy, Clone)]
-//pub struct Midi {}
+// #[derive(Debug, Copy, Clone)]
+// pub struct Midi {}
 //
-//unsafe impl PortAudioType for Midi {
+// unsafe impl PortAudioType for Midi {
 //    type BufferType =
-//}
+// }
 
 /// An endpoint to interact with Jack data streams, for audio, midi, etc...
 #[derive(Debug)]
 pub struct Port<Kind: PortOwnershipKind> {
-
     // The Jack port itself
     port: *mut j::jack_port_t,
 
@@ -150,26 +164,25 @@ pub struct Port<Kind: PortOwnershipKind> {
 // handles concurrent requests properly).
 unsafe impl<Kind: PortOwnershipKind> Send for Port<Kind> {}
 
-/*
 // It's only safe to change the given port as long as there are no other
 // references to the port. The client must be the client used to create
 // the port and must also be alive for the duration of the borrow.
-pub fn port_mut_pointer<'a, OKind: OwnedPortKind, T: JackHandler>(
-    port: &'a mut Port<OKind>, owner_client: &'a mut Client) -> &'a mut j::jack_port_t {
-    unsafe {
-        assert_eq!(
-            owner_client.client_ as *mut j::jack_client_t,
-            port.client as *const j::jack_client_t);
-        transmute(port.port)
-    }
-}
-*/
+// pub fn port_mut_pointer<'a, OKind: OwnedPortKind, T: JackHandler>(
+// port: &'a mut Port<OKind>, owner_client: &'a mut Client) -> &'a mut j::jack_port_t {
+// unsafe {
+// assert_eq!(
+// owner_client.client_ as *mut j::jack_client_t,
+// port.client as *const j::jack_client_t);
+// transmute(port.port)
+// }
+// }
+//
 
 impl<PDT: PortDataType> Port<Owned<Input<PDT>>> {
     pub fn input_buffer(&self, process_scope: &ProcessScope) -> &[PDT::BufferType] {
         unsafe {
             assert!(process_scope.client_equals(self.kind.client_id),
-                "Port buffers may only be from handler of the client that created the port.");
+                    "Port buffers may only be from handler of the client that created the port.");
             let n_frames = process_scope.n_frames();
             let buffer = buffer(self.port, n_frames) as *const PDT::BufferType;
             slice::from_raw_parts(buffer, n_frames as usize)
@@ -181,7 +194,7 @@ impl<PDT: PortDataType> Port<Owned<Output<PDT>>> {
     pub fn output_buffer(&mut self, process_scope: &mut ProcessScope) -> &mut [PDT::BufferType] {
         unsafe {
             assert!(process_scope.client_equals(self.kind.client_id),
-                "Port buffers may only be from handler of the client that created the port.");
+                    "Port buffers may only be from handler of the client that created the port.");
             let n_frames = process_scope.n_frames();
             let buffer = buffer(self.port, n_frames) as *mut PDT::BufferType;
             slice::from_raw_parts_mut(buffer, n_frames as usize)
@@ -192,7 +205,6 @@ impl<PDT: PortDataType> Port<Owned<Output<PDT>>> {
 // These functions mutate the Port, and should are be usable if we are
 // the owner.
 impl<Type: PortType> Port<Owned<Type>> {
-
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self, client: &mut Client) -> Result<(), JackErr> {
@@ -284,7 +296,6 @@ impl<Type: PortType> Port<Owned<Type>> {
 }
 
 impl<Kind: PortOwnershipKind> Port<Kind> {
-
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port)).to_str().unwrap() }

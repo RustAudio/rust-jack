@@ -35,7 +35,7 @@ fn fresh_client_id() -> ClientId {
     static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     assert!(id < usize::max_value() / 2,
-        "too many previous clients have been allocated");
+            "too many previous clients have been allocated");
     ClientId(id)
 }
 
@@ -59,17 +59,24 @@ pub struct ActiveClient<JH: JackHandler> {
 }
 
 unsafe impl JackClient for Client {
-    fn id(&self) -> ClientId { self.id }
-    fn client_ptr(&self) -> *mut j::jack_client_t { self.client }
+    fn id(&self) -> ClientId {
+        self.id
+    }
+    fn client_ptr(&self) -> *mut j::jack_client_t {
+        self.client
+    }
 }
 
 unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
-    fn id(&self) -> ClientId { self.id }
-    fn client_ptr(&self) -> *mut j::jack_client_t { self.client }
+    fn id(&self) -> ClientId {
+        self.id
+    }
+    fn client_ptr(&self) -> *mut j::jack_client_t {
+        self.client
+    }
 }
 
 pub unsafe trait JackClient: Sized {
-
     #[inline(always)]
     fn id(&self) -> ClientId;
 
@@ -78,7 +85,9 @@ pub unsafe trait JackClient: Sized {
 
     /// Manually close the client, deactivating if necessary.
     /// This will happen automatically on drop.
-    fn close(self) -> () { drop(self) }
+    fn close(self) -> () {
+        drop(self)
+    }
 
     /// The sample rate of the jack system, as set by the user when jackd was
     /// started.
@@ -179,21 +188,27 @@ pub unsafe trait JackClient: Sized {
     /// `flags` - A value used to select ports by their flags. Use
     /// `PortFlags::empty()` for no flag selection.
     fn ports(&self,
-                 port_name_pattern: Option<&str>,
-                 type_name_pattern: Option<&str>,
-                 flags: PortFlags)
-                 -> Vec<String> {
+             port_name_pattern: Option<&str>,
+             type_name_pattern: Option<&str>,
+             flags: PortFlags)
+             -> Vec<String> {
         let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
         let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = flags.bits() as u64;
         unsafe {
-            utils::collect_strs(j::jack_get_ports(self.client_ptr(), pnp.as_ptr(), tnp.as_ptr(), flags))
+            utils::collect_strs(j::jack_get_ports(self.client_ptr(),
+                                                  pnp.as_ptr(),
+                                                  tnp.as_ptr(),
+                                                  flags))
         }
     }
 
     /// Get a `Port` by its port id.
     fn port_by_id(&self, port_id: u32) -> Option<port::Port<port::Unowned>> {
-        unsafe { port::ptrs_to_port(self.client_ptr(), j::jack_port_by_id(self.client_ptr(), port_id)) }
+        unsafe {
+            port::ptrs_to_port(self.client_ptr(),
+                               j::jack_port_by_id(self.client_ptr(), port_id))
+        }
     }
 
     /// Get a `Port` by its port name.
@@ -201,7 +216,7 @@ pub unsafe trait JackClient: Sized {
         let port_name = ffi::CString::new(port_name).unwrap();
         unsafe {
             port::ptrs_to_port(self.client_ptr(),
-                         j::jack_port_by_name(self.client_ptr(), port_name.as_ptr()))
+                               j::jack_port_by_name(self.client_ptr(), port_name.as_ptr()))
         }
     }
 
@@ -255,7 +270,7 @@ pub unsafe trait JackClient: Sized {
                     next_usecs: next_usecs,
                     period_usecs: period_usecs,
                 })
-            },
+            }
             _ => Err(JackErr::TimeError),
         }
     }
@@ -280,7 +295,6 @@ pub unsafe trait JackClient: Sized {
 }
 
 impl Client {
-
     /// Opens a Jack client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
     /// failure, then `Err(JackErr::ClientError(status))` will be returned.
@@ -288,8 +302,9 @@ impl Client {
     /// Although the client may be successful in opening, there still may be
     /// some errors minor errors when attempting to opening. To access these,
     /// check the returned `ClientStatus`.
-    pub fn open(client_name: &str, options: ClientOptions) ->
-            Result<(Self, ClientStatus), JackErr> {
+    pub fn open(client_name: &str,
+                options: ClientOptions)
+                -> Result<(Self, ClientStatus), JackErr> {
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
@@ -301,7 +316,11 @@ impl Client {
         if client.is_null() {
             Err(JackErr::ClientError(status))
         } else {
-            Ok((Client { id: fresh_client_id(), client: client, }, status))
+            Ok((Client {
+                id: fresh_client_id(),
+                client: client,
+            },
+                status))
         }
     }
 
@@ -372,17 +391,16 @@ impl Client {
     ///
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
-    pub fn register_port<PType: port::PortType>(&mut self,
-                         port_name: &str,
-                         flags: PortFlags,
-                         buffer_size: Option<usize>)
-                         -> Result<port::Port<port::Owned<PType>>, JackErr> {
+    pub fn register_port<PType: port::PortType>
+        (&mut self,
+         port_name: &str,
+         flags: PortFlags,
+         buffer_size: Option<usize>)
+         -> Result<port::Port<port::Owned<PType>>, JackErr> {
         use port::PortDataType;
         unsafe {
             let port_name_c = ffi::CString::new(port_name).unwrap();
-            let port_type_c = ffi::CString::new(
-                PType::DataType::type_identifier()
-            ).unwrap();
+            let port_type_c = ffi::CString::new(PType::DataType::type_identifier()).unwrap();
             let port_flags = (flags | PType::necessary_flags()).bits() as u64;
             let buffer_size = buffer_size.unwrap_or(0) as u64;
             let port = {
@@ -395,9 +413,7 @@ impl Client {
                 port::ptrs_to_port(self.client, ptr)
             };
             match port {
-                Some(p) => {
-                    Ok(port::port_to_owned(p, self.id))
-                },
+                Some(p) => Ok(port::port_to_owned(p, self.id)),
                 None => Err(JackErr::PortRegistrationError),
             }
         }
@@ -511,7 +527,9 @@ impl Client {
     }
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with this client.
-    pub fn unregister_port<PT: port::PortType>(&mut self, port: port::Port<port::Owned<PT>>) -> Result<(), JackErr> {
+    pub fn unregister_port<PT: port::PortType>(&mut self,
+                                               port: port::Port<port::Owned<PT>>)
+                                               -> Result<(), JackErr> {
         port.unregister(self)
     }
 }
@@ -539,7 +557,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
 
                 // We may still own the handler here, but it's not safe to say
                 // without more information about the error condition
-                _ => Err(JackErr::ClientDeactivationError)
+                _ => Err(JackErr::ClientDeactivationError),
             };
 
             let callback_res = callbacks::clear_callbacks(client);
@@ -548,7 +566,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 (Ok(handler_ptr), Ok(())) => {
                     let (handler, _) = *handler_ptr;
                     Ok(( Client { id: id, client: client }, handler ))
-                },
+                }
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed
                     j::jack_client_close(client);
@@ -579,7 +597,7 @@ impl<JH: JackHandler> Drop for ActiveClient<JH> {
             debug_assert!(!self.client.is_null()); // Rep invariant
 
             j::jack_deactivate(self.client); // result doesn't matter
-            drop( Box::from_raw(self.handler) ); // drop the handler
+            drop(Box::from_raw(self.handler)); // drop the handler
 
             let res = j::jack_client_close(self.client); // close the client
             assert_eq!(res, 0);
