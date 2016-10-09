@@ -1,7 +1,13 @@
 [package]
-name = "jack"
+name = "rust-jack"
 version = "0.1.0"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
+description = "Safe jack bindings for rust."
+documentation = "https://wmedrano.github.io/rust-jack/jack/index.html"
+repository = "https://github.com/wmedrano/rust-jack"
+license = "MIT"
+readme = "README.md"
+keywords = ["jack", "realtime", "audio"]
 
 [dependencies]
 bitflags = "0.7.0"
