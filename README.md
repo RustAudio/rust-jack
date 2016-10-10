@@ -1,6 +1,7 @@
 # Rust JACK
 
 [![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
+[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
 
 Nice Rust bindings for
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
