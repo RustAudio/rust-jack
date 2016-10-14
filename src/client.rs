@@ -15,9 +15,13 @@ pub struct ClientId(usize);
 /// The maximum length of the Jack client name string. Unlike the "C" Jack
 /// API, this does not take into account the final `NULL` character and
 /// instead corresponds directly to `.len()`. This value is constant.
-pub fn client_name_size() -> usize {
+fn client_name_size() -> usize {
     let s = unsafe { j::jack_client_name_size() - 1 };
     s as usize
+}
+
+lazy_static! {
+    pub static ref CLIENT_NAME_SIZE: usize = client_name_size();
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -295,6 +299,12 @@ pub unsafe trait JackClient: Sized {
 }
 
 impl Client {
+    /// The maximum length of the Jack client name string. Unlike the "C" Jack
+    /// API, this does not take into account the final `NULL` character and
+    /// instead corresponds directly to `.len()`.
+
+
+
     /// Opens a Jack client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
     /// failure, then `Err(JackErr::ClientError(status))` will be returned.

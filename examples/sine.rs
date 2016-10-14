@@ -59,7 +59,7 @@ fn read_freq() -> Option<f64> {
     let mut user_input = String::new();
     match io::stdin().read_line(&mut user_input) {
         Ok(_) => u16::from_str(&user_input.trim()).ok().map(|n| n as f64),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -71,6 +71,7 @@ fn main() {
     let freq_request = app.frequency_requester();
     let active_client = client.activate(app).unwrap();
 
+    println!("Enter an integer value to change the frequency of the sine wave.");
     while let Some(f) = read_freq() {
         freq_request.send(f).unwrap();
     }

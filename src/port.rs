@@ -29,6 +29,11 @@ pub fn port_type_size() -> usize {
     s as usize
 }
 
+lazy_static! {
+    pub static ref PORT_NAME_SIZE: usize = port_name_size();
+    pub static ref PORT_TYPE_SIZE: usize = port_type_size();
+}
+
 pub unsafe fn port_pointer<K: PortOwnershipKind>(port: &Port<K>) -> *mut j::jack_port_t {
     port.port
 }

@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate bitflags;
 extern crate jack_sys;
+#[macro_use]
+extern crate lazy_static;
 extern crate libc;
 
 mod callbacks;
@@ -12,10 +14,10 @@ mod port;
 mod utils;
 
 pub use callbacks::{JackHandler, ProcessScope};
-pub use client::{Client, ActiveClient, JackClient, client_name_size};
+pub use client::{Client, ActiveClient, JackClient, CLIENT_NAME_SIZE};
 pub use enums::*;
 pub use flags::*;
-pub use port::{Port, Owned, Unowned, Input, Output, Audio, port_name_size, port_type_size};
+pub use port::{Port, Owned, Unowned, Input, Output, Audio, PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use info::set_info_callbacks;
 
 pub fn get_time() -> u64 {
