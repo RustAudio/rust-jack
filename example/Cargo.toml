@@ -1,7 +1,0 @@
-[package]
-name = "example"
-version = "0.1.0"
-authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
-
-[dependencies]
-jack = { path = "./.." }
