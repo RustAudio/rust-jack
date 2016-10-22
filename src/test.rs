@@ -20,9 +20,7 @@ struct TestHandler {
 
 impl TestHandler {
     pub fn new() -> Self {
-        TestHandler {
-            callback_counts: HashMap::new(),
-        }
+        TestHandler { callback_counts: HashMap::new() }
     }
 
     pub fn get_callback_count(&self, tp: TestCallbackTypes) -> usize {
@@ -43,29 +41,29 @@ impl JackHandler for TestHandler {
         self.increment_callback_count(TestCallbackTypes::ThreadInit);
     }
 
-    fn process(&mut self, _: u32) -> JackControl {
+    fn process(&mut self, _: &mut ProcessScope) -> JackControl {
         self.increment_callback_count(TestCallbackTypes::Process);
         JackControl::Continue
     }
 }
 
-fn open_test_client(name: &str) -> Client<TestHandler> {
+fn open_test_client(name: &str) -> (Client, ClientStatus) {
     thread::sleep(*DEFAULT_SLEEP_TIME);
-    Client::<TestHandler>::open(name, NO_START_SERVER).unwrap()
+    Client::open(name, NO_START_SERVER).unwrap()
 }
 
 #[test]
 fn querying_jack_sizes_returns_valid_values() {
-    assert!(Client::<TestHandler>::name_size() > 0);
-    assert!(Port::name_size() > 0);
-    assert!(Port::type_size() > 0);
+    assert!(*CLIENT_NAME_SIZE > 0);
+    assert!(*PORT_NAME_SIZE > 0);
+    assert!(*PORT_TYPE_SIZE > 0);
 }
 
 #[test]
 fn opening_returns_healthy_client() {
     let name: &'static str = "orhc";
-    let client = open_test_client(name);
-    assert_eq!(client.status(), ClientStatus::empty());
+    let (client, status) = open_test_client(name);
+    assert_eq!(status, ClientStatus::empty());
     assert_eq!(client.name(), name);
 }
 
@@ -73,20 +71,20 @@ fn opening_returns_healthy_client() {
 // Or, most likely, abandon functionality
 #[test]
 fn activating_a_client_calls_thread_init_once() {
-    let mut client = open_test_client("aacctio");
+    let (client, _status) = open_test_client("aacctio");
     let handler = TestHandler::new();
-    client.activate(handler).unwrap();
+    let client = client.activate(handler).unwrap();
     thread::sleep(*DEFAULT_SLEEP_TIME);
-    let handler = client.deactivate().unwrap();
+    let (_client, handler) = client.deactivate().unwrap();
     assert!(handler.get_callback_count(TestCallbackTypes::ThreadInit) > 0);
 }
 
 #[test]
 fn activating_a_client_calls_process_callback_several_times() {
-    let mut client = open_test_client("aaccpcst");
+    let (client, _status) = open_test_client("aaccpcst");
     let handler = TestHandler::new();
-    client.activate(handler).unwrap();
+    let client = client.activate(handler).unwrap();
     thread::sleep(*DEFAULT_SLEEP_TIME);
-    let handler = client.deactivate().unwrap();
+    let (_client, handler) = client.deactivate().unwrap();
     assert!(handler.get_callback_count(TestCallbackTypes::Process) > 1);
 }

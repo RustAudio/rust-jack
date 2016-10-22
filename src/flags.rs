@@ -122,6 +122,7 @@ bitflags! {
     /// synthesizers, I/O hardware interface clients, HDR systems are examples
     /// of clients that would set this flag for their ports.
     pub flags PortFlags: u32 {
+        const NO_PORT_FLAGS = 0,
         const IS_INPUT    = j::JackPortIsInput,
         const IS_OUTPUT   = j::JackPortIsOutput,
         const IS_PHYSICAL = j::JackPortIsPhysical,
