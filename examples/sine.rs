@@ -36,7 +36,7 @@ impl jack::JackHandler for SinWave {
         // Get output buffer
         let mut out_data: jack::AudioOutData = jack::AudioOutData::get(&self.out_port,
                                                                        &process_scope);
-        let out: &mut [f32] = out_data.slice_mut();
+        let out: &mut [f32] = out_data.buffer;
 
         // Check frequency requests
         while let Ok(f) = self.receiver.try_recv() {
