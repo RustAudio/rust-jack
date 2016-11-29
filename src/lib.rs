@@ -19,7 +19,7 @@ pub use client::{Client, JackClient};
 pub use flags::NO_START_SERVER;
 pub use jack_enums::{JackControl, JackErr};
 pub use jack_port::Port;
-pub use jack_port_impls::{AudioOutData, AudioOutputSpec};
+pub use jack_port_impls::{Audio, Input, Output, AudioInputSpec, AudioOutputSpec, AudioInData, AudioOutData};
 
 
 pub fn get_time() -> u64 {
