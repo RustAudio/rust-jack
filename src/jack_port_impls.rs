@@ -85,6 +85,7 @@ impl<'a> AudioInData<'a> {
     }
 }
 
+// Given a port and process scope, don't allow aliasing of buffer
 pub fn please_dont_work(p: Port<Audio<Output>>, ps: &ProcessScope) {
     let x = AudioOutData::get(&p, ps);
     let y = AudioOutData::get(&p, ps);
@@ -92,6 +93,7 @@ pub fn please_dont_work(p: Port<Audio<Output>>, ps: &ProcessScope) {
     y.buffer[0] = 0.1;
 }
 
+// Allow access to buffer
 pub fn please_work(p: Port<AudioOutputSpec>, ps: &ProcessScope) {
     let x = AudioOutData::get(&p, ps);
     x.buffer[0] = 0.0;
