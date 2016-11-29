@@ -1,7 +1,7 @@
 use std::{ffi, mem};
 use libc::c_void;
 use jack_sys as j;
-use enums::*;
+use jack_enums::*;
 use flags::*;
 use client;
 use client::ClientId;
@@ -59,7 +59,7 @@ pub trait JackHandler: Send {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, process_scope: &mut ProcessScope) -> JackControl {
+    fn process(&mut self, process_scope: &ProcessScope) -> JackControl {
         let _ = process_scope;
         JackControl::Continue
     }
