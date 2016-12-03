@@ -1,7 +1,6 @@
 use std::marker::Sized;
 use std::ffi;
-use std::slice;
-use flags::PortFlags;
+use jack_flags::PortFlags;
 use jack_sys as j;
 use jack_enums::JackErr;
 use callbacks::ProcessScope;
@@ -11,13 +10,14 @@ lazy_static! {
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
-pub unsafe trait PortData: Sized + Default {
+pub unsafe trait PortData: Sized {
     unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
     fn jack_port_type() -> &'static str;
     fn jack_flags() -> PortFlags;
     fn jack_buffer_size() -> u64;
 }
 
+#[derive(Debug)]
 pub struct Port<PD: PortData> {
     port_data: Option<PD>,
     client_ptr: *mut j::jack_client_t,
@@ -29,6 +29,9 @@ unsafe impl<PD: PortData> Send for Port<PD> {}
 impl<PD: PortData> Port<PD> {
     /// Returns the data
     pub fn data(&mut self, ps: &ProcessScope) -> &mut PD {
+        assert!(self.client_ptr == ps.client_ptr(),
+                "Port data may only be obtained for within the process of the client that \
+                 created it.");
         let n = ps.n_frames();
         let ptr = unsafe { j::jack_port_get_buffer(self.port_ptr(), n) };
         self.port_data = Some(unsafe { PD::from_ptr(ptr, n) });
@@ -199,17 +202,9 @@ impl<PD: PortData> Port<PD> {
     pub unsafe fn port_ptr(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
-
-    pub unsafe fn buffer_ptr(&self, n_frames: u32) -> *mut ::libc::c_void {
-        j::jack_port_get_buffer(self.port_ptr, n_frames)
-    }
-
-    pub unsafe fn buffer_slice<T>(&self, n_frames: u32) -> &[T] {
-        slice::from_raw_parts(self.buffer_ptr(n_frames) as *const T, n_frames as usize)
-    }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Unowned;
 
 unsafe impl PortData for Unowned {

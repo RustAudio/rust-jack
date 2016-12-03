@@ -5,22 +5,22 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
-pub mod callbacks;
-pub mod client;
-pub mod jack_enums;
-pub mod flags;
-pub mod info;
-pub mod jack_port;
-pub mod jack_port_impls;
-pub mod utils;
+mod callbacks;
+mod client;
+mod info;
+mod jack_enums;
+mod jack_flags;
+mod jack_utils;
+mod port;
+mod port_impls;
 
-pub use callbacks::{JackHandler, ProcessScope};
-pub use client::{Client, JackClient};
-pub use flags::NO_START_SERVER;
-pub use jack_enums::{JackControl, JackErr};
-pub use jack_port::Port;
-pub use jack_port_impls::{AudioIn, AudioOut};
-
+pub use callbacks::{ProcessScope, JackHandler};
+pub use client::CLIENT_NAME_SIZE;
+pub use client::{JackClient, Client, ActiveClient, CycleTimes};
+pub use info::set_info_callbacks;
+pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
+pub use port::{Port, PortData, Unowned, UnownedPort};
+pub use port_impls::{AudioIn, AudioOut};
 
 pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }

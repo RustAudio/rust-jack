@@ -1,14 +1,13 @@
 use std::slice;
-use flags;
-use flags::PortFlags;
-use jack_port::PortData;
+use jack_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::PortData;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AudioIn<'a> {
     buff: &'a [f32],
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AudioOut<'a> {
     buff: &'a mut [f32],
 }
@@ -25,7 +24,7 @@ unsafe impl<'a> PortData for AudioOut<'a> {
     }
 
     fn jack_flags() -> PortFlags {
-        flags::IS_OUTPUT
+        IS_OUTPUT
     }
 
     fn jack_buffer_size() -> u64 {
@@ -52,7 +51,7 @@ unsafe impl<'a> PortData for AudioIn<'a> {
     }
 
     fn jack_flags() -> PortFlags {
-        flags::IS_INPUT
+        IS_INPUT
     }
 
     fn jack_buffer_size() -> u64 {
