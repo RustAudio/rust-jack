@@ -22,14 +22,13 @@ pub use client::{JackClient, Client, ActiveClient, CycleTimes};
 pub use info::set_info_callbacks;
 pub use jack_enums::{JackControl, JackErr};
 pub use jack_flags::*;
-pub use midi::MidiStream;
+pub use midi::{MidiStream, MidiStreamReader, MidiIter};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{Port, PortData, Unowned, UnownedPort};
 pub use port_impls::{AudioIn, AudioOut};
 
 pub type AudioInPort<'a> = Port<AudioIn<'a>>;
 pub type AudioOutPort<'a> = Port<AudioOut<'a>>;
->>>>>>> master
 
 pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }

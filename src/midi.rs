@@ -1,49 +1,55 @@
+use std::mem;
 use jack_sys as j;
 use rimd;
 
-type MidiBufferPtr = *mut ::libc::c_void;
+pub trait MidiStream: Sized {
+    unsafe fn from_raw(ptr: *mut ::libc::c_void) -> Self;
+    unsafe fn ptr(&self) -> *mut ::libc::c_void;
 
-pub struct MidiStream {
-    port_buffer_ptr: MidiBufferPtr,
-}
-
-impl MidiStream {
-    pub unsafe fn from_port_buffer(ptr: *mut ::libc::c_void) -> MidiStream {
-        MidiStream {
-            port_buffer_ptr: ptr,
-        }
-    }
-
-    pub fn iter<'a>(&'a self) -> MidiIter<'a> {
+    fn iter<'a>(&'a self) -> MidiIter<'a, Self> {
         let n = self.len();
         MidiIter {
-            stream: &self,
+            stream: self,
             len: n,
             index: 0,
         }
     }
 
-    pub fn nth(&self, n: usize) -> Option<MidiEvent> {
+    fn nth(&self, n: usize) -> Option<MidiEvent> {
         if n < self.len() {
-            MidiEvent::from_ptr(self.port_buffer_ptr, n as u32)
+            MidiEvent::from_ptr(unsafe { self.ptr() }, n as u32)
         } else {
             None
         }
     }
 
-    pub fn len(&self) -> usize {
-        let n = unsafe { j::jack_midi_get_event_count(self.port_buffer_ptr) };
+    fn len(&self) -> usize {
+        let n = unsafe { j::jack_midi_get_event_count(self.ptr()) };
         n as usize
     }
 }
 
-pub struct MidiIter<'a> {
-    stream: &'a MidiStream,
+pub struct MidiStreamReader {
+    buffer_ptr: *mut ::libc::c_void,
+}
+
+impl MidiStream for MidiStreamReader {
+    unsafe fn from_raw(ptr: *mut ::libc::c_void) -> Self {
+        MidiStreamReader { buffer_ptr: ptr }
+    }
+
+    unsafe fn ptr(&self) -> *mut ::libc::c_void {
+        self.buffer_ptr
+    }
+}
+
+pub struct MidiIter<'a, S: MidiStream + 'a> {
+    stream: &'a S,
     len: usize,
     index: usize,
 }
 
-impl<'a> Iterator for MidiIter<'a> {
+impl<'a, S: MidiStream + 'a> Iterator for MidiIter<'a, S> {
     type Item = MidiEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -85,15 +91,14 @@ impl MidiEvent {
         }
     }
 
-    pub fn from_ptr(ptr: MidiBufferPtr, i: u32) -> Option<Self> {
+    pub fn from_ptr(ptr: *mut ::libc::c_void, i: u32) -> Option<Self> {
         unsafe {
-            let mut e: j::jack_midi_event_t = ::std::mem::uninitialized();
+            let mut e: j::jack_midi_event_t = mem::uninitialized();
             let res = j::jack_midi_event_get(&mut e, ptr, i);
             if res != 0 {
                 return None;
             }
-            let bytes_slice: &[u8] = ::std::slice::from_raw_parts(e.buffer as *const u8,
-                                                                  e.size);
+            let bytes_slice: &[u8] = ::std::slice::from_raw_parts(e.buffer as *const u8, e.size);
             let bytes_vec: Vec<u8> = bytes_slice.to_vec();
             let message = rimd::MidiMessage::from_bytes(bytes_vec);
             Some(MidiEvent {
