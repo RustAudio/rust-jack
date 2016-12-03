@@ -4,17 +4,18 @@ use std::str::FromStr;
 use std::sync::mpsc::{Sender, Receiver, channel};
 use jack::JackClient;
 
-pub struct SinWave {
+
+pub struct SinWave<'a> {
     frame_t: f64,
     frequency: f64,
-    out_port: jack::Port<jack::AudioOutputSpec>,
+    out_port: jack::AudioOutPort<'a>,
     time: f64,
     receiver: Receiver<f64>,
     sender: Sender<f64>,
 }
 
-impl SinWave {
-    pub fn new(out_port: jack::Port<jack::AudioOutputSpec>, freq: f64, sample_rate: f64) -> Self {
+impl<'a> SinWave<'a> {
+    pub fn new(out_port: jack::AudioOutPort<'a>, freq: f64, sample_rate: f64) -> Self {
         let (tx, rx) = channel();
         SinWave {
             frame_t: 1.0 / sample_rate,
@@ -31,12 +32,11 @@ impl SinWave {
     }
 }
 
-impl jack::JackHandler for SinWave {
+impl<'a> jack::JackHandler for SinWave<'a> {
     fn process(&mut self, process_scope: &jack::ProcessScope) -> jack::JackControl {
         // Get output buffer
-        let mut out_data: jack::AudioOutData = jack::AudioOutData::get(&self.out_port,
-                                                                       &process_scope);
-        let out: &mut [f32] = out_data.buffer;
+        let mut out_data = self.out_port.data(&process_scope);
+        let out: &mut [f32] = out_data.buffer();
 
         // Check frequency requests
         while let Ok(f) = self.receiver.try_recv() {
