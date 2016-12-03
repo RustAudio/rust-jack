@@ -3,11 +3,12 @@ use flags;
 use flags::PortFlags;
 use jack_port::PortData;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AudioIn<'a> {
     buff: &'a [f32],
 }
 
+#[derive(Debug, Default)]
 pub struct AudioOut<'a> {
     buff: &'a mut [f32],
 }
@@ -19,15 +20,15 @@ unsafe impl<'a> PortData for AudioOut<'a> {
         AudioOut { buff: buff }
     }
 
-    fn port_type() -> &'static str {
+    fn jack_port_type() -> &'static str {
         "32 bit mono audio"
     }
 
-    fn flags() -> PortFlags {
+    fn jack_flags() -> PortFlags {
         flags::IS_OUTPUT
     }
 
-    fn buffer_size() -> u64 {
+    fn jack_buffer_size() -> u64 {
         // Not needed for built in types according to jack api
         0
     }
@@ -45,15 +46,15 @@ unsafe impl<'a> PortData for AudioIn<'a> {
         let buff = slice::from_raw_parts(ptr as *const f32, len);
         AudioIn { buff: buff }
     }
-    fn port_type() -> &'static str {
+    fn jack_port_type() -> &'static str {
         "32 bit mono audio"
     }
 
-    fn flags() -> PortFlags {
+    fn jack_flags() -> PortFlags {
         flags::IS_INPUT
     }
 
-    fn buffer_size() -> u64 {
+    fn jack_buffer_size() -> u64 {
         // Not needed for built in types according to jack api
         0
     }

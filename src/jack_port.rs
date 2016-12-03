@@ -11,11 +11,11 @@ lazy_static! {
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
-pub unsafe trait PortData: Sized {
+pub unsafe trait PortData: Sized + Default {
     unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
-    fn port_type() -> &'static str;
-    fn flags() -> PortFlags;
-    fn buffer_size() -> u64;
+    fn jack_port_type() -> &'static str;
+    fn jack_flags() -> PortFlags;
+    fn jack_buffer_size() -> u64;
 }
 
 pub struct Port<PD: PortData> {
@@ -29,7 +29,10 @@ unsafe impl<PD: PortData> Send for Port<PD> {}
 impl<PD: PortData> Port<PD> {
     /// Returns the data
     pub fn data(&mut self, ps: &mut ProcessScope) -> &PD {
-        &self.port_data.unwrap()
+        let n = ps.n_frames();
+        let ptr = unsafe { j::jack_port_get_buffer(self.port_ptr(), n) };
+        self.port_data = Some(unsafe { PD::from_ptr(ptr, n) });
+        self.port_data.as_ref().unwrap()
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.
@@ -206,18 +209,23 @@ impl<PD: PortData> Port<PD> {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct Unowned;
+
 unsafe impl PortData for Unowned {
-    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
+    unsafe fn from_ptr(_ptr: *mut ::libc::c_void, _nframes: u32) -> Self {
         unimplemented!()
     }
-    fn port_type() -> &'static str {
+
+    fn jack_port_type() -> &'static str {
         unreachable!()
     }
-    fn flags() -> PortFlags {
+
+    fn jack_flags() -> PortFlags {
         unreachable!()
     }
-    fn buffer_size() -> u64 {
+
+    fn jack_buffer_size() -> u64 {
         unreachable!()
     }
 }

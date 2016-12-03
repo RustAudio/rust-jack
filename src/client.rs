@@ -403,9 +403,9 @@ impl Client {
     /// `port_type`. Otherwise, it is ignored.
     pub fn register_port<PD: PortData>(&mut self, port_name: &str) -> Result<Port<PD>, JackErr> {
         let port_name_c = ffi::CString::new(port_name).unwrap();
-        let port_type_c = ffi::CString::new(PD::port_type()).unwrap();
-        let port_flags = PD::flags().bits() as u64;
-        let buffer_size = PD::buffer_size() as u64;
+        let port_type_c = ffi::CString::new(PD::jack_port_type()).unwrap();
+        let port_flags = PD::jack_flags().bits() as u64;
+        let buffer_size = PD::jack_buffer_size() as u64;
         let pp = unsafe {
             j::jack_port_register(self.client,
                                   port_name_c.as_ptr(),
