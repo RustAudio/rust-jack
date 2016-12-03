@@ -1,10 +1,10 @@
 use std::marker::Sized;
 use std::ffi;
-use std::marker::PhantomData;
 use std::slice;
 use flags::PortFlags;
 use jack_sys as j;
 use jack_enums::JackErr;
+use callbacks::ProcessScope;
 
 lazy_static! {
     pub static ref PORT_NAME_SIZE: usize = unsafe { j::jack_port_name_size() - 1 } as usize;
@@ -12,20 +12,26 @@ lazy_static! {
 }
 
 pub unsafe trait PortData: Sized {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
     fn port_type() -> &'static str;
     fn flags() -> PortFlags;
     fn buffer_size() -> u64;
 }
 
-pub struct Port<PS: PortData> {
-    pd: PhantomData<PS>,
+pub struct Port<PD: PortData> {
+    port_data: Option<PD>,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
 }
 
-unsafe impl<PS: PortData> Send for Port<PS> {}
+unsafe impl<PD: PortData> Send for Port<PD> {}
 
-impl<PS: PortData> Port<PS> {
+impl<PD: PortData> Port<PD> {
+    /// Returns the data
+    pub fn data(&mut self, ps: &mut ProcessScope) -> &PD {
+        &self.port_data.unwrap()
+    }
+
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
@@ -177,7 +183,7 @@ impl<PS: PortData> Port<PS> {
                            port_ptr: *mut j::jack_port_t)
                            -> Self {
         Port {
-            pd: PhantomData,
+            port_data: None,
             port_ptr: port_ptr,
             client_ptr: client_ptr,
         }
@@ -202,6 +208,9 @@ impl<PS: PortData> Port<PS> {
 
 pub struct Unowned;
 unsafe impl PortData for Unowned {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
+        unimplemented!()
+    }
     fn port_type() -> &'static str {
         unreachable!()
     }

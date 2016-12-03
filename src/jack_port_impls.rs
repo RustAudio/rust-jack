@@ -1,25 +1,24 @@
-use std::marker::PhantomData;
 use std::slice;
 use flags;
 use flags::PortFlags;
-use jack_port::Port;
 use jack_port::PortData;
-use callbacks::ProcessScope;
 
 #[derive(Debug)]
-pub struct Output;
-#[derive(Debug)]
-pub struct Input;
-
-#[derive(Debug)]
-pub struct Audio<T> {
-    pd: PhantomData<T>,
+pub struct AudioIn<'a> {
+    buff: &'a [f32],
 }
 
-pub type AudioInputSpec = Audio<Input>;
-pub type AudioOutputSpec = Audio<Output>;
+pub struct AudioOut<'a> {
+    buff: &'a mut [f32],
+}
 
-unsafe impl PortData for Audio<Output> {
+unsafe impl<'a> PortData for AudioOut<'a> {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
+        let len = nframes as usize;
+        let buff = slice::from_raw_parts_mut(ptr as *mut f32, len);
+        AudioOut { buff: buff }
+    }
+
     fn port_type() -> &'static str {
         "32 bit mono audio"
     }
@@ -34,7 +33,18 @@ unsafe impl PortData for Audio<Output> {
     }
 }
 
-unsafe impl PortData for Audio<Input> {
+impl<'a> AudioOut<'a> {
+    pub fn buffer(&mut self) -> &mut [f32] {
+        return self.buff;
+    }
+}
+
+unsafe impl<'a> PortData for AudioIn<'a> {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
+        let len = nframes as usize;
+        let buff = slice::from_raw_parts(ptr as *const f32, len);
+        AudioIn { buff: buff }
+    }
     fn port_type() -> &'static str {
         "32 bit mono audio"
     }
@@ -49,52 +59,8 @@ unsafe impl PortData for Audio<Input> {
     }
 }
 
-pub struct AudioOutData<'a> {
-    _port: &'a Port<Audio<Output>>,
-    pub buffer: &'a mut [f32],
-}
-
-pub struct AudioInData<'a> {
-    _port: &'a Port<Audio<Input>>,
-    pub buffer: &'a [f32],
-}
-
-impl<'a> AudioOutData<'a> {
-    pub fn get(p: &'a Port<Audio<Output>>, ps: &ProcessScope) -> Self {
-        let buff: &mut [f32] = unsafe {
-            slice::from_raw_parts_mut(p.buffer_ptr(ps.n_frames()) as *mut f32,
-                                      ps.n_frames() as usize)
-        };
-        AudioOutData {
-            _port: &p,
-            buffer: buff,
-        }
+impl<'a> AudioIn<'a> {
+    pub fn buffer(&self) -> &[f32] {
+        self.buff
     }
-}
-
-impl<'a> AudioInData<'a> {
-    pub fn get(p: &'a Port<Audio<Input>>, ps: &ProcessScope) -> Self {
-        let buff: &[f32] = unsafe {
-            slice::from_raw_parts(p.buffer_ptr(ps.n_frames()) as *mut f32,
-                                  ps.n_frames() as usize)
-        };
-        AudioInData {
-            _port: &p,
-            buffer: buff,
-        }
-    }
-}
-
-// Given a port and process scope, don't allow aliasing of buffer
-pub fn please_dont_work(p: Port<Audio<Output>>, ps: &ProcessScope) {
-    let x = AudioOutData::get(&p, ps);
-    let y = AudioOutData::get(&p, ps);
-    x.buffer[0] = 0.0;
-    y.buffer[0] = 0.1;
-}
-
-// Allow access to buffer
-pub fn please_work(p: Port<AudioOutputSpec>, ps: &ProcessScope) {
-    let x = AudioOutData::get(&p, ps);
-    x.buffer[0] = 0.0;
 }
