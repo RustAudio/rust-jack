@@ -1,4 +1,4 @@
-use flags::*;
+use jack_flags::*;
 
 #[derive(Clone, Copy, Debug)]
 pub enum JackErr {
