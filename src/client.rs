@@ -113,15 +113,6 @@ pub unsafe trait JackClient: Sized {
         self.uuid_by_name(self.name()).unwrap()
     }
 
-    /// Get the pthread ID of the thread running the Jack client side code.
-    ///
-    /// # TODO
-    /// * Integrate a pthread library
-    /// * Implement, do people need this though?
-    fn thread_id<P>(&self) -> P {
-        unimplemented!();
-    }
-
     /// Get the name of the client with the UUID specified by `uuid`. If the
     /// client is found then `Some(name)` is returned, if not, then `None` is
     /// returned.

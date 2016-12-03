@@ -6,17 +6,36 @@ use jack_enums::JackErr;
 use callbacks::ProcessScope;
 
 lazy_static! {
+    /// The maximum string length for port names.
     pub static ref PORT_NAME_SIZE: usize = unsafe { j::jack_port_name_size() - 1 } as usize;
+
+    /// The maximum string length for jack type names.
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
+/// Represents the data of a Port within a `JackHandler::process`
+/// callback.
 pub unsafe trait PortData: Sized {
+    /// Used by `Port::data()`.
     unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
+
+    /// String used by jack upon port creation to identify the port
+    /// type.
     fn jack_port_type() -> &'static str;
+
+    /// Flags used by jack upon port creation.
     fn jack_flags() -> PortFlags;
+
+    /// Size used by jack upon port creation.
     fn jack_buffer_size() -> u64;
 }
 
+/// An endpoint to interact with Jack data streams, for audio, midi,
+/// etc...
+///
+/// Most jack functionality is exposed, including the raw pointers,
+/// but it should be possible to create a client without the need for
+/// calling `unsafe` `Port` methods.
 #[derive(Debug)]
 pub struct Port<PD: PortData> {
     port_data: Option<PD>,
@@ -174,8 +193,8 @@ impl<PD: PortData> Port<PD> {
         }
     }
 
-    /// Remvoe the port from the client, disconnecting any existing connections.
-    /// THe port must have been created with the provided client.
+    /// Remove the port from the client, disconnecting any existing connections.
+    /// The port must have been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.port_ptr) };
         match res {
@@ -184,6 +203,7 @@ impl<PD: PortData> Port<PD> {
         }
     }
 
+    /// Create a Port from raw jack pointers.
     pub unsafe fn from_raw(client_ptr: *mut j::jack_client_t,
                            port_ptr: *mut j::jack_port_t)
                            -> Self {
@@ -203,13 +223,15 @@ impl<PD: PortData> Port<PD> {
     }
 }
 
+/// Port that holds no data from jack, though it can be used for
+/// obtaining information about external ports.
 #[derive(Debug)]
 pub struct Unowned;
 pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortData for Unowned {
     unsafe fn from_ptr(_ptr: *mut ::libc::c_void, _nframes: u32) -> Self {
-        unimplemented!()
+        Unowned {}
     }
 
     fn jack_port_type() -> &'static str {
