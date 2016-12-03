@@ -28,11 +28,11 @@ unsafe impl<PD: PortData> Send for Port<PD> {}
 
 impl<PD: PortData> Port<PD> {
     /// Returns the data
-    pub fn data(&mut self, ps: &mut ProcessScope) -> &PD {
+    pub fn data(&mut self, ps: &ProcessScope) -> &mut PD {
         let n = ps.n_frames();
         let ptr = unsafe { j::jack_port_get_buffer(self.port_ptr(), n) };
         self.port_data = Some(unsafe { PD::from_ptr(ptr, n) });
-        self.port_data.as_ref().unwrap()
+        self.port_data.as_mut().unwrap()
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.

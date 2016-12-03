@@ -46,6 +46,7 @@ unsafe impl<'a> PortData for AudioIn<'a> {
         let buff = slice::from_raw_parts(ptr as *const f32, len);
         AudioIn { buff: buff }
     }
+
     fn jack_port_type() -> &'static str {
         "32 bit mono audio"
     }
