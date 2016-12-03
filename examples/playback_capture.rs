@@ -1,3 +1,4 @@
+//! Takes 2 audio inputs and outputs them to 2 audio outputs.
 extern crate jack;
 use std::io;
 

@@ -1,3 +1,4 @@
+//! Sine wave generator with frequency configuration exposed through standard input.
 extern crate jack;
 use std::io;
 use std::str::FromStr;

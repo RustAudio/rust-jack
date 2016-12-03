@@ -1,9 +1,10 @@
 use std::mem;
 use jack_sys as j;
 use rimd;
+use jack_flags::{IS_INPUT, PortFlags};
+use port::PortData;
 
 pub trait MidiStream: Sized {
-    unsafe fn from_raw(ptr: *mut ::libc::c_void) -> Self;
     unsafe fn ptr(&self) -> *mut ::libc::c_void;
 
     fn iter<'a>(&'a self) -> MidiIter<'a, Self> {
@@ -29,20 +30,38 @@ pub trait MidiStream: Sized {
     }
 }
 
+#[derive(Debug)]
 pub struct MidiStreamReader {
     buffer_ptr: *mut ::libc::c_void,
 }
 
 impl MidiStream for MidiStreamReader {
-    unsafe fn from_raw(ptr: *mut ::libc::c_void) -> Self {
-        MidiStreamReader { buffer_ptr: ptr }
-    }
-
     unsafe fn ptr(&self) -> *mut ::libc::c_void {
         self.buffer_ptr
     }
 }
 
+unsafe impl PortData for MidiStreamReader {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, _: u32) -> Self {
+        MidiStreamReader { buffer_ptr: ptr }
+    }
+
+    fn jack_port_type() -> &'static str {
+        "8 bit raw midi"
+    }
+
+    fn jack_flags() -> PortFlags {
+        IS_INPUT
+    }
+
+    fn jack_buffer_size() -> u64 {
+        // Not needed for built in types according to jack api
+        0
+    }
+}
+
+
+#[derive(Debug)]
 pub struct MidiIter<'a, S: MidiStream + 'a> {
     stream: &'a S,
     len: usize,
@@ -78,6 +97,7 @@ impl<'a, S: MidiStream + 'a> Iterator for MidiIter<'a, S> {
 }
 
 
+#[derive(Debug)]
 pub struct MidiEvent {
     message: rimd::MidiMessage,
     time: u32,

@@ -29,6 +29,7 @@ pub use port_impls::{AudioIn, AudioOut};
 
 pub type AudioInPort<'a> = Port<AudioIn<'a>>;
 pub type AudioOutPort<'a> = Port<AudioOut<'a>>;
+pub type MidiInPort = Port<MidiStreamReader>;
 
 pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }
