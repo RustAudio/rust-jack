@@ -3,7 +3,7 @@ use std::slice;
 use flags;
 use flags::PortFlags;
 use jack_port::Port;
-use jack_port::PortSpec;
+use jack_port::PortData;
 use callbacks::ProcessScope;
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct Audio<T> {
 pub type AudioInputSpec = Audio<Input>;
 pub type AudioOutputSpec = Audio<Output>;
 
-unsafe impl PortSpec for Audio<Output> {
+unsafe impl PortData for Audio<Output> {
     fn port_type() -> &'static str {
         "32 bit mono audio"
     }
@@ -34,7 +34,7 @@ unsafe impl PortSpec for Audio<Output> {
     }
 }
 
-unsafe impl PortSpec for Audio<Input> {
+unsafe impl PortData for Audio<Input> {
     fn port_type() -> &'static str {
         "32 bit mono audio"
     }

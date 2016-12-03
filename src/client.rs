@@ -3,7 +3,7 @@ use jack_sys as j;
 use callbacks;
 use jack_enums::*;
 use flags::*;
-use jack_port::{Port, PortSpec, UnownedPort};
+use jack_port::{Port, PortData, UnownedPort};
 use utils;
 use callbacks::JackHandler;
 use std::mem;
@@ -294,7 +294,7 @@ pub unsafe trait JackClient: Sized {
     }
 
     /// Returns `true` if the port `port` belongs to this client.
-    fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
+    fn is_mine<PS: PortData>(&self, port: &Port<PS>) -> bool {
         match unsafe { j::jack_port_is_mine(self.client_ptr(), port.port_ptr()) } {
             1 => true,
             _ => false,
@@ -401,7 +401,7 @@ impl Client {
     ///
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
-    pub fn register_port<PS: PortSpec>(&mut self, port_name: &str) -> Result<Port<PS>, JackErr> {
+    pub fn register_port<PS: PortData>(&mut self, port_name: &str) -> Result<Port<PS>, JackErr> {
         let port_name_c = ffi::CString::new(port_name).unwrap();
         let port_type_c = ffi::CString::new(PS::port_type()).unwrap();
         let port_flags = PS::flags().bits() as u64;
@@ -529,7 +529,7 @@ impl Client {
 
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with this client.
-    pub fn unregister_port<PS: PortSpec>(&mut self, _port: Port<PS>) -> Result<(), JackErr> {
+    pub fn unregister_port<PS: PortData>(&mut self, _port: Port<PS>) -> Result<(), JackErr> {
         unimplemented!();
         // port.unregister(self)
     }

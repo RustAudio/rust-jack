@@ -11,21 +11,21 @@ lazy_static! {
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
-pub unsafe trait PortSpec: Sized {
+pub unsafe trait PortData: Sized {
     fn port_type() -> &'static str;
     fn flags() -> PortFlags;
     fn buffer_size() -> u64;
 }
 
-pub struct Port<PS: PortSpec> {
+pub struct Port<PS: PortData> {
     pd: PhantomData<PS>,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
 }
 
-unsafe impl<PS: PortSpec> Send for Port<PS> {}
+unsafe impl<PS: PortData> Send for Port<PS> {}
 
-impl<PS: PortSpec> Port<PS> {
+impl<PS: PortData> Port<PS> {
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
@@ -201,7 +201,7 @@ impl<PS: PortSpec> Port<PS> {
 }
 
 pub struct Unowned;
-unsafe impl PortSpec for Unowned {
+unsafe impl PortData for Unowned {
     fn port_type() -> &'static str {
         unreachable!()
     }
