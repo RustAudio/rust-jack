@@ -1,16 +1,11 @@
 use std::{ffi, ptr};
 use jack_sys as j;
-use callbacks;
-use enums::*;
-use flags::*;
-use port;
-use utils;
-use callbacks::JackHandler;
+use jack_enums::*;
+use jack_flags::*;
+use port::{Port, PortData, UnownedPort};
+use jack_utils::collect_strs;
+use callbacks::{JackHandler, register_callbacks, clear_callbacks};
 use std::mem;
-use std::sync::atomic::{Ordering, AtomicUsize, ATOMIC_USIZE_INIT};
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct ClientId(usize);
 
 /// The maximum length of the Jack client name string. Unlike the "C" Jack
 /// API, this does not take into account the final `NULL` character and
@@ -32,17 +27,6 @@ pub struct CycleTimes {
     pub period_usecs: f32,
 }
 
-// Stolen from Futures-rs `fresh_task_id`
-// Allows us to uniquely identify clients at runtime in order to ensure that
-// port buffers are only mutated in the handler of the client that created them
-fn fresh_client_id() -> ClientId {
-    static NEXT_ID: AtomicUsize = ATOMIC_USIZE_INIT;
-    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-    assert!(id < usize::max_value() / 2,
-            "too many previous clients have been allocated");
-    ClientId(id)
-}
-
 /// A client to interact with a Jack server.
 ///
 /// # Example
@@ -51,39 +35,28 @@ fn fresh_client_id() -> ClientId {
 /// ```
 #[derive(Debug)]
 pub struct Client {
-    id: ClientId,
     client: *mut j::jack_client_t,
 }
 
 #[derive(Debug)]
 pub struct ActiveClient<JH: JackHandler> {
-    id: ClientId,
     client: *mut j::jack_client_t,
-    handler: *mut (JH, ClientId),
+    handler: *mut (JH, *mut j::jack_client_t),
 }
 
 unsafe impl JackClient for Client {
-    fn id(&self) -> ClientId {
-        self.id
-    }
     fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
 
 unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
-    fn id(&self) -> ClientId {
-        self.id
-    }
     fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
 
 pub unsafe trait JackClient: Sized {
-    #[inline(always)]
-    fn id(&self) -> ClientId;
-
     #[inline(always)]
     fn client_ptr(&self) -> *mut j::jack_client_t;
 
@@ -140,15 +113,6 @@ pub unsafe trait JackClient: Sized {
         self.uuid_by_name(self.name()).unwrap()
     }
 
-    /// Get the pthread ID of the thread running the Jack client side code.
-    ///
-    /// # TODO
-    /// * Integrate a pthread library
-    /// * Implement, do people need this though?
-    fn thread_id<P>(&self) -> P {
-        unimplemented!();
-    }
-
     /// Get the name of the client with the UUID specified by `uuid`. If the
     /// client is found then `Some(name)` is returned, if not, then `None` is
     /// returned.
@@ -200,27 +164,28 @@ pub unsafe trait JackClient: Sized {
         let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = flags.bits() as u64;
         unsafe {
-            utils::collect_strs(j::jack_get_ports(self.client_ptr(),
-                                                  pnp.as_ptr(),
-                                                  tnp.as_ptr(),
-                                                  flags))
+            collect_strs(j::jack_get_ports(self.client_ptr(), pnp.as_ptr(), tnp.as_ptr(), flags))
         }
     }
 
     /// Get a `Port` by its port id.
-    fn port_by_id(&self, port_id: u32) -> Option<port::Port<port::Unowned>> {
-        unsafe {
-            port::ptrs_to_port(self.client_ptr(),
-                               j::jack_port_by_id(self.client_ptr(), port_id))
+    fn port_by_id(&self, port_id: u32) -> Option<UnownedPort> {
+        let pp = unsafe { j::jack_port_by_id(self.client_ptr(), port_id) };
+        if pp.is_null() {
+            None
+        } else {
+            Some(unsafe { Port::from_raw(self.client_ptr(), pp) })
         }
     }
 
     /// Get a `Port` by its port name.
-    fn port_by_name(&self, port_name: &str) -> Option<port::Port<port::Unowned>> {
+    fn port_by_name(&self, port_name: &str) -> Option<UnownedPort> {
         let port_name = ffi::CString::new(port_name).unwrap();
-        unsafe {
-            port::ptrs_to_port(self.client_ptr(),
-                               j::jack_port_by_name(self.client_ptr(), port_name.as_ptr()))
+        let pp = unsafe { j::jack_port_by_name(self.client_ptr(), port_name.as_ptr()) };
+        if pp.is_null() {
+            None
+        } else {
+            Some(unsafe { Port::from_raw(self.client_ptr(), pp) })
         }
     }
 
@@ -290,8 +255,8 @@ pub unsafe trait JackClient: Sized {
     }
 
     /// Returns `true` if the port `port` belongs to this client.
-    fn is_mine<PKind: port::PortOwnershipKind>(&self, port: &port::Port<PKind>) -> bool {
-        match unsafe { j::jack_port_is_mine(self.client_ptr(), port::port_pointer(port)) } {
+    fn is_mine<PD: PortData>(&self, port: &Port<PD>) -> bool {
+        match unsafe { j::jack_port_is_mine(self.client_ptr(), port.port_ptr()) } {
             1 => true,
             _ => false,
         }
@@ -302,8 +267,6 @@ impl Client {
     /// The maximum length of the Jack client name string. Unlike the "C" Jack
     /// API, this does not take into account the final `NULL` character and
     /// instead corresponds directly to `.len()`.
-
-
 
     /// Opens a Jack client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
@@ -318,19 +281,13 @@ impl Client {
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(ffi::CString::new(client_name).unwrap().as_ptr(),
-                                options.bits(),
-                                &mut status_bits)
+            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
         };
         let status = ClientStatus::from_bits(status_bits).unwrap_or(UNKNOWN_ERROR);
         if client.is_null() {
             Err(JackErr::ClientError(status))
         } else {
-            Ok((Client {
-                id: fresh_client_id(),
-                client: client,
-            },
-                status))
+            Ok((Client { client: client }, status))
         }
     }
 
@@ -345,20 +302,19 @@ impl Client {
     /// called.
     pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
         unsafe {
-            let handler_ptr = try!(callbacks::register_callbacks(handler, self.client, self.id));
+            let handler_ptr = try!(register_callbacks(handler, self.client, self.client_ptr()));
             if handler_ptr.is_null() {
                 Err(JackErr::CallbackRegistrationError)
             } else {
                 let res = j::jack_activate(self.client);
                 match res {
                     0 => {
-                        let Client { id, client } = self;
+                        let Client { client } = self;
 
                         // Don't run destructor -- we want the client to stay open
                         mem::forget(self);
 
                         Ok(ActiveClient {
-                            id: id,
                             client: client,
                             handler: handler_ptr,
                         })
@@ -401,31 +357,22 @@ impl Client {
     ///
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
-    pub fn register_port<PType: port::PortType>
-        (&mut self,
-         port_name: &str,
-         flags: PortFlags,
-         buffer_size: Option<usize>)
-         -> Result<port::Port<port::Owned<PType>>, JackErr> {
-        use port::PortDataType;
-        unsafe {
-            let port_name_c = ffi::CString::new(port_name).unwrap();
-            let port_type_c = ffi::CString::new(PType::DataType::type_identifier()).unwrap();
-            let port_flags = (flags | PType::necessary_flags()).bits() as u64;
-            let buffer_size = buffer_size.unwrap_or(0) as u64;
-            let port = {
-                let ptr = j::jack_port_register(self.client,
-                                                port_name_c.as_ptr(),
-                                                port_type_c.as_ptr(),
-                                                port_flags,
-                                                buffer_size);
-
-                port::ptrs_to_port(self.client, ptr)
-            };
-            match port {
-                Some(p) => Ok(port::port_to_owned(p, self.id)),
-                None => Err(JackErr::PortRegistrationError),
-            }
+    pub fn register_port<PD: PortData>(&mut self, port_name: &str) -> Result<Port<PD>, JackErr> {
+        let port_name_c = ffi::CString::new(port_name).unwrap();
+        let port_type_c = ffi::CString::new(PD::jack_port_type()).unwrap();
+        let port_flags = PD::jack_flags().bits() as u64;
+        let buffer_size = PD::jack_buffer_size() as u64;
+        let pp = unsafe {
+            j::jack_port_register(self.client,
+                                  port_name_c.as_ptr(),
+                                  port_type_c.as_ptr(),
+                                  port_flags,
+                                  buffer_size)
+        };
+        if pp.is_null() {
+            Err(JackErr::PortRegistrationError)
+        } else {
+            Ok(unsafe { Port::from_raw(self.client_ptr(), pp) })
         }
     }
 
@@ -535,12 +482,12 @@ impl Client {
             _ => Err(JackErr::SetBufferSizeError),
         }
     }
+
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with this client.
-    pub fn unregister_port<PT: port::PortType>(&mut self,
-                                               port: port::Port<port::Owned<PT>>)
-                                               -> Result<(), JackErr> {
-        port.unregister(self)
+    pub fn unregister_port<PD: PortData>(&mut self, _port: Port<PD>) -> Result<(), JackErr> {
+        unimplemented!();
+        // port.unregister(self)
     }
 }
 
@@ -556,7 +503,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
     /// unknown, and it is therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
         unsafe {
-            let ActiveClient { id, client, handler } = self;
+            let ActiveClient { client, handler } = self;
 
             // Prevent destructor from running, as this would cause double-deactivation
             mem::forget(self);
@@ -570,12 +517,12 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 _ => Err(JackErr::ClientDeactivationError),
             };
 
-            let callback_res = callbacks::clear_callbacks(client);
+            let callback_res = clear_callbacks(client);
 
             match (res, callback_res) {
                 (Ok(handler_ptr), Ok(())) => {
                     let (handler, _) = *handler_ptr;
-                    Ok(( Client { id: id, client: client }, handler ))
+                    Ok(( Client { client: client }, handler ))
                 }
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed

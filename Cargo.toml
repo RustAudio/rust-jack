@@ -1,6 +1,6 @@
 [package]
 name = "jack"
-version = "0.1.1"
+version = "0.1.3"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Safe jack bindings for rust."
 documentation = "https://wmedrano.github.io/rust-jack/jack/index.html"
@@ -11,7 +11,7 @@ keywords = ["jack", "realtime", "audio"]
 
 [dependencies]
 bitflags = "0.7.0"
-jack-sys = { git = "https://github.com/cramertj/jack-sys.git", branch = "cramertj/unsafe-extern" }
+jack-sys = "0.1.2"
 lazy_static = "0.2.1"
 libc = "0.2"
 rimd = "0.0.1"

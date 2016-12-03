@@ -41,7 +41,7 @@ impl JackHandler for TestHandler {
         self.increment_callback_count(TestCallbackTypes::ThreadInit);
     }
 
-    fn process(&mut self, _: &mut ProcessScope) -> JackControl {
+    fn process(&mut self, _: &ProcessScope) -> JackControl {
         self.increment_callback_count(TestCallbackTypes::Process);
         JackControl::Continue
     }
@@ -53,14 +53,14 @@ fn open_test_client(name: &str) -> (Client, ClientStatus) {
 }
 
 #[test]
-fn querying_jack_sizes_returns_valid_values() {
+fn valid_size_constants() {
     assert!(*CLIENT_NAME_SIZE > 0);
     assert!(*PORT_NAME_SIZE > 0);
     assert!(*PORT_TYPE_SIZE > 0);
 }
 
 #[test]
-fn opening_returns_healthy_client() {
+fn open_client() {
     let name: &'static str = "orhc";
     let (client, status) = open_test_client(name);
     assert_eq!(status, ClientStatus::empty());
@@ -70,7 +70,7 @@ fn opening_returns_healthy_client() {
 // TODO: investigate why thread_init gets called more than once.
 // Or, most likely, abandon functionality
 #[test]
-fn activating_a_client_calls_thread_init_once() {
+fn thread_init_once() {
     let (client, _status) = open_test_client("aacctio");
     let handler = TestHandler::new();
     let client = client.activate(handler).unwrap();
@@ -80,7 +80,7 @@ fn activating_a_client_calls_thread_init_once() {
 }
 
 #[test]
-fn activating_a_client_calls_process_callback_several_times() {
+fn call_process_callback() {
     let (client, _status) = open_test_client("aaccpcst");
     let handler = TestHandler::new();
     let client = client.activate(handler).unwrap();

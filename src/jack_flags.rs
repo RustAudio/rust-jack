@@ -1,11 +1,5 @@
 use jack_sys as j;
 
-/// port type for Jack's built in 32 bit floating audio.
-pub const DEFAULT_AUDIO_TYPE: &'static str = "32 bit float mono audio";
-
-/// port type for Jack's built in 8 bit raw midi
-pub const DEFAULT_MIDI_TYPE: &'static str = "8 bit raw midi";
-
 bitflags! {
     /// Option flags for opening a Jack client.
     ///
