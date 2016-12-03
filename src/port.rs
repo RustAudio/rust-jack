@@ -27,7 +27,6 @@ pub struct Port<PD: PortData> {
 unsafe impl<PD: PortData> Send for Port<PD> {}
 
 impl<PD: PortData> Port<PD> {
-    /// Returns the data
     pub fn data(&mut self, ps: &ProcessScope) -> &mut PD {
         assert!(self.client_ptr == ps.client_ptr(),
                 "Port data may only be obtained for within the process of the client that \
@@ -206,6 +205,7 @@ impl<PD: PortData> Port<PD> {
 
 #[derive(Debug)]
 pub struct Unowned;
+pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortData for Unowned {
     unsafe fn from_ptr(_ptr: *mut ::libc::c_void, _nframes: u32) -> Self {
@@ -224,5 +224,3 @@ unsafe impl PortData for Unowned {
         unreachable!()
     }
 }
-
-pub type UnownedPort = Port<Unowned>;
