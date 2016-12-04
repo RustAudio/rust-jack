@@ -1,5 +1,6 @@
-use jack_flags::*;
+use jack_flags::client_status::ClientStatus;
 
+/// The Error type that can occur within JACK.
 #[derive(Clone, Copy, Debug)]
 pub enum JackErr {
     CallbackRegistrationError,
@@ -28,9 +29,13 @@ pub enum LatencyType {
     Playback,
 }
 
+/// Specify an option.
 #[derive(Clone, Copy, Debug)]
 pub enum JackControl {
+    /// Continue processing.
     Continue,
+
+    /// Stop processing.
     Quit,
 }
 

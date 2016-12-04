@@ -1,6 +1,6 @@
 use std::marker::Sized;
 use std::ffi;
-use jack_flags::PortFlags;
+use jack_flags::port_flags::PortFlags;
 use jack_sys as j;
 use jack_enums::JackErr;
 use callbacks::ProcessScope;
@@ -19,7 +19,7 @@ pub unsafe trait PortData: Sized {
     /// Used by `Port::data()`.
     unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
 
-    /// String used by jack upon port creation to identify the port
+    /// String used by JACK upon port creation to identify the port
     /// type.
     fn jack_port_type() -> &'static str;
 
@@ -30,10 +30,10 @@ pub unsafe trait PortData: Sized {
     fn jack_buffer_size() -> u64;
 }
 
-/// An endpoint to interact with Jack data streams, for audio, midi,
+/// An endpoint to interact with JACK data streams, for audio, midi,
 /// etc...
 ///
-/// Most jack functionality is exposed, including the raw pointers,
+/// Most JACK functionality is exposed, including the raw pointers,
 /// but it should be possible to create a client without the need for
 /// calling `unsafe` `Port` methods.
 #[derive(Debug)]
@@ -78,7 +78,7 @@ impl<PD: PortData> Port<PD> {
         PortFlags::from_bits(bits as u32).unwrap()
     }
 
-    /// The port type. Jack's built in types include "32 bit float mono audio"
+    /// The port type. JACK's built in types include "32 bit float mono audio"
     /// and "8 bit raw midi". Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.port_ptr)).to_str().unwrap() }
@@ -151,7 +151,7 @@ impl<PD: PortData> Port<PD> {
     /// May be called at any time. If the alias is longer than
     /// `Client::name_size()`, it will be truncated.
     ///
-    /// After a successful call, and until Jack exists, or the alias is unset,
+    /// After a successful call, and until JACK exists, or the alias is unset,
     /// `alias` may be used as an alternate name for the port.
     ///
     /// Ports can have up to two aliases - if both are already set, this
@@ -203,7 +203,7 @@ impl<PD: PortData> Port<PD> {
         }
     }
 
-    /// Create a Port from raw jack pointers.
+    /// Create a Port from raw JACK pointers.
     pub unsafe fn from_raw(client_ptr: *mut j::jack_client_t,
                            port_ptr: *mut j::jack_port_t)
                            -> Self {
@@ -223,7 +223,7 @@ impl<PD: PortData> Port<PD> {
     }
 }
 
-/// Port that holds no data from jack, though it can be used for
+/// Port that holds no data from JACK, though it can be used for
 /// obtaining information about external ports.
 #[derive(Debug)]
 pub struct Unowned;
