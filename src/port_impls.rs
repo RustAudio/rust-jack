@@ -39,7 +39,7 @@ unsafe impl<'a> PortData for AudioOut<'a> {
     }
 
     fn jack_port_type() -> &'static str {
-        "32 bit mono audio"
+        "32 bit float mono audio"
     }
 
     fn jack_flags() -> PortFlags {
@@ -76,7 +76,7 @@ unsafe impl<'a> PortData for AudioIn<'a> {
     }
 
     fn jack_port_type() -> &'static str {
-        "32 bit mono audio"
+        "32 bit float mono audio"
     }
 
     fn jack_flags() -> PortFlags {
