@@ -2,7 +2,7 @@
 //! values sent to it.
 extern crate jack;
 use std::io;
-use jack::{JackClient, MidiStream};
+use jack::{JackHandler, MidiStream};
 
 #[derive(Debug)]
 pub struct MidiShow {
