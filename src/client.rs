@@ -62,15 +62,11 @@ unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
     }
 }
 
+/// Common `JACK` client functionality that can be accessed for both
+/// inactive and active clients.
 pub unsafe trait JackClient: Sized {
     #[inline(always)]
     fn client_ptr(&self) -> *mut j::jack_client_t;
-
-    /// Manually close the client, deactivating if necessary.
-    /// This will happen automatically on drop.
-    fn close(self) -> () {
-        drop(self)
-    }
 
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
@@ -540,7 +536,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
     }
 }
 
-/// Closes the client, no need to manually call `JackClient::close()`.
+/// Close the client, deactivating if necessary.
 impl Drop for Client {
     fn drop(&mut self) {
         debug_assert!(!self.client.is_null()); // Rep invariant
@@ -553,7 +549,7 @@ impl Drop for Client {
     }
 }
 
-/// Closes the client, no need to manually call `JackClient::close()`.
+/// Closes the client.
 impl<JH: JackHandler> Drop for ActiveClient<JH> {
     fn drop(&mut self) {
         unsafe {
