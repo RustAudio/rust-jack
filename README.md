@@ -12,25 +12,25 @@ Nice Rust bindings for
 
 * `libjack` is required. Consult your package manager or the [official](http://www.jackaudio.org/downloads/) website.
 
-* The general workflow for a jack application is to start up a jack daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a jack server through a GUI.
+* The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a JACK server through a GUI.
 
 ## Running Tests
 
-Testing is a little awkward to setup since it relies on a Jack server.
+Testing is a little awkward to setup since it relies on a JACK server.
 
-### Setting Up Jack Dummy Server
-Testing expects there to be an available Jack server running at a sample rate of
+### Setting Up JACK Dummy Server
+Testing expects there to be an available JACK server running at a sample rate of
 44.1kHz and a buffer size of 1024 samples.
 
 ```bash
-$ jackd -r -ddummy -r44100 -p1024 & # Start the dummy jack server
+$ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
 ```
 
 #### Possible Issues
 
 If the tests are failing, a possible gotcha may be timing issues.
 
-1. Rust runs tests in parallel, it may be possible that the jack server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
+1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
 2. Increase the value of `DEFAULT_SLEEP_TIME` in `test.rs`.
 
 Another case can be that libjack is broke. Try switching between libjack and

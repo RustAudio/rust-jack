@@ -1,7 +1,7 @@
 extern crate jack;
 use std::io;
 
-/// jack client that will take to ports as input and play them as
+/// JACK client that will take to ports as input and play them as
 /// output.
 pub struct PlaybackCapture<'a> {
     in_ports: [jack::AudioInPort<'a>; 2],
@@ -40,8 +40,8 @@ impl<'a> jack::JackHandler for PlaybackCapture<'a> {
 
 fn main() {
     // Create client
-    let (mut client, _status) = jack::Client::open("rust_jack_simple", jack::NO_START_SERVER)
-        .unwrap();
+    let (mut client, _status) =
+        jack::Client::open("rust_jack_simple", jack::client_options::NO_START_SERVER).unwrap();
 
     // Create app, which implements the `JackHandler` trait.
     let app = PlaybackCapture::new([client.register_port("pc_in0").unwrap(),
