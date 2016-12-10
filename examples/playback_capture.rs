@@ -1,6 +1,5 @@
 extern crate jack;
 use std::io;
-use jack::ProcessClosure;
 
 fn main() {
     // Create client
@@ -12,12 +11,11 @@ fn main() {
     let mut in_b: jack::AudioInPort = client.register_port("pc_in1").unwrap();
     let mut out_a: jack::AudioOutPort = client.register_port("pc_out0").unwrap();
     let mut out_b: jack::AudioOutPort = client.register_port("pc_out0").unwrap();
-    let process_callback =
-        ProcessClosure::new(move |ps: &jack::ProcessScope| -> jack::JackControl {
-            out_a.data(ps).buffer().clone_from_slice(in_a.data(ps).buffer());
-            out_b.data(ps).buffer().clone_from_slice(in_b.data(ps).buffer());
-            jack::JackControl::Continue
-        });
+    let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+        out_a.data(ps).buffer().clone_from_slice(in_a.data(ps).buffer());
+        out_b.data(ps).buffer().clone_from_slice(in_b.data(ps).buffer());
+        jack::JackControl::Continue
+    };
     // Activate the client, which starts the processing.
     let active_client = client.activate(process_callback).unwrap();
 

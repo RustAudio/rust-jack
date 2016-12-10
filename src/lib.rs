@@ -14,7 +14,7 @@ mod jack_utils;
 mod port;
 mod port_impls;
 
-pub use callbacks::{ProcessClosure, ProcessScope, JackHandler};
+pub use callbacks::{ProcessScope, JackHandler};
 pub use client::CLIENT_NAME_SIZE;
 pub use client::{JackClient, Client, ActiveClient, CycleTimes};
 pub use info::set_info_callbacks;

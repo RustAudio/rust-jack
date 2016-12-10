@@ -165,19 +165,9 @@ pub trait JackHandler: Send {
     fn latency(&mut self, _mode: LatencyType) {}
 }
 
-pub struct ProcessClosure<F: Send + FnMut(&ProcessScope) -> JackControl> {
-    process_callback: Box<F>,
-}
-
-impl<F: Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessClosure<F> {
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F {
     fn process(&mut self, ps: &ProcessScope) -> JackControl {
-        (self.process_callback)(ps)
-    }
-}
-
-impl<F: Send + FnMut(&ProcessScope) -> JackControl> ProcessClosure<F> {
-    pub fn new(f: F) -> Self {
-        ProcessClosure { process_callback: Box::new(f) }
+        (self)(ps)
     }
 }
 
