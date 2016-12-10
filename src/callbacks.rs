@@ -2,8 +2,10 @@ use std::{ffi, mem};
 use libc::c_void;
 use jack_sys as j;
 use jack_enums::*;
-use jack_flags::*;
+use jack_flags::client_status::{ClientStatus, UNKNOWN_ERROR};
 
+/// `ProcessScope` provides information on the client and frame
+/// timings within a `process` callback.
 #[derive(Debug)]
 pub struct ProcessScope {
     // To be used _only_ for runtime verification that the client who wrote
@@ -34,7 +36,7 @@ impl ProcessScope {
     }
 }
 
-/// Specifies callbacks for Jack.
+/// Specifies callbacks for JACK.
 ///
 /// All callbacks happen on the same thread (not concurrently), unless otherwise
 /// stated.
@@ -48,11 +50,11 @@ pub trait JackHandler: Send {
     /// It does not need to be suitable for real-time execution.
     fn thread_init(&mut self) {}
 
-    /// Called when the Jack server shuts down the client thread. The function
+    /// Called when the JACK server shuts down the client thread. The function
     /// must be written as if it were an asynchronous POSIX signal handler ---
     /// use only async-safe functions, and remember that it is executed from
     /// another thread. A typical funcion might set a flag or write to a pipe so
-    /// that the rest of the application knows that the Jack client thread has
+    /// that the rest of the application knows that the JACK client thread has
     /// shut down.
     fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
 
@@ -93,7 +95,7 @@ pub trait JackHandler: Send {
     /// Called whenever a port is renamed.
     ///
     /// # TODO
-    /// * Possibly fix description, Jack API docs have same description
+    /// * Possibly fix description, JACK API docs have same description
     /// for this as port registration.
     fn port_rename(&mut self, _port_id: u32, _old_name: &str, _new_name: &str) -> JackControl {
         JackControl::Continue
@@ -116,7 +118,7 @@ pub trait JackHandler: Send {
     }
 
     /// Called whenever it is necessary to recompute the latencies for some or
-    /// all Jack ports.
+    /// all JACK ports.
     ///
     /// It will be called twice each time it is needed, once being passed
     /// `CaptureLatency` and once with `PlayBackLatency. See managing and
@@ -124,7 +126,7 @@ pub trait JackHandler: Send {
     /// related functions. TODO: clear up the "see managing and ..." in the
     /// docstring.
     ///
-    /// IMPORTANT: Most Jack clients do NOT need to register a latency callback.
+    /// IMPORTANT: Most JACK clients do NOT need to register a latency callback.
     ///
     /// Clients that meed any of the following conditions do NOT need to
     /// register a latency callback:
@@ -305,16 +307,16 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
     Ok(())
 }
 
-/// Registers methods from `handler` to be used by Jack with `client`.
+/// Registers methods from `handler` to be used by JACK with `client`.
 ///
 /// Returns `Ok(handler_ptr)` on success, or
 /// `Err(JackErr::CallbackRegistrationError)` on failure.
 ///
 /// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut j::jack_client_t)`.
 ///
-/// Registers `handler` with jack. All jack calls to `client` will be handled by
+/// Registers `handler` with JACK. All JACK calls to `client` will be handled by
 /// `handler`. `handler` is consumed, but it is not deallocated. `handler`
-/// should be manually deallocated when jack will no longer make calls to it,
+/// should be manually deallocated when JACK will no longer make calls to it,
 /// such as when registering new callbacks with the same client, or dropping the
 /// client.
 ///

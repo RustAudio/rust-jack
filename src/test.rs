@@ -49,7 +49,7 @@ impl JackHandler for TestHandler {
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     thread::sleep(*DEFAULT_SLEEP_TIME);
-    Client::open(name, NO_START_SERVER).unwrap()
+    Client::open(name, client_options::NO_START_SERVER).unwrap()
 }
 
 #[test]

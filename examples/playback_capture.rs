@@ -3,8 +3,8 @@ use std::io;
 
 fn main() {
     // Create client
-    let (mut client, _status) = jack::Client::open("rust_jack_simple", jack::NO_START_SERVER)
-        .unwrap();
+    let (mut client, _status) =
+        jack::Client::open("rust_jack_simple", jack::client_options::NO_START_SERVER).unwrap();
 
     // Create app, which implements the `JackHandler` trait.
     let mut in_a: jack::AudioInPort = client.register_port("pc_in0").unwrap();
