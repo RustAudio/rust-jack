@@ -372,7 +372,7 @@ impl Client {
                                   buffer_size)
         };
         if pp.is_null() {
-            Err(JackErr::PortRegistrationError)
+            Err(JackErr::PortRegistrationError(port_name.to_string()))
         } else {
             Ok(unsafe { Port::from_raw(self.client_ptr(), pp) })
         }
