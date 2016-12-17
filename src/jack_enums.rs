@@ -1,7 +1,7 @@
 use jack_flags::client_status::ClientStatus;
 
 /// The Error type that can occur within JACK.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum JackErr {
     CallbackRegistrationError,
     CallbackDeregistrationError,
@@ -16,7 +16,7 @@ pub enum JackErr {
     PortNamingError,
     PortMonitorError,
     PortNotFound,
-    PortRegistrationError,
+    PortRegistrationError(String),
     SetBufferSizeError,
     TimeError,
     UnknownError,

@@ -167,6 +167,12 @@ pub trait JackHandler: Send {
     fn latency(&mut self, _mode: LatencyType) {}
 }
 
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F {
+    fn process(&mut self, ps: &ProcessScope) -> JackControl {
+        (self)(ps)
+    }
+}
+
 unsafe fn handler_and_ptr_from_void<'a, T: JackHandler>(ptr: *mut c_void)
                                                         -> &'a mut (T, *mut j::jack_client_t) {
     assert!(!ptr.is_null());

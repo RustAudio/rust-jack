@@ -8,6 +8,8 @@ Nice Rust bindings for
 
 [Documentation](https://wmedrano.github.io/rust-jack/jack/index.html)
 
+Check out the `examples` directory.
+
 ## Running
 
 * `libjack` is required. Consult your package manager or the [official](http://www.jackaudio.org/downloads/) website.
