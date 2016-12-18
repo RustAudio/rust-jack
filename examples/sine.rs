@@ -67,8 +67,8 @@ fn read_freq() -> Option<f64> {
 }
 
 fn main() {
-    let (mut client, _status) = jack::Client::open("rust_jack_sine", jack::NO_START_SERVER)
-        .unwrap();
+    let (mut client, _status) =
+        jack::Client::open("rust_jack_sine", jack::client_options::NO_START_SERVER).unwrap();
 
     let out_port = client.register_port("sine_out").unwrap();
     let app = SinWave::new(out_port, 220.0, client.sample_rate() as f64);

@@ -1,13 +1,15 @@
 use std::{ffi, ptr};
 use jack_sys as j;
 use jack_enums::*;
-use jack_flags::*;
+use jack_flags::port_flags::PortFlags;
+use jack_flags::client_options::ClientOptions;
+use jack_flags::client_status::{ClientStatus, UNKNOWN_ERROR};
 use port::{Port, PortData, UnownedPort};
 use jack_utils::collect_strs;
 use callbacks::{JackHandler, register_callbacks, clear_callbacks};
 use std::mem;
 
-/// The maximum length of the Jack client name string. Unlike the "C" Jack
+/// The maximum length of the JACK client name string. Unlike the "C" JACK
 /// API, this does not take into account the final `NULL` character and
 /// instead corresponds directly to `.len()`. This value is constant.
 fn client_name_size() -> usize {
@@ -16,9 +18,11 @@ fn client_name_size() -> usize {
 }
 
 lazy_static! {
+    /// The maximum string length for port names.
     pub static ref CLIENT_NAME_SIZE: usize = client_name_size();
 }
 
+/// Internal cycle timing information.
 #[derive(Clone, Copy, Debug)]
 pub struct CycleTimes {
     pub current_frames: u32,
@@ -27,7 +31,7 @@ pub struct CycleTimes {
     pub period_usecs: f32,
 }
 
-/// A client to interact with a Jack server.
+/// A client to interact with a JACK server.
 ///
 /// # Example
 /// ```
@@ -38,6 +42,8 @@ pub struct Client {
     client: *mut j::jack_client_t,
 }
 
+/// A `JackClient` that is currently active. Active clients may
+/// contain `JackHandler`s that are processing data in real-time.
 #[derive(Debug)]
 pub struct ActiveClient<JH: JackHandler> {
     client: *mut j::jack_client_t,
@@ -56,24 +62,20 @@ unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
     }
 }
 
+/// Common `JACK` client functionality that can be accessed for both
+/// inactive and active clients.
 pub unsafe trait JackClient: Sized {
     #[inline(always)]
     fn client_ptr(&self) -> *mut j::jack_client_t;
 
-    /// Manually close the client, deactivating if necessary.
-    /// This will happen automatically on drop.
-    fn close(self) -> () {
-        drop(self)
-    }
-
-    /// The sample rate of the jack system, as set by the user when jackd was
+    /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     fn sample_rate(&self) -> usize {
         let srate = unsafe { j::jack_get_sample_rate(self.client_ptr()) };
         srate as usize
     }
 
-    /// The current CPU load estimated by Jack.
+    /// The current CPU load estimated by JACK.
     ///
     /// This is a running average of the time it takes to execute a full process
     /// cycle for all clients as a percentage of the real time available per
@@ -96,7 +98,7 @@ pub unsafe trait JackClient: Sized {
     }
 
     /// Get the name of the current client. This may differ from the name
-    /// requested by `Client::open` as Jack will may rename a client if
+    /// requested by `Client::open` as JACK will may rename a client if
     /// necessary (ie: name collision, name too long). The name will only
     /// the be different than the one passed to `Client::open` if the
     /// `ClientStatus` was `NAME_NOT_UNIQUE`.
@@ -189,7 +191,7 @@ pub unsafe trait JackClient: Sized {
         }
     }
 
-    /// The estimated time in frames that has passed since the Jack server began
+    /// The estimated time in frames that has passed since the JACK server began
     /// the current process cycle.
     fn frames_since_cycle_start(&self) -> u32 {
         unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
@@ -198,7 +200,7 @@ pub unsafe trait JackClient: Sized {
     /// The estimated current time in frames. This function is intended for use
     /// in other threads (not the process callback). The return value can be
     /// compared with the value of `last_frame_time` to relate time in other
-    /// threads to Jack time.
+    /// threads to JACK time.
     fn frame_time(&self) -> u32 {
         unsafe { j::jack_frame_time(self.client_ptr()) }
     }
@@ -264,11 +266,11 @@ pub unsafe trait JackClient: Sized {
 }
 
 impl Client {
-    /// The maximum length of the Jack client name string. Unlike the "C" Jack
+    /// The maximum length of the JACK client name string. Unlike the "C" JACK
     /// API, this does not take into account the final `NULL` character and
     /// instead corresponds directly to `.len()`.
 
-    /// Opens a Jack client with the given name and options. If the client is
+    /// Opens a JACK client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
     /// failure, then `Err(JackErr::ClientError(status))` will be returned.
     ///
@@ -292,8 +294,8 @@ impl Client {
     }
 
 
-    /// Tell the Jack server that the program is ready to start processing
-    /// audio. Jack will call the methods specified by the `JackHandler` trait, from `handler`.
+    /// Tell the JACK server that the program is ready to start processing
+    /// audio. JACK will call the methods specified by the `JackHandler` trait, from `handler`.
     ///
     /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
     /// `Err(JackErr::ClientActivationError)` is returned.
@@ -342,7 +344,7 @@ impl Client {
     /// the name is not unique, the registration will fail.
     ///
     /// All ports have a type, which may be any non empty string, passed as an
-    /// argument. Some port types are built into the Jack API, like
+    /// argument. Some port types are built into the JACK API, like
     /// `DEFAULT_AUDIO_TYPE` and `DEFAULT_MIDI_TYPE`.
     ///
     /// # Parameters
@@ -370,7 +372,7 @@ impl Client {
                                   buffer_size)
         };
         if pp.is_null() {
-            Err(JackErr::PortRegistrationError)
+            Err(JackErr::PortRegistrationError(port_name.to_string()))
         } else {
             Ok(unsafe { Port::from_raw(self.client_ptr(), pp) })
         }
@@ -437,11 +439,11 @@ impl Client {
         }
     }
 
-    /// Start/Stop Jack's "freewheel" mode.
+    /// Start/Stop JACK's "freewheel" mode.
     ///
-    /// When in "freewheel" mode, Jack no longer waits for any external event to
+    /// When in "freewheel" mode, JACK no longer waits for any external event to
     /// begin the start of the next process cycle. As a result, freewheel mode
-    /// causes "faster than real-time" execution of a Jack graph. If possessed,
+    /// causes "faster than real-time" execution of a JACK graph. If possessed,
     /// real-time scheduling is dropped when entering freewheel mode, and if
     /// appropriate it is reacquired when stopping.
     ///
@@ -470,7 +472,7 @@ impl Client {
 
     /// Change the buffer size passed to the process callback.
     ///
-    /// This operation stops the jack engine process cycle, then calls all
+    /// This operation stops the JACK engine process cycle, then calls all
     /// registered buffer size callback functions before restarting the process
     /// cycle. This will cause a gap in the audio flow, so it should only be
     /// done at appropriate stopping points.
@@ -492,12 +494,12 @@ impl Client {
 }
 
 impl<JH: JackHandler> ActiveClient<JH> {
-    /// Tell the Jack server to remove this client from the process graph. Also,
+    /// Tell the JACK server to remove this client from the process graph. Also,
     /// disconnect all ports belonging to it since inactive clients have no port
     /// connections.
     ///
     /// The `handler` that was used for `Client::activate` is returned on
-    /// success. Its state may have changed due to Jack calling its methods.
+    /// success. Its state may have changed due to JACK calling its methods.
     ///
     /// In the case of error, the `Client` is destroyed because its state is
     /// unknown, and it is therefore unsafe to continue using.
@@ -534,7 +536,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
     }
 }
 
-/// Closes the client, no need to manually call `JackClient::close()`.
+/// Close the client, deactivating if necessary.
 impl Drop for Client {
     fn drop(&mut self) {
         debug_assert!(!self.client.is_null()); // Rep invariant
@@ -547,7 +549,7 @@ impl Drop for Client {
     }
 }
 
-/// Closes the client, no need to manually call `JackClient::close()`.
+/// Closes the client.
 impl<JH: JackHandler> Drop for ActiveClient<JH> {
     fn drop(&mut self) {
         unsafe {
