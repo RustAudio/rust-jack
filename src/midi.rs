@@ -30,6 +30,9 @@ pub trait MidiStream: Sized {
     }
 }
 
+/// `MidiStreamReader` implements the `PortData` trait, which defines
+/// an endpoint for JACK. In this case, it provides readable midi
+/// messages.
 #[derive(Debug)]
 pub struct MidiStreamReader {
     buffer_ptr: *mut ::libc::c_void,
@@ -61,6 +64,7 @@ unsafe impl PortData for MidiStreamReader {
 }
 
 
+/// Iterate over `MidiEvent`.
 #[derive(Debug)]
 pub struct MidiIter<'a, S: MidiStream + 'a> {
     stream: &'a S,
