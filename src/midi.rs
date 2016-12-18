@@ -1,7 +1,7 @@
 use std::mem;
 use jack_sys as j;
 use rimd;
-use jack_flags::port_flags::{IS_INPUT, PortFlags};
+use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::PortData;
 
 pub trait MidiStream: Sized {
@@ -63,6 +63,70 @@ unsafe impl PortData for MidiStreamReader {
     }
 }
 
+#[derive(Debug)]
+pub struct MidiStreamWriter {
+    buffer_ptr: *mut ::libc::c_void,
+}
+
+impl MidiStreamWriter {
+    pub fn write(&mut self, events: &[MidiEvent]) {
+        let mut _events_vec = Vec::new();
+        unsafe {
+            let mut events = events;
+            let mut is_sorted = true;
+            for i in 0..events.len() - 1 {
+                if events[i].time() > events[i + 1].time() {
+                    is_sorted = false;
+                }
+            }
+            if !is_sorted {
+                _events_vec = events.to_vec();
+                _events_vec.sort_by(|a, b| {
+                    match (a.time() < b.time(), a.time() > b.time()) {
+                        (true, _) => ::std::cmp::Ordering::Less,
+                        (_, true) => ::std::cmp::Ordering::Greater,
+                        (_, _) => ::std::cmp::Ordering::Equal,
+                    }
+                });
+                events = &_events_vec;
+            }
+            for e in events.iter() {
+                j::jack_midi_event_reserve(self.buffer_ptr, e.time(), e.message().data.len());
+                j::jack_midi_event_write(self.buffer_ptr,
+                                         e.time(),
+                                         e.message().data.as_ptr(),
+                                         e.message().data.len());
+            }
+        }
+    }
+}
+
+impl MidiStream for MidiStreamWriter {
+    unsafe fn ptr(&self) -> *mut ::libc::c_void {
+        self.buffer_ptr
+    }
+}
+
+unsafe impl PortData for MidiStreamWriter {
+    unsafe fn from_ptr(ptr: *mut ::libc::c_void, _: u32) -> Self {
+        j::jack_midi_clear_buffer(ptr);
+        MidiStreamWriter { buffer_ptr: ptr }
+    }
+
+    fn jack_port_type() -> &'static str {
+        "8 bit raw midi"
+    }
+
+    fn jack_flags() -> PortFlags {
+        IS_OUTPUT
+    }
+
+    fn jack_buffer_size() -> u64 {
+        // Not needed for built in types according to jack api
+        0
+    }
+}
+
 
 /// Iterate over `MidiEvent`.
 #[derive(Debug)]
@@ -101,7 +165,7 @@ impl<'a, S: MidiStream + 'a> Iterator for MidiIter<'a, S> {
 }
 
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MidiEvent {
     message: rimd::MidiMessage,
     time: u32,
