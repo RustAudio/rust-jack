@@ -1,7 +1,7 @@
 use std::mem;
 use jack_sys as j;
 use rimd;
-use jack_flags::{IS_INPUT, PortFlags};
+use jack_flags::port_flags::{IS_INPUT, PortFlags};
 use port::PortData;
 
 pub trait MidiStream: Sized {

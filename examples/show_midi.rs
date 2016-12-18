@@ -27,8 +27,8 @@ impl JackHandler for MidiShow {
 }
 
 fn main() {
-    let (mut client, _status) = jack::Client::open("rust_jack_show_midi", jack::NO_START_SERVER)
-        .unwrap();
+    let (mut client, _status) =
+        jack::Client::open("rust_jack_show_midi", jack::client_options::NO_START_SERVER).unwrap();
     let shower = MidiShow::new(client.register_port("midi0").unwrap());
     let active_client = client.activate(shower).unwrap();
     let mut user_input = String::new();
