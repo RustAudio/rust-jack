@@ -23,14 +23,10 @@ pub use jack_flags::{ClientOptions, client_options};
 pub use jack_flags::{ClientStatus, client_status};
 pub use jack_flags::{PortFlags, port_flags};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
-pub use port::{Port, PortData, Unowned, UnownedPort};
+pub use port::{Port, PortSpec, Unowned, UnownedPort};
 pub use port_impls::{AudioIn, AudioOut};
 
-/// An endpoint to read JACK 32bit floating point audio.
-pub type AudioInPort<'a> = Port<AudioIn<'a>>;
-
-/// An endpoint to output JACK 32bit floating point audio.
-pub type AudioOutPort<'a> = Port<AudioOut<'a>>;
+pub use port_impls::{AudioInPort, AudioOutPort};
 
 pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }

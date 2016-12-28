@@ -8,14 +8,14 @@ use jack::JackClient;
 pub struct SinWave<'a> {
     frame_t: f64,
     frequency: f64,
-    out_port: jack::AudioOutPort<'a>,
+    out_port: jack::Port<jack::AudioOut>,
     time: f64,
     receiver: Receiver<f64>,
     sender: Sender<f64>,
 }
 
 impl<'a> SinWave<'a> {
-    pub fn new(out_port: jack::AudioOutPort<'a>, freq: f64, sample_rate: f64) -> Self {
+    pub fn new(out_port: jack::Port<jack::AudioOut>, freq: f64, sample_rate: f64) -> Self {
         let (tx, rx) = channel();
         SinWave {
             frame_t: 1.0 / sample_rate,
