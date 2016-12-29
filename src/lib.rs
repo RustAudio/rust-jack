@@ -48,7 +48,6 @@ mod info;
 mod jack_enums;
 mod jack_flags;
 mod jack_utils;
-mod midi_impls;
 mod port;
 mod port_impls;
 
@@ -63,9 +62,7 @@ pub use jack_flags::{PortFlags, port_flags};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{Port, PortSpec, Unowned, UnownedPort};
 pub use port_impls::{AudioInSpec, AudioInPort, AudioOutSpec, AudioOutPort};
-
-pub use midi_impls::*;
-
+pub use port_impls::{MidiInSpec, MidiInPort, MidiIter, MidiOutSpec, MidiOutPort};
 
 /// Return JACK's current system time in microseconds, using the JACK
 /// clock source.
