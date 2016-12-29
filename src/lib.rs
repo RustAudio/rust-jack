@@ -62,6 +62,7 @@ pub use jack_flags::{PortFlags, port_flags};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{Port, PortSpec, Unowned, UnownedPort};
 pub use port_impls::{AudioInSpec, AudioInPort, AudioOutSpec, AudioOutPort};
+pub use port_impls::{MidiInSpec, MidiInPort, MidiIter, MidiOutSpec, MidiOutPort, RawMidi};
 
 /// Return JACK's current system time in microseconds, using the JACK
 /// clock source.

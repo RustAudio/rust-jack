@@ -20,6 +20,7 @@ pub enum JackErr {
     SetBufferSizeError,
     TimeError,
     UnknownError,
+    NotEnoughSpace,
 }
 
 /// Used by `JackHandler::latency()`.

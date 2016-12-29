@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::{thread, time};
-use super::*;
+use super::super::*;
 
 lazy_static! {
     static ref DEFAULT_SLEEP_TIME: time::Duration = time::Duration::from_secs(1);
@@ -50,13 +50,6 @@ impl JackHandler for TestHandler {
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     thread::sleep(*DEFAULT_SLEEP_TIME);
     Client::open(name, client_options::NO_START_SERVER).unwrap()
-}
-
-#[test]
-fn valid_size_constants() {
-    assert!(*CLIENT_NAME_SIZE > 0);
-    assert!(*PORT_NAME_SIZE > 0);
-    assert!(*PORT_TYPE_SIZE > 0);
 }
 
 #[test]
