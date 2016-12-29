@@ -16,17 +16,24 @@ Check out the `examples` directory.
 
 * The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a JACK server through a GUI.
 
-## Running Tests
+## Testing
 
 Testing is a little awkward to setup since it relies on a JACK server.
 
 ### Setting Up JACK Dummy Server
-Testing expects there to be an available JACK server running at a sample rate of
-44.1kHz and a buffer size of 1024 samples.
+
+```bash
+$ ./dummy_jack_server.sh
+```
+
+which runs
 
 ```bash
 $ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
 ```
+
+Testing expects there to be an available JACK server running at a sample rate of
+44.1kHz and a buffer size of 1024 samples.
 
 #### Possible Issues
 
@@ -35,7 +42,8 @@ If the tests are failing, a possible gotcha may be timing issues.
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
 2. Increase the value of `DEFAULT_SLEEP_TIME` in `test.rs`.
 
-Another case can be that libjack is broke. Try switching between libjack and
+Another case is that libjack may be broken.
+Try switching between libjack and
 libjack2 (they have the same API and libjack2 isn't necessarily newer than
 libjack), or using a different version.
 
@@ -53,27 +61,9 @@ $ cargo test
 * `jack_on_shutdown` has been removed, uses only `jack_on_info_shutdown`.
 * Rust enums vs C enums
 * Rust bitflags vs C integers used as flags
-* deprecated Jack functions are not used/implemented in Rust bindings
+* deprecated JACK functions are not used/implemented in Rust bindings
 
 
-## Progress
+## C JACK API
 
-Sections based on the
-[main page](http://jackaudio.org/files/docs/html/index.html) sections on the
-Jack API.
-
-### TODO
-* Top priority: MIDI!!!
-* Managing and determining latency
-* Transport and Timebase control
-* The non-callback API (possibly skip)
-* Reading and writing MIDI data
-* Session API for clients.
-* managing support for newer/older versions of JACK
-* the API for starting and controlling a JACK server
-* * Metadata API.
-
-### Other TODOS
-* make safer
-* better error reporting
-* better testing
+[Main Page](http://jackaudio.org/files/docs/html/index.html)

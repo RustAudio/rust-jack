@@ -1,67 +1,45 @@
 use std::slice;
-use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
-use port::PortData;
+use std::ops::{Deref, DerefMut};
 
-/// `AudioIn` implements the `PortData` trait which, defines an
+use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::{Port, PortSpec};
+use callbacks::ProcessScope;
+
+/// `AudioInSpec` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioIn::buffer()` is used to gain access the buffer.
-#[derive(Debug)]
-pub struct AudioIn<'a> {
-    buff: &'a [f32],
-}
+/// `AudioInSpec::buffer()` is used to gain access the buffer.
+#[derive(Debug, Default)]
+pub struct AudioInSpec;
 
-/// `AudioOut` implements the `PortData` trait, which defines an
+/// `AudioOutSpec` implements the `PortSpec` trait, which defines an
 /// endpoint for JACK. In this case, it is a mutable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioOut::buffer()` is used to gain access the buffer.
-#[derive(Debug)]
-pub struct AudioOut<'a> {
-    buff: &'a mut [f32],
-}
+/// `AudioOutSpec::buffer()` is used to gain access the buffer.
+#[derive(Debug, Default)]
+pub struct AudioOutSpec;
 
-unsafe impl<'a> PortData for AudioOut<'a> {
-    /// Create an AudioOut instance from a buffer pointer and frame
-    /// count. This is mostly used by `Port<AudioOut>` within a
-    /// `process` scope.
-    ///
-    /// # Arguments
-    ///
-    /// * `ptr` - buffer pointer to underlying data.
-    ///
-    /// * `nframes` - the size of the buffer.
-    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
-        let len = nframes as usize;
-        let buff = slice::from_raw_parts_mut(ptr as *mut f32, len);
-        AudioOut { buff: buff }
-    }
 
-    fn jack_port_type() -> &'static str {
+unsafe impl<'a> PortSpec for AudioOutSpec {
+    fn jack_port_type(&self) -> &'static str {
         "32 bit float mono audio"
     }
 
-    fn jack_flags() -> PortFlags {
+    fn jack_flags(&self) -> PortFlags {
         IS_OUTPUT
     }
 
-    fn jack_buffer_size() -> u64 {
+    fn jack_buffer_size(&self) -> u64 {
         // Not needed for built in types according to JACK api
         0
     }
 }
 
-impl<'a> AudioOut<'a> {
-    /// Retrieve the underlying buffer for reading.
-    pub fn buffer(&mut self) -> &mut [f32] {
-        return self.buff;
-    }
-}
-
-unsafe impl<'a> PortData for AudioIn<'a> {
-    /// Create an AudioIn instance from a buffer pointer and frame
-    /// count. This is mostly used by `Port<AudioIn>` within a
+unsafe impl PortSpec for AudioInSpec {
+    /// Create an AudioInSpec instance from a buffer pointer and frame
+    /// count. This is mostly used by `Port<AudioInSpec>` within a
     /// `process` scope.
     ///
     /// # Arguments
@@ -69,29 +47,86 @@ unsafe impl<'a> PortData for AudioIn<'a> {
     /// * `ptr` - buffer pointer to underlying data.
     ///
     /// * `nframes` - the size of the buffer.
-    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self {
-        let len = nframes as usize;
-        let buff = slice::from_raw_parts(ptr as *const f32, len);
-        AudioIn { buff: buff }
-    }
 
-    fn jack_port_type() -> &'static str {
+    fn jack_port_type(&self) -> &'static str {
         "32 bit float mono audio"
     }
 
-    fn jack_flags() -> PortFlags {
+    fn jack_flags(&self) -> PortFlags {
         IS_INPUT
     }
 
-    fn jack_buffer_size() -> u64 {
+    fn jack_buffer_size(&self) -> u64 {
         // Not needed for built in types according to JACK api
         0
     }
 }
 
-impl<'a> AudioIn<'a> {
-    /// Retrieve the underlying buffer for writing purposes.
-    pub fn buffer(&self) -> &[f32] {
-        self.buff
+/// Safetly wrap a `Port<AudioOutPort>`. Can deref into a `&mut[f32]`.
+pub struct AudioOutPort<'a> {
+    _port: &'a mut Port<AudioOutSpec>,
+    buffer: &'a mut [f32],
+}
+
+impl<'a> AudioOutPort<'a> {
+    /// Wrap a `Port<AudioOutSpec>` within a process scope of a client
+    /// that registered the port. Panics if the port does not belong
+    /// to the client that created the process.
+    pub fn new(port: &'a mut Port<AudioOutSpec>, ps: &'a ProcessScope) -> Self {
+        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        let buff = unsafe {
+            slice::from_raw_parts_mut(port.buffer(ps.n_frames()) as *mut f32,
+                                      ps.n_frames() as usize)
+        };
+        AudioOutPort {
+            _port: port,
+            buffer: buff,
+        }
+    }
+}
+
+impl<'a> Deref for AudioOutPort<'a> {
+    type Target = [f32];
+
+    fn deref(&self) -> &[f32] {
+        self.buffer
+    }
+}
+
+impl<'a> DerefMut for AudioOutPort<'a> {
+    fn deref_mut(&mut self) -> &mut [f32] {
+        self.buffer
+    }
+}
+
+
+/// Safetly wrap a `Port<AudioInPort>`. Derefs into a `&[f32]`.
+pub struct AudioInPort<'a> {
+    _port: &'a Port<AudioInSpec>,
+    buffer: &'a [f32],
+}
+
+impl<'a> AudioInPort<'a> {
+    /// Wrap a `Port<AudioInSpec>` within a process scope of a client
+    /// that registered the port. Panics if the port does not belong
+    /// to the client that created the process.
+    pub fn new(port: &'a Port<AudioInSpec>, ps: &'a ProcessScope) -> Self {
+        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        let buff = unsafe {
+            slice::from_raw_parts(port.buffer(ps.n_frames()) as *const f32,
+                                  ps.n_frames() as usize)
+        };
+        AudioInPort {
+            _port: port,
+            buffer: buff,
+        }
+    }
+}
+
+impl<'a> Deref for AudioInPort<'a> {
+    type Target = [f32];
+
+    fn deref(&self) -> &[f32] {
+        self.buffer
     }
 }

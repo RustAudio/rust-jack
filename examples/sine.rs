@@ -2,20 +2,21 @@ extern crate jack;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::{Sender, Receiver, channel};
-use jack::JackClient;
+use jack::{client_options, AudioOutPort, AudioOutSpec, Client, JackClient, JackHandler,
+           JackControl, Port, ProcessScope};
 
 
-pub struct SinWave<'a> {
+pub struct SinWave {
     frame_t: f64,
     frequency: f64,
-    out_port: jack::AudioOutPort<'a>,
+    out_port: Port<AudioOutSpec>,
     time: f64,
     receiver: Receiver<f64>,
     sender: Sender<f64>,
 }
 
-impl<'a> SinWave<'a> {
-    pub fn new(out_port: jack::AudioOutPort<'a>, freq: f64, sample_rate: f64) -> Self {
+impl SinWave {
+    pub fn new(out_port: Port<AudioOutSpec>, freq: f64, sample_rate: f64) -> Self {
         let (tx, rx) = channel();
         SinWave {
             frame_t: 1.0 / sample_rate,
@@ -32,11 +33,11 @@ impl<'a> SinWave<'a> {
     }
 }
 
-impl<'a> jack::JackHandler for SinWave<'a> {
-    fn process(&mut self, process_scope: &jack::ProcessScope) -> jack::JackControl {
+impl JackHandler for SinWave {
+    fn process(&mut self, process_scope: &ProcessScope) -> JackControl {
         // Get output buffer
-        let mut out_data = self.out_port.data(&process_scope);
-        let out: &mut [f32] = out_data.buffer();
+        let mut out_p = AudioOutPort::new(&mut self.out_port, process_scope);
+        let out: &mut [f32] = &mut out_p;
 
         // Check frequency requests
         while let Ok(f) = self.receiver.try_recv() {
@@ -53,7 +54,7 @@ impl<'a> jack::JackHandler for SinWave<'a> {
         }
 
         // Continue as normal
-        jack::JackControl::Continue
+        JackControl::Continue
     }
 }
 
@@ -66,10 +67,10 @@ fn read_freq() -> Option<f64> {
 }
 
 fn main() {
-    let (mut client, _status) =
-        jack::Client::open("rust_jack_sine", jack::client_options::NO_START_SERVER).unwrap();
+    let (mut client, _status) = Client::open("rust_jack_sine", client_options::NO_START_SERVER)
+        .unwrap();
 
-    let out_port = client.register_port("sine_out").unwrap();
+    let out_port = client.register_port("sine_out", AudioOutSpec).unwrap();
     let app = SinWave::new(out_port, 220.0, client.sample_rate() as f64);
     let freq_request = app.frequency_requester();
     let active_client = client.activate(app).unwrap();
