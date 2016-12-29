@@ -1,13 +1,16 @@
-use std::{ffi, ptr};
 use jack_sys as j;
+
+use std::mem;
+use std::{ffi, ptr};
+
+use callbacks::{JackHandler, register_callbacks, clear_callbacks};
 use jack_enums::*;
-use jack_flags::port_flags::PortFlags;
 use jack_flags::client_options::ClientOptions;
 use jack_flags::client_status::{ClientStatus, UNKNOWN_ERROR};
-use port::{Port, PortData, UnownedPort};
+use jack_flags::port_flags::PortFlags;
 use jack_utils::collect_strs;
-use callbacks::{JackHandler, register_callbacks, clear_callbacks};
-use std::mem;
+use port::{Port, PortSpec, UnownedPort};
+use port;
 
 /// The maximum length of the JACK client name string. Unlike the "C" JACK
 /// API, this does not take into account the final `NULL` character and
@@ -176,7 +179,7 @@ pub unsafe trait JackClient: Sized {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(self.client_ptr(), pp) })
+            Some(unsafe { Port::from_raw(port::Unowned {}, self.client_ptr(), pp) })
         }
     }
 
@@ -187,7 +190,7 @@ pub unsafe trait JackClient: Sized {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(self.client_ptr(), pp) })
+            Some(unsafe { Port::from_raw(port::Unowned {}, self.client_ptr(), pp) })
         }
     }
 
@@ -257,7 +260,7 @@ pub unsafe trait JackClient: Sized {
     }
 
     /// Returns `true` if the port `port` belongs to this client.
-    fn is_mine<PD: PortData>(&self, port: &Port<PD>) -> bool {
+    fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
         match unsafe { j::jack_port_is_mine(self.client_ptr(), port.port_ptr()) } {
             1 => true,
             _ => false,
@@ -359,11 +362,14 @@ impl Client {
     ///
     /// `buffer_size` - Must be `Some(n)` if this is not a built-in
     /// `port_type`. Otherwise, it is ignored.
-    pub fn register_port<PD: PortData>(&mut self, port_name: &str) -> Result<Port<PD>, JackErr> {
+    pub fn register_port<PS: PortSpec>(&mut self,
+                                       port_name: &str,
+                                       port_spec: PS)
+                                       -> Result<Port<PS>, JackErr> {
         let port_name_c = ffi::CString::new(port_name).unwrap();
-        let port_type_c = ffi::CString::new(PD::jack_port_type()).unwrap();
-        let port_flags = PD::jack_flags().bits() as u64;
-        let buffer_size = PD::jack_buffer_size() as u64;
+        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
+        let port_flags = port_spec.jack_flags().bits() as u64;
+        let buffer_size = port_spec.jack_buffer_size() as u64;
         let pp = unsafe {
             j::jack_port_register(self.client,
                                   port_name_c.as_ptr(),
@@ -374,7 +380,7 @@ impl Client {
         if pp.is_null() {
             Err(JackErr::PortRegistrationError(port_name.to_string()))
         } else {
-            Ok(unsafe { Port::from_raw(self.client_ptr(), pp) })
+            Ok(unsafe { Port::from_raw(port_spec, self.client_ptr(), pp) })
         }
     }
 
@@ -487,7 +493,7 @@ impl Client {
 
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with this client.
-    pub fn unregister_port<PD: PortData>(&mut self, _port: Port<PD>) -> Result<(), JackErr> {
+    pub fn unregister_port<PS: PortSpec>(&mut self, _port: Port<PS>) -> Result<(), JackErr> {
         unimplemented!();
         // port.unregister(self)
     }

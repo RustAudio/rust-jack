@@ -6,7 +6,7 @@ pub mod client_options;
 pub mod client_status;
 
 /// Contains `PortFlags` flags which can be used when implementing the
-/// `PortData` trait.
+/// `PortSpec` trait.
 pub mod port_flags;
 
 pub use client_options::ClientOptions;

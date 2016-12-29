@@ -9,13 +9,17 @@ fn main() {
 
     // Register ports, that will be used in a callback that will be
     // called when new data is available.
-    let mut in_a: jack::AudioInPort = client.register_port("rust_in_l").unwrap();
-    let mut in_b: jack::AudioInPort = client.register_port("rust_in_r").unwrap();
-    let mut out_a: jack::AudioOutPort = client.register_port("rust_out_l").unwrap();
-    let mut out_b: jack::AudioOutPort = client.register_port("rust_out_r").unwrap();
+    let in_a = client.register_port("rust_in_l", jack::AudioInSpec).unwrap();
+    let in_b = client.register_port("rust_in_r", jack::AudioInSpec).unwrap();
+    let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec).unwrap();
+    let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec).unwrap();
     let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
-        out_a.data(ps).buffer().clone_from_slice(in_a.data(ps).buffer());
-        out_b.data(ps).buffer().clone_from_slice(in_b.data(ps).buffer());
+        let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+        let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+        let in_a_p = jack::AudioInPort::new(&in_a, ps);
+        let in_b_p = jack::AudioInPort::new(&in_b, ps);
+        out_a_p.clone_from_slice(&in_a_p);
+        out_b_p.clone_from_slice(&in_b_p);
         jack::JackControl::Continue
     };
     // Activate the client, which starts the processing.

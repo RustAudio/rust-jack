@@ -1,9 +1,10 @@
+use libc;
+
 use std::marker::Sized;
 use std::ffi;
 use jack_flags::port_flags::PortFlags;
 use jack_sys as j;
 use jack_enums::JackErr;
-use callbacks::ProcessScope;
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -15,19 +16,16 @@ lazy_static! {
 
 /// Represents the data of a Port within a `JackHandler::process`
 /// callback.
-pub unsafe trait PortData: Sized {
-    /// Used by `Port::data()`.
-    unsafe fn from_ptr(ptr: *mut ::libc::c_void, nframes: u32) -> Self;
-
+pub unsafe trait PortSpec: Sized {
     /// String used by JACK upon port creation to identify the port
     /// type.
-    fn jack_port_type() -> &'static str;
+    fn jack_port_type(&self) -> &'static str;
 
     /// Flags used by jack upon port creation.
-    fn jack_flags() -> PortFlags;
+    fn jack_flags(&self) -> PortFlags;
 
     /// Size used by jack upon port creation.
-    fn jack_buffer_size() -> u64;
+    fn jack_buffer_size(&self) -> u64;
 }
 
 /// An endpoint to interact with JACK data streams, for audio, midi,
@@ -37,25 +35,15 @@ pub unsafe trait PortData: Sized {
 /// but it should be possible to create a client without the need for
 /// calling `unsafe` `Port` methods.
 #[derive(Debug)]
-pub struct Port<PD: PortData> {
-    port_data: Option<PD>,
+pub struct Port<PS: PortSpec> {
+    spec: PS,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
 }
 
-unsafe impl<PD: PortData> Send for Port<PD> {}
+unsafe impl<PS: PortSpec> Send for Port<PS> {}
 
-impl<PD: PortData> Port<PD> {
-    pub fn data(&mut self, ps: &ProcessScope) -> &mut PD {
-        assert!(self.client_ptr == ps.client_ptr(),
-                "Port data may only be obtained for within the process of the client that \
-                 created it.");
-        let n = ps.n_frames();
-        let ptr = unsafe { j::jack_port_get_buffer(self.port_ptr(), n) };
-        self.port_data = Some(unsafe { PD::from_ptr(ptr, n) });
-        self.port_data.as_mut().unwrap()
-    }
-
+impl<PS: PortSpec> Port<PS> {
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
@@ -196,6 +184,9 @@ impl<PD: PortData> Port<PD> {
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
+        if self.client_ptr.is_null() {
+            return Ok(());
+        };
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.port_ptr) };
         match res {
             0 => Ok(()),
@@ -204,11 +195,12 @@ impl<PD: PortData> Port<PD> {
     }
 
     /// Create a Port from raw JACK pointers.
-    pub unsafe fn from_raw(client_ptr: *mut j::jack_client_t,
+    pub unsafe fn from_raw(spec: PS,
+                           client_ptr: *mut j::jack_client_t,
                            port_ptr: *mut j::jack_port_t)
                            -> Self {
         Port {
-            port_data: None,
+            spec: spec,
             port_ptr: port_ptr,
             client_ptr: client_ptr,
         }
@@ -221,28 +213,31 @@ impl<PD: PortData> Port<PD> {
     pub unsafe fn port_ptr(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
+
+    pub unsafe fn buffer(&self, n_frames: u32) -> *mut libc::c_void {
+        j::jack_port_get_buffer(self.port_ptr, n_frames)
+    }
 }
 
 /// Port that holds no data from JACK, though it can be used for
 /// obtaining information about external ports.
 #[derive(Debug)]
 pub struct Unowned;
+
+/// Port that holds no data from Jack, though it can be used to query
+/// information.
 pub type UnownedPort = Port<Unowned>;
 
-unsafe impl PortData for Unowned {
-    unsafe fn from_ptr(_ptr: *mut ::libc::c_void, _nframes: u32) -> Self {
-        Unowned {}
-    }
-
-    fn jack_port_type() -> &'static str {
+unsafe impl PortSpec for Unowned {
+    fn jack_port_type(&self) -> &'static str {
         unreachable!()
     }
 
-    fn jack_flags() -> PortFlags {
+    fn jack_flags(&self) -> PortFlags {
         unreachable!()
     }
 
-    fn jack_buffer_size() -> u64 {
+    fn jack_buffer_size(&self) -> u64 {
         unreachable!()
     }
 }
