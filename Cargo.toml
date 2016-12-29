@@ -1,6 +1,6 @@
 [package]
 name = "jack"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Safe JACK bindings for rust."
 documentation = "https://wmedrano.github.io/rust-jack/jack/index.html"
