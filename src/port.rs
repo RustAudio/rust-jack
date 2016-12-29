@@ -184,6 +184,9 @@ impl<PS: PortSpec> Port<PS> {
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
+        if self.client_ptr.is_null() {
+            return Ok(());
+        };
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.port_ptr) };
         match res {
             0 => Ok(()),
@@ -220,6 +223,9 @@ impl<PS: PortSpec> Port<PS> {
 /// obtaining information about external ports.
 #[derive(Debug)]
 pub struct Unowned;
+
+/// Port that holds no data from Jack, though it can be used to query
+/// information.
 pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortSpec for Unowned {
