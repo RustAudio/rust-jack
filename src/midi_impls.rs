@@ -4,7 +4,8 @@ use std::mem;
 
 use jack_sys as j;
 
-use jack_flags::port_flags::{IS_INPUT, PortFlags};
+use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use jack_enums::JackErr;
 use port::{Port, PortSpec};
 use callbacks::ProcessScope;
 
@@ -23,18 +24,17 @@ impl<'a> Default for RawMidi<'a> {
     }
 }
 
-/// `MidiInSpec` implements the `PortSpec` trait which, defines an
+/// `MidiInSpec` implements the `PortSpec` trait, which defines an
 /// endpoint for JACK.
 #[derive(Debug, Default)]
 pub struct MidiInSpec;
 
-unsafe impl PortSpec for MidiInSpec {
-    /// # Arguments
-    ///
-    /// * `ptr` - buffer pointer to underlying data.
-    ///
-    /// * `nframes` - the size of the buffer.
+/// `MidiOutSpec` implements the `PortSpec` trait, which defines an
+/// endpoint for JACK.
+#[derive(Debug, Default)]
+pub struct MidiOutSpec;
 
+unsafe impl PortSpec for MidiInSpec {
     fn jack_port_type(&self) -> &'static str {
         "8 bit raw midi"
     }
@@ -49,7 +49,22 @@ unsafe impl PortSpec for MidiInSpec {
     }
 }
 
-/// Safetly wrap a `Port<MidiInPort>`. Derefs into a `&[f32]`.
+unsafe impl PortSpec for MidiOutSpec {
+    fn jack_port_type(&self) -> &'static str {
+        "8 bit raw midi"
+    }
+
+    fn jack_flags(&self) -> PortFlags {
+        IS_OUTPUT
+    }
+
+    fn jack_buffer_size(&self) -> u64 {
+        // Not needed for built in types according to JACK api
+        0
+    }
+}
+
+/// Safetly wrap a `Port<MidiInPort>`.
 pub struct MidiInPort<'a> {
     _port: &'a Port<MidiInSpec>,
     buffer_ptr: *mut ::libc::c_void,
@@ -86,6 +101,73 @@ impl<'a> MidiInPort<'a> {
 
     pub fn len(&self) -> usize {
         let n = unsafe { j::jack_midi_get_event_count(self.buffer_ptr) };
+        n as usize
+    }
+
+    pub fn iter(&'a self) -> MidiIter {
+        MidiIter {
+            port: &self,
+            index: 0,
+        }
+    }
+}
+
+/// Safetly wrap a `Port<MidiInPort>`.
+pub struct MidiOutPort<'a> {
+    _port: &'a mut Port<MidiOutSpec>,
+    buffer_ptr: *mut ::libc::c_void,
+}
+
+impl<'a> MidiOutPort<'a> {
+    /// Wrap a `Port<MidiInSpec>` within a process scope of a client
+    /// that registered the port. Panics if the port does not belong
+    /// to the client that created the process.
+    ///
+    /// The data in the port is cleared.
+    pub fn new(port: &'a mut Port<MidiOutSpec>, ps: &'a ProcessScope) -> Self {
+        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
+        unsafe { j::jack_midi_clear_buffer(buffer_ptr) };
+        MidiOutPort {
+            _port: port,
+            buffer_ptr: buffer_ptr,
+        }
+    }
+
+    /// Write an event into an event port buffer.
+    ///
+    /// Clients must write normalised MIDI data to the port - no running status and no (1-byte)
+    /// realtime messages intersperesed with other messagse (realtime messages are fine when they
+    /// occur on their own, like other messages).
+    pub fn write(&mut self, message: &RawMidi) -> Result<(), JackErr> {
+        let ev = j::jack_midi_event_t {
+            time: message.time,
+            size: message.bytes.len(),
+            buffer: message.bytes.as_ptr() as *mut u8,
+        };
+        let res = unsafe { j::jack_midi_event_write(self.buffer_ptr, ev.time, ev.buffer, ev.size) };
+        match res {
+            ::libc::ENOBUFS => Err(JackErr::NotEnoughSpace),
+            0 => Ok(()),
+            _ => Err(JackErr::UnknownError),
+        }
+    }
+
+    /// Get the number of events that could not be written to port_buffer.
+    ///
+    /// If the return value is greater than 0, than the buffer is full. Currently, the only way this
+    /// can happen is if events are lost on port mixdown.
+    pub fn lost_count(&self) -> usize {
+        let n = unsafe { j::jack_midi_get_lost_event_count(self.buffer_ptr) };
+        n as usize
+    }
+
+    /// Get the size of the largest event that can be stored by the port.
+    ///
+    /// This function returns the current space available, taking into account events already stored
+    /// in the port.
+    pub fn max_event_size(&self) -> usize {
+        let n = unsafe { j::jack_midi_max_event_size(self.buffer_ptr) };
         n as usize
     }
 }
