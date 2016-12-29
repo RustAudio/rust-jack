@@ -66,8 +66,8 @@ impl<PS: PortSpec> Port<PS> {
         PortFlags::from_bits(bits as u32).unwrap()
     }
 
-    /// The port type. JACK's built in types include "32 bit float mono audio"
-    /// and "8 bit raw midi". Custom types may also be used.
+    /// The port type. JACK's built in types include `"32 bit float mono audio`"
+    /// and `"8 bit raw midi"`. Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.port_ptr)).to_str().unwrap() }
     }
@@ -124,7 +124,7 @@ impl<PS: PortSpec> Port<PS> {
     }
 
     /// Set's the short name of the port. If the full name is longer than
-    /// `Port::name_size()`, then it will be truncated.
+    /// `PORT_NAME_SIZE`, then it will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), JackErr> {
         let short_name = ffi::CString::new(short_name).unwrap();
         let res = unsafe { j::jack_port_set_name(self.port_ptr, short_name.as_ptr()) };
@@ -137,7 +137,7 @@ impl<PS: PortSpec> Port<PS> {
     /// Sets `alias` as an alias for `self`.
     ///
     /// May be called at any time. If the alias is longer than
-    /// `Client::name_size()`, it will be truncated.
+    /// `PORT_NAME_SIZE`, it will be truncated.
     ///
     /// After a successful call, and until JACK exists, or the alias is unset,
     /// `alias` may be used as an alternate name for the port.

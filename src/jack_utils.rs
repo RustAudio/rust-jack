@@ -11,7 +11,7 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
     };
     let len = {
         let mut len = 0;
-        while !ptr.offset(len).is_null() {
+        while !(*ptr.offset(len)).is_null() {
             len += 1;
         }
         len

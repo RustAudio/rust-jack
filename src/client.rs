@@ -169,7 +169,8 @@ pub unsafe trait JackClient: Sized {
         let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = flags.bits() as u64;
         unsafe {
-            collect_strs(j::jack_get_ports(self.client_ptr(), pnp.as_ptr(), tnp.as_ptr(), flags))
+            let ports = j::jack_get_ports(self.client_ptr(), pnp.as_ptr(), tnp.as_ptr(), flags);
+            collect_strs(ports)
         }
     }
 
@@ -265,6 +266,62 @@ pub unsafe trait JackClient: Sized {
             1 => true,
             _ => false,
         }
+    }
+
+    /// Establish a connection between two ports by their full name.
+    ///
+    /// When a connection exists, data written to the source port will be
+    /// available to be read at the destination port.
+    ///
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
+    ///
+    /// # Preconditions
+    /// 1. The port types must be identical
+    /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
+    /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
+    /// 4. Both ports must be owned by active clients.
+    fn connect_ports_by_name(&self,
+                             source_port: &str,
+                             destination_port: &str)
+                             -> Result<(), JackErr> {
+        let source_cstr = ffi::CString::new(source_port).unwrap();
+        let destination_cstr = ffi::CString::new(destination_port).unwrap();
+
+        let res = unsafe {
+            j::jack_connect(self.client_ptr(),
+                            source_cstr.as_ptr(),
+                            destination_cstr.as_ptr())
+        };
+        match res {
+            0 => Ok(()),
+            ::libc::EEXIST => {
+                Err(JackErr::PortAlreadyConnected(source_port.to_string(),
+                                                  destination_port.to_string()))
+            }
+            _ => {
+                Err(JackErr::PortConnectionError(source_port.to_string(),
+                                                 destination_port.to_string()))
+            }
+        }
+    }
+
+    /// Establish a connection between two ports.
+    ///
+    /// When a connection exists, data written to the source port will be
+    /// available to be read at the destination port.
+    ///
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
+    ///
+    /// # Preconditions
+    /// 1. The port types must be identical
+    /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
+    /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
+    /// 4. Both ports must be owned by active clients.
+    fn connect_ports<A: PortSpec, B: PortSpec>(&self,
+                                               source_port: &Port<A>,
+                                               destination_port: &Port<B>)
+                                               -> Result<(), JackErr> {
+        self.connect_ports_by_name(source_port.name(), destination_port.name())
     }
 }
 
@@ -401,31 +458,6 @@ impl Client {
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortMonitorError),
-        }
-    }
-
-    /// Establish a connection between two ports.
-    ///
-    /// When a connection exists, data written to the source port will be
-    /// available to be read at the destination port.
-    ///
-    /// On failure, either a `PortNotFound` or `PortConnectionError` is returned.
-    ///
-    /// # Preconditions
-    /// 1. The port types must be identical
-    /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
-    /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
-    pub fn connect_ports(&self, source_port: &str, destination_port: &str) -> Result<(), JackErr> {
-        let source_port = ffi::CString::new(source_port).unwrap();
-        let destination_port = ffi::CString::new(destination_port).unwrap();
-
-        let res = unsafe {
-            j::jack_connect(self.client, source_port.as_ptr(), destination_port.as_ptr())
-        };
-        match res {
-            0 => Ok(()),
-            ::libc::EEXIST => Err(JackErr::PortNotFound),
-            _ => Err(JackErr::PortConnectionError),
         }
     }
 

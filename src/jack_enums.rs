@@ -1,26 +1,26 @@
 use jack_flags::client_status::ClientStatus;
 
 /// The Error type that can occur within JACK.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JackErr {
-    CallbackRegistrationError,
     CallbackDeregistrationError,
+    CallbackRegistrationError,
     ClientActivationError,
     ClientDeactivationError,
     ClientError(ClientStatus),
     FreewheelError,
     InvalidDeactivation,
+    NotEnoughSpace,
     PortAliasError,
-    PortConnectionError,
+    PortAlreadyConnected(String, String),
+    PortConnectionError(String, String),
     PortDisconnectionError,
-    PortNamingError,
     PortMonitorError,
-    PortNotFound,
+    PortNamingError,
     PortRegistrationError(String),
     SetBufferSizeError,
     TimeError,
     UnknownError,
-    NotEnoughSpace,
 }
 
 /// Used by `JackHandler::latency()`.
