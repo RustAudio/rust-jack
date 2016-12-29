@@ -54,11 +54,6 @@ impl<PS: PortSpec> Port<PS> {
         unsafe { ffi::CStr::from_ptr(j::jack_port_short_name(self.port_ptr)).to_str().unwrap() }
     }
 
-    /// Returns the uuid of the port as a u64.
-    pub fn uuid(&self) -> u64 {
-        unsafe { j::jack_port_uuid(self.port_ptr) }
-    }
-
     /// The flags for the port. These are set when the port is registered with
     /// its client.
     pub fn flags(&self) -> PortFlags {

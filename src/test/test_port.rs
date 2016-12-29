@@ -38,14 +38,6 @@ fn aliases() {
 }
 
 #[test]
-fn port_has_uuid() {
-    let mut client = open_test_client("client_uuid");
-    let a = client.register_port("has_uuid", AudioInSpec).unwrap();
-    let b = client.register_port("also_has_uuid", AudioOutSpec).unwrap();
-    assert!(a.uuid() != b.uuid());
-}
-
-#[test]
 fn get_port_by_name() {
     let mut client = open_test_client("client_with_port_names");
     let a = client.register_port("has_name", AudioInSpec).unwrap();
