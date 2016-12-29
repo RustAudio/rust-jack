@@ -6,13 +6,13 @@ bitflags! {
         /// Equivalent to `ClientOptions::empty()`
         const NULL_OPTION     = j::JackNullOption,
 
-        /// Do not automatically start the Jack server when it is not
+        /// Do not automatically start the JACK server when it is not
         /// already running. This option is always selected if
         /// `$JACK_NO_START_SERVER` is defined in the calling process
         /// environment.
         const NO_START_SERVER = j::JackNoStartServer,
 
-        /// Use the exact client name requested. Otherwise, Jack
+        /// Use the exact client name requested. Otherwise, JACK
         /// automatically generates a unique one if needed.
         const USE_EXACT_NAME  = j::JackUseExactName,
 

@@ -18,7 +18,7 @@ unsafe extern "C" fn info_wrapper(msg: *const i8) {
 }
 
 static IS_INFO_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global Jack info callback.
+/// Set the global JACK info callback.
 ///
 /// # Example
 /// ```rust
@@ -35,7 +35,7 @@ pub fn set_info_callback(info: fn(&str)) {
 }
 
 static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global Jack error callback.
+/// Set the global JACK error callback.
 ///
 /// # Example
 /// ```rust

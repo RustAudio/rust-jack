@@ -63,7 +63,7 @@ pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{Port, PortSpec, Unowned, UnownedPort};
 pub use port_impls::{AudioInSpec, AudioInPort, AudioOutSpec, AudioOutPort};
 
-/// Return Jack's current system time in microseconds, using the Jack
+/// Return JACK's current system time in microseconds, using the JACK
 /// clock source.
 pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }

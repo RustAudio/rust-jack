@@ -61,9 +61,9 @@ $ cargo test
 * `jack_on_shutdown` has been removed, uses only `jack_on_info_shutdown`.
 * Rust enums vs C enums
 * Rust bitflags vs C integers used as flags
-* deprecated Jack functions are not used/implemented in Rust bindings
+* deprecated JACK functions are not used/implemented in Rust bindings
 
 
-## C Jack API
+## C JACK API
 
 [Main Page](http://jackaudio.org/files/docs/html/index.html)
