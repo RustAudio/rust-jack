@@ -9,9 +9,12 @@ use jack_enums::JackErr;
 use port::{Port, PortSpec};
 use callbacks::ProcessScope;
 
+/// Contains 8bit raw midi information along with a timestamp relative to the process cycle.
 #[derive(Clone, Copy, Debug)]
 pub struct RawMidi<'a> {
+    /// The amount of frames relative to the start of the process cycle
     pub time: u32,
+    /// Midi data
     pub bytes: &'a [u8],
 }
 
@@ -65,6 +68,7 @@ unsafe impl PortSpec for MidiOutSpec {
 }
 
 /// Safetly wrap a `Port<MidiInPort>`.
+#[derive(Debug)]
 pub struct MidiInPort<'a> {
     _port: &'a Port<MidiInSpec>,
     buffer_ptr: *mut ::libc::c_void,
@@ -113,6 +117,7 @@ impl<'a> MidiInPort<'a> {
 }
 
 /// Safetly wrap a `Port<MidiInPort>`.
+#[derive(Debug)]
 pub struct MidiOutPort<'a> {
     _port: &'a mut Port<MidiOutSpec>,
     buffer_ptr: *mut ::libc::c_void,
@@ -172,6 +177,8 @@ impl<'a> MidiOutPort<'a> {
     }
 }
 
+/// Iterate through Midi Messages within a `MidiInPort`.
+#[derive(Debug)]
 pub struct MidiIter<'a> {
     port: &'a MidiInPort<'a>,
     index: usize,
