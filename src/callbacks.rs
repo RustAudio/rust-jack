@@ -18,7 +18,9 @@ pub struct ProcessScope {
 }
 
 impl ProcessScope {
-    pub unsafe fn new(n_frames: u32, client_ptr: *mut j::jack_client_t) -> Self {
+    /// Create a `ProcessScope` for the client with the given pointer
+    /// and the specified amount of frames.
+    pub unsafe fn from_raw(n_frames: u32, client_ptr: *mut j::jack_client_t) -> Self {
         ProcessScope {
             n_frames: n_frames,
             client_ptr: client_ptr,
@@ -200,7 +202,7 @@ unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
 
 unsafe extern "C" fn process<T: JackHandler>(n_frames: u32, data: *mut c_void) -> i32 {
     let obj: &mut (T, *mut j::jack_client_t) = handler_and_ptr_from_void(data);
-    let scope = ProcessScope::new(n_frames, obj.1);
+    let scope = ProcessScope::from_raw(n_frames, obj.1);
     obj.0.process(&scope).to_ffi()
 }
 

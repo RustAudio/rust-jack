@@ -17,8 +17,8 @@ fn main() {
         let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
         let in_a_p = jack::AudioInPort::new(&in_a, ps);
         let in_b_p = jack::AudioInPort::new(&in_b, ps);
-        &mut out_a_p.clone_from_slice(&in_a_p);
-        &mut out_b_p.clone_from_slice(&in_b_p);
+        out_a_p.clone_from_slice(&in_a_p);
+        out_b_p.clone_from_slice(&in_b_p);
         jack::JackControl::Continue
     };
     // Activate the client, which starts the processing.

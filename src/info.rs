@@ -4,35 +4,49 @@ use jack_sys as j;
 
 fn to_nothing(_: &str) {}
 
-static mut info_fn: fn(&str) = to_nothing;
-static mut error_fn: fn(&str) = to_nothing;
+static mut INFO_FN: fn(&str) = to_nothing;
+static mut ERROR_FN: fn(&str) = to_nothing;
 
 unsafe extern "C" fn error_wrapper(msg: *const i8) {
     let msg = ffi::CStr::from_ptr(msg).to_str().unwrap();
-    error_fn(msg);
+    ERROR_FN(msg);
 }
 
 unsafe extern "C" fn info_wrapper(msg: *const i8) {
     let msg = ffi::CStr::from_ptr(msg).to_str().unwrap();
-    info_fn(msg)
+    INFO_FN(msg)
 }
 
 static IS_INFO_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global Jack info callback. If `None` is passed, then no
-/// logging will occur.
-pub fn set_info_callback(info: Option<fn(&str)>) {
+/// Set the global Jack info callback.
+///
+/// # Example
+/// ```rust
+/// fn info_log(msg: &str) {
+///     println!("{}", msg);
+/// }
+/// jack::set_info_callback(info_log);
+/// ```
+pub fn set_info_callback(info: fn(&str)) {
     unsafe {
-        info_fn = info.unwrap_or(to_nothing);
+        INFO_FN = info;
     }
     IS_INFO_CALLBACK_SET.call_once(|| unsafe { j::jack_set_info_function(Some(info_wrapper)) })
 }
 
 static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global Jack error callback. If `None` is passed, then no
-/// logging will occur.
-pub fn set_error_callback(error: Option<fn(&str)>) {
+/// Set the global Jack error callback.
+///
+/// # Example
+/// ```rust
+/// fn error_log(msg: &str) {
+///     println!("{}", msg);
+/// }
+/// jack::set_error_callback(error_log);
+/// ```
+pub fn set_error_callback(error: fn(&str)) {
     unsafe {
-        error_fn = error.unwrap_or(to_nothing);
+        ERROR_FN = error;
     }
     IS_ERROR_CALLBACK_SET.call_once(|| unsafe { j::jack_set_error_function(Some(error_wrapper)) })
 }

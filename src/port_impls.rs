@@ -72,19 +72,6 @@ impl<'a> AudioOutPort<'a> {
     /// Wrap a `Port<AudioOutSpec>` within a process scope of a client
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
-    ///
-    /// # Examples
-    /// ```rust
-    /// let out_port = client.register_port(...);
-    /// let process_callback = move |ps: &jack::ProcessScope| {
-    ///     let mut wrapped_port = jack::AudioOutPort::new(&mut out_port, ps);
-    ///     // wrapped_port can deref into &mut[f32]
-    ///     wrapped_port[0] = 1.0;
-    ///     wrapped_port[1] = -1.0;
-    ///     wrapped_port[2] = 0.0;
-    /// };
-    /// ....activate(process_callback).unwrap();
-    /// ```
     pub fn new(port: &'a mut Port<AudioOutSpec>, ps: &'a ProcessScope) -> Self {
         unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
         let buff = unsafe {
@@ -123,21 +110,6 @@ impl<'a> AudioInPort<'a> {
     /// Wrap a `Port<AudioInSpec>` within a process scope of a client
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
-    ///
-    /// # Examples
-    /// ```rust
-    /// let p = client.register_port(...);
-    /// let process_callback = move |ps: &jack::ProcessScope| {
-    ///     let wrapped_port = jack::AudioInPort::new(&p, ps);
-    ///     use std::f32;
-    ///     let peak = wrapped_port
-    ///         .iter()
-    ///         .map(|x| x.abs())
-    ///         .fold(0.0 as f32, |a, b| a.max(b));
-    ///     ...
-    /// };
-    /// ....activate(process_callback).unwrap();
-    /// ```
     pub fn new(port: &'a Port<AudioInSpec>, ps: &'a ProcessScope) -> Self {
         unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
         let buff = unsafe {
