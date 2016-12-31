@@ -50,6 +50,7 @@ mod jack_flags;
 mod jack_utils;
 mod port;
 mod port_impls;
+mod primitive_types;
 
 pub use callbacks::{ProcessScope, JackHandler};
 pub use client::CLIENT_NAME_SIZE;
@@ -63,10 +64,11 @@ pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{Port, PortSpec, Unowned, UnownedPort};
 pub use port_impls::{AudioInSpec, AudioInPort, AudioOutSpec, AudioOutPort};
 pub use port_impls::{MidiInSpec, MidiInPort, MidiIter, MidiOutSpec, MidiOutPort, RawMidi};
+pub use primitive_types::{JackFrames, JackPortId, JackTime};
 
 /// Return JACK's current system time in microseconds, using the JACK
 /// clock source.
-pub fn get_time() -> u64 {
+pub fn get_time() -> JackTime {
     unsafe { jack_sys::jack_get_time() }
 }
 

@@ -2,7 +2,7 @@ use jack_sys as j;
 
 bitflags! {
     /// Flags for specifying port options.
-    pub flags PortFlags: u32 {
+    pub flags PortFlags: j::Enum_JackPortFlags {
         /// Same as having no flags.
         const NO_PORT_FLAGS = 0,
 

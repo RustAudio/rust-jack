@@ -3,7 +3,7 @@ use jack_sys as j;
 bitflags! {
     /// Status flags for JACK clients.
     /// File an issue if you can get it to appear.
-    pub flags ClientStatus: u32 {
+    pub flags ClientStatus: j::Enum_JackStatus {
         /// Overall operation failed.
         const FAILURE         = j::JackFailure,
 

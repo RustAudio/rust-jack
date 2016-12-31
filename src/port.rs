@@ -1,10 +1,12 @@
-use libc;
-
 use std::marker::Sized;
 use std::{ffi, iter};
+
+use libc;
+
+use jack_enums::JackErr;
 use jack_flags::port_flags::PortFlags;
 use jack_sys as j;
-use jack_enums::JackErr;
+use primitive_types as pt;
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -25,7 +27,7 @@ pub unsafe trait PortSpec: Sized + Default {
     fn jack_flags(&self) -> PortFlags;
 
     /// Size used by jack upon port creation.
-    fn jack_buffer_size(&self) -> u64;
+    fn jack_buffer_size(&self) -> libc::c_ulong;
 }
 
 /// An endpoint to interact with JACK data streams, for audio, midi,
@@ -63,7 +65,7 @@ impl<PS: PortSpec> Port<PS> {
     /// its client.
     pub fn flags(&self) -> PortFlags {
         let bits = unsafe { j::jack_port_flags(self.port_ptr) };
-        PortFlags::from_bits(bits as u32).unwrap()
+        PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
     }
 
     /// The port type. JACK's built in types include `"32 bit float mono audio`"
@@ -226,7 +228,7 @@ impl<PS: PortSpec> Port<PS> {
         self.port_ptr
     }
 
-    pub unsafe fn buffer(&self, n_frames: u32) -> *mut libc::c_void {
+    pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }
 }
@@ -249,7 +251,7 @@ unsafe impl PortSpec for Unowned {
         unreachable!()
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         unreachable!()
     }
 }
