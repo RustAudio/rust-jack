@@ -27,3 +27,18 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
     j::jack_free(ptr as *mut ::libc::c_void);
     strs
 }
+
+// Sleeps for a short while.
+#[cfg(test)]
+pub fn default_sleep() {
+    use std::{thread, time};
+    thread::sleep(time::Duration::from_millis(200));
+}
+
+// Sleeps for a longer while than `default_sleep()`.
+#[cfg(test)]
+pub fn default_longer_sleep() {
+    for _ in 0..10 {
+        default_sleep();
+    }
+}

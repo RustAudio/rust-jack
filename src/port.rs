@@ -1,7 +1,7 @@
 use libc;
 
 use std::marker::Sized;
-use std::ffi;
+use std::{ffi, iter};
 use jack_flags::port_flags::PortFlags;
 use jack_sys as j;
 use jack_enums::JackErr;
@@ -16,7 +16,7 @@ lazy_static! {
 
 /// Represents the data of a Port within a `JackHandler::process`
 /// callback.
-pub unsafe trait PortSpec: Sized {
+pub unsafe trait PortSpec: Sized + Default {
     /// String used by JACK upon port creation to identify the port
     /// type.
     fn jack_port_type(&self) -> &'static str;
@@ -44,6 +44,11 @@ pub struct Port<PS: PortSpec> {
 unsafe impl<PS: PortSpec> Send for Port<PS> {}
 
 impl<PS: PortSpec> Port<PS> {
+    /// Returns the spec that was used to create this port.
+    pub fn spec(&self) -> &PS {
+        &self.spec
+    }
+
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
@@ -86,13 +91,25 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
+    // TODO implement
+    /// Not implemented.
+    ///
     /// Get the alias names for `self`.
     ///
     /// Will return a vector of strings of up to 2 elements.
-    ///
-    /// # TODO: Implement
     pub fn aliases(&self) -> Vec<String> {
-        unimplemented!();
+        let mut a: Vec<i8> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
+        let mut b = a.clone();
+        unsafe {
+            let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
+            j::jack_port_get_aliases(self.port_ptr(), ptrs.as_mut_ptr());
+        };
+        [a, b]
+            .iter()
+            .map(|p| p.as_ptr())
+            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
+            .filter(|s| s.len() > 0)
+            .collect()
     }
 
     /// Returns `true` if monitoring has been requested for `self`.
@@ -100,6 +117,21 @@ impl<PS: PortSpec> Port<PS> {
         match unsafe { j::jack_port_monitoring_input(self.port_ptr) } {
             0 => false,
             _ => true,
+        }
+    }
+
+    /// Turn input monitoring for the port on or off.
+    ///
+    /// This only works if the port has the `CAN_MONITOR` flag set.
+    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
+        let onoff = match enable_monitor {
+            true => 1,
+            false => 0,
+        };
+        let res = unsafe { j::jack_port_request_monitor(self.port_ptr, onoff) };
+        match res {
+            0 => Ok(()),
+            _ => Err(JackErr::PortMonitorError),
         }
     }
 
@@ -161,21 +193,6 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    /// Turn input monitoring for the port on or off.
-    ///
-    /// This only works if the port has the `CAN_MONITOR` flag set.
-    pub fn request_monitor(&mut self, enable_monitor: bool) -> Result<(), JackErr> {
-        let onoff = match enable_monitor {
-            true => 1,
-            false => 0,
-        };
-        let res = unsafe { j::jack_port_request_monitor(self.port_ptr, onoff) };
-        match res {
-            0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
-        }
-    }
-
     /// Remove the port from the client, disconnecting any existing connections.
     /// The port must have been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
@@ -216,7 +233,7 @@ impl<PS: PortSpec> Port<PS> {
 
 /// Port that holds no data from JACK, though it can be used for
 /// obtaining information about external ports.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Unowned;
 
 /// Port that holds no data from Jack, though it can be used to query

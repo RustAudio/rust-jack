@@ -1,20 +1,31 @@
 use super::super::*;
 
 fn open_test_client(name: &str) -> Client {
-    use std::{thread, time};
-    thread::sleep(time::Duration::from_secs(1));
+    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
+fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioInSpec>) {
+    let mut c = open_test_client(client);
+    let p = c.register_port(port, AudioInSpec).unwrap();
+    (c, p)
+}
+
 #[test]
-fn rename() {
+fn port_created_with_proper_names() {
+    let (_c, p) = open_client_with_port("port_cwpn", "the_port_name");
+    assert_eq!(p.short_name(), "the_port_name");
+    assert_eq!(p.name(), "port_cwpn:the_port_name");
+}
+
+#[test]
+fn port_can_rename() {
     let client_name = "port_rename";
     let original_name = "port_to_rename";
     let new_name = "port_that_was_renamed";
 
     // initial port
-    let mut client = open_test_client(client_name);
-    let mut p = client.register_port(original_name, AudioInSpec).unwrap();
+    let (_c, mut p) = open_client_with_port(client_name, original_name);
     assert_eq!(p.name(), format!("{}:{}", client_name, original_name));
     assert_eq!(p.short_name(), original_name);
 
@@ -25,58 +36,102 @@ fn rename() {
 }
 
 #[test]
-fn unregister() {
-    let mut client = open_test_client("unregister_port");
-    let p = client.register_port("to_unregister", AudioInSpec).unwrap();
-    p.unregister().unwrap();
+fn port_connected_count() {
+    let mut c = open_test_client("port_connected_count");
+    let pa = c.register_port("pa", AudioInSpec).unwrap();
+    let pb = c.register_port("pb", AudioOutSpec).unwrap();
+    let pc = c.register_port("pc", AudioOutSpec).unwrap();
+    let pd = c.register_port("pd", AudioOutSpec).unwrap();
+    let c = c.activate(DummyHandler).unwrap();
+    c.connect_ports(&pb, &pa).unwrap();
+    c.connect_ports(&pc, &pa).unwrap();
+    assert_eq!(pa.connected_count(), 2);
+    assert_eq!(pb.connected_count(), 1);
+    assert_eq!(pc.connected_count(), 1);
+    assert_eq!(pd.connected_count(), 0);
 }
 
 #[test]
-#[should_panic(expected = "not yet implemented")]
-fn aliases() {
-    let mut client = open_test_client("client_uuid");
-    let p = client.register_port("has_uuid", AudioInSpec).unwrap();
-    assert!(p.aliases().is_empty());
+fn port_knows_connections() {
+    let mut c = open_test_client("port_knows_connections");
+    let pa = c.register_port("pa", AudioInSpec).unwrap();
+    let pb = c.register_port("pb", AudioOutSpec).unwrap();
+    let pc = c.register_port("pc", AudioOutSpec).unwrap();
+    let pd = c.register_port("pd", AudioOutSpec).unwrap();
+    let c = c.activate(DummyHandler).unwrap();
+    c.connect_ports(&pb, &pa).unwrap();
+    c.connect_ports(&pc, &pa).unwrap();
+
+    // pa
+    assert!(pa.is_connected_to(pb.name()));
+    assert!(pa.is_connected_to(pc.name()));
+    assert!(!pa.is_connected_to(pd.name()));
+
+    // pb
+    assert!(pb.is_connected_to(pa.name()));
+    assert!(!pb.is_connected_to(pc.name()));
+    assert!(!pb.is_connected_to(pd.name()));
+
+    // pc
+    assert!(pc.is_connected_to(pa.name()));
+    assert!(!pc.is_connected_to(pb.name()));
+    assert!(!pc.is_connected_to(pd.name()));
+
+    // pd
+    assert!(!pd.is_connected_to(pa.name()));
+    assert!(!pd.is_connected_to(pb.name()));
+    assert!(!pd.is_connected_to(pc.name()));
 }
 
 #[test]
-fn get_port_by_name() {
-    let mut client = open_test_client("client_with_port_names");
-    let a = client.register_port("has_name", AudioInSpec).unwrap();
-    let b = client.port_by_name("client_with_port_names:has_name").unwrap();
-    assert_eq!(a.name(), b.name());
+fn port_can_ensure_monitor() {
+    let (_c, p) = open_client_with_port("port_can_ensure_monitor", "maybe_monitor");
+
+    for should_monitor in [true, false].into_iter().cycle().take(10) {
+        p.ensure_monitor(should_monitor.clone()).unwrap();
+        assert_eq!(p.is_monitoring_input(), should_monitor.clone());
+    }
 }
 
 #[test]
-fn cannot_find_nonexistant_port() {
-    let client = open_test_client("client_with_no_port_names");
-    let p = client.port_by_name("client_with_no_port_names:dont_exist");
-    assert!(p.is_none());
+fn port_can_request_monitor() {
+    let (_c, p) = open_client_with_port("port_can_ensure_monitor", "maybe_monitor");
+
+    for should_monitor in [true, false].into_iter().cycle().take(10) {
+        p.request_monitor(should_monitor.clone()).unwrap();
+        assert_eq!(p.is_monitoring_input(), should_monitor.clone());
+    }
+}
+
+
+#[test]
+fn port_can_set_alias() {
+    let (_c, mut p) = open_client_with_port("port_can_set_alias", "will_get_alias");
+
+    // no alias
+    assert_eq!(p.aliases(), Vec::<String>::new());
+
+    // 1 alias
+    p.set_alias("first_alias").unwrap();
+    assert_eq!(p.aliases(), vec!["first_alias".to_string()]);
+
+    // 2 alias
+    p.set_alias("second_alias").unwrap();
+    assert_eq!(p.aliases(),
+               vec!["first_alias".to_string(), "second_alias".to_string()]);
 }
 
 #[test]
-fn can_classify_as_mine() {
-    let mut mines = open_test_client("its_my_port");
-    let not_mines = open_test_client("not_my_port");
+fn port_can_unset_alias() {
+    let (_c, mut p) = open_client_with_port("port_can_unset_alias", "will_unset_alias");
 
-    // initialize ports
-    let p = mines.register_port("i_belong", AudioInSpec).unwrap();
+    // set aliases
+    p.set_alias("first_alias").unwrap();
+    p.set_alias("second_alias").unwrap();
+    assert_eq!(p.aliases(),
+               vec!["first_alias".to_string(), "second_alias".to_string()]);
 
-    // classify
-    assert!(mines.is_mine(&p));
-    assert!(!not_mines.is_mine(&p));
-}
-
-#[test]
-fn can_find_ports() {
-    let mut client = open_test_client("will_find_ports");
-
-    // initialize ports
-    let _p = client.register_port("i_exist", AudioInSpec).unwrap();
-
-    let found = client.ports(None, None, PortFlags::empty());
-
-    assert!(found.contains(&"will_find_ports:i_exist".to_string()),
-            "{:?}",
-            &found);
+    // unset alias
+    p.unset_alias("first_alias").unwrap();
+    assert_eq!(p.aliases(), vec!["second_alias".to_string()]);
 }

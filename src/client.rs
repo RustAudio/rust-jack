@@ -3,7 +3,7 @@ use jack_sys as j;
 use std::mem;
 use std::{ffi, ptr};
 
-use callbacks::{JackHandler, register_callbacks, clear_callbacks};
+use callbacks::{JackHandler, ProcessScope, register_callbacks, clear_callbacks};
 use jack_enums::*;
 use jack_flags::client_options::ClientOptions;
 use jack_flags::client_status::{ClientStatus, UNKNOWN_ERROR};
@@ -113,40 +113,62 @@ pub unsafe trait JackClient: Sized {
         }
     }
 
-    /// Get the uuid of the current client.
-    fn uuid<'a>(&'a self) -> &'a str {
-        self.uuid_by_name(self.name()).unwrap()
+    /// The current maximum size that will every be passed to the process
+    /// callback.
+    fn buffer_size(&self) -> u32 {
+        unsafe { j::jack_get_buffer_size(self.client_ptr()) }
     }
 
-    /// Get the name of the client with the UUID specified by `uuid`. If the
-    /// client is found then `Some(name)` is returned, if not, then `None` is
-    /// returned.
-    fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
-        unsafe {
-            let uuid = ffi::CString::new(uuid).unwrap();
-            let name_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), uuid.as_ptr());
-            if name_ptr.is_null() {
-                None
-            } else {
-                Some(ffi::CStr::from_ptr(name_ptr).to_str().unwrap())
-            }
+    /// Change the buffer size passed to the process callback.
+    ///
+    /// This operation stops the JACK engine process cycle, then calls all
+    /// registered buffer size callback functions before restarting the process
+    /// cycle. This will cause a gap in the audio flow, so it should only be
+    /// done at appropriate stopping points.
+    fn set_buffer_size(&self, n_frames: u32) -> Result<(), JackErr> {
+        let res = unsafe { j::jack_set_buffer_size(self.client_ptr(), n_frames) };
+        match res {
+            0 => Ok(()),
+            _ => Err(JackErr::SetBufferSizeError),
         }
     }
+    // TODO implement
+    // /// Get the uuid of the current client.
+    // fn uuid<'a>(&'a self) -> &'a str {
+    //     self.uuid_by_name(self.name()).unwrap_or("")
+    // }
 
-    /// Get the uuid of the client with the name specified by `name`. If the
-    /// client is found then `Some(uuid)` is returned, if not, then `None` is
-    /// returned.
-    fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
-        unsafe {
-            let name = ffi::CString::new(name).unwrap();
-            let uuid_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), name.as_ptr());
-            if uuid_ptr.is_null() {
-                None
-            } else {
-                Some(ffi::CStr::from_ptr(uuid_ptr).to_str().unwrap())
-            }
-        }
-    }
+    // TODO implement
+    // // Get the name of the client with the UUID specified by `uuid`. If the
+    // // client is found then `Some(name)` is returned, if not, then `None` is
+    // // returned.
+    // // fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
+    //     unsafe {
+    //         let uuid = ffi::CString::new(uuid).unwrap();
+    //         let name_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), uuid.as_ptr());
+    //         if name_ptr.is_null() {
+    //             None
+    //         } else {
+    //             Some(ffi::CStr::from_ptr(name_ptr).to_str().unwrap())
+    //         }
+    //     }
+    // }
+
+    // TODO implement
+    // /// Get the uuid of the client with the name specified by `name`. If the
+    // /// client is found then `Some(uuid)` is returned, if not, then `None` is
+    // /// returned.
+    // fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
+    //     unsafe {
+    //         let name = ffi::CString::new(name).unwrap();
+    //         let uuid_ptr = j::jack_get_client_name_by_uuid(self.client_ptr(), name.as_ptr());
+    //         if uuid_ptr.is_null() {
+    //             None
+    //         } else {
+    //             Some(ffi::CStr::from_ptr(uuid_ptr).to_str().unwrap())
+    //         }
+    //     }
+    // }
 
     /// Returns a vector of port names that match the specified arguments
     ///
@@ -154,9 +176,10 @@ pub unsafe trait JackClient: Sized {
     /// name. If `None` or zero lengthed, no selection based on name will be
     /// carried out.
     ///
-    /// `type_name_pattern` - A regular expression used to select ports by
-    /// type. If `None` or zero lengthed, no selection based on type will be
-    /// carried out.
+    /// `type_name_pattern` - A regular expression used to select ports by type. If `None` or zero
+    /// lengthed, no selection based on type will be carried out. The port type is the same one
+    /// returned by `PortSpec::jack_port_type()`. For example, `AudioInSpec` and `AudioOutSpec` are
+    /// both of type `"32 bit float mono audio"`.
     ///
     /// `flags` - A value used to select ports by their flags. Use
     /// `PortFlags::empty()` for no flag selection.
@@ -174,15 +197,16 @@ pub unsafe trait JackClient: Sized {
         }
     }
 
-    /// Get a `Port` by its port id.
-    fn port_by_id(&self, port_id: u32) -> Option<UnownedPort> {
-        let pp = unsafe { j::jack_port_by_id(self.client_ptr(), port_id) };
-        if pp.is_null() {
-            None
-        } else {
-            Some(unsafe { Port::from_raw(port::Unowned {}, self.client_ptr(), pp) })
-        }
-    }
+    // TODO implement
+    // // Get a `Port` by its port id.
+    // fn port_by_id(&self, port_id: u32) -> Option<UnownedPort> {
+    //     let pp = unsafe { j::jack_port_by_id(self.client_ptr(), port_id) };
+    //     if pp.is_null() {
+    //         None
+    //     } else {
+    //         Some(unsafe { Port::from_raw(port::Unowned {}, self.client_ptr(), pp) })
+    //     }
+    // }
 
     /// Get a `Port` by its port name.
     fn port_by_name(&self, port_name: &str) -> Option<UnownedPort> {
@@ -197,6 +221,9 @@ pub unsafe trait JackClient: Sized {
 
     /// The estimated time in frames that has passed since the JACK server began
     /// the current process cycle.
+    ///
+    /// # TODO
+    /// - test
     fn frames_since_cycle_start(&self) -> u32 {
         unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
     }
@@ -205,6 +232,9 @@ pub unsafe trait JackClient: Sized {
     /// in other threads (not the process callback). The return value can be
     /// compared with the value of `last_frame_time` to relate time in other
     /// threads to JACK time.
+    ///
+    /// # TODO
+    /// - test
     fn frame_time(&self) -> u32 {
         unsafe { j::jack_frame_time(self.client_ptr()) }
     }
@@ -213,7 +243,9 @@ pub unsafe trait JackClient: Sized {
     /// function may only be used from the process callback, and can be used to
     /// interpret timestamps generated by `self.frame_time()` in other threads,
     /// with respect to the current process cycle.
-    fn last_frame_time(&self) -> u32 {
+    /// # TODO
+    /// - test
+    fn last_frame_time(&self, _ps: &ProcessScope) -> u32 {
         unsafe { j::jack_last_frame_time(self.client_ptr()) }
     }
 
@@ -225,6 +257,9 @@ pub unsafe trait JackClient: Sized {
     /// of the current cycle directly (it has to be computed otherwise).
     ///
     /// `Err(JackErr::TimeError)` is returned on failure.
+    ///
+    /// TODO
+    /// - test
     fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
         let mut current_frames: u32 = 0;
         let mut current_usecs: u64 = 0;
@@ -251,11 +286,15 @@ pub unsafe trait JackClient: Sized {
     }
 
     /// The estimated time in microseconds of the specified frame time
+    ///
+    /// TODO
     fn frames_to_time(&self, n_frames: u32) -> u64 {
         unsafe { j::jack_frames_to_time(self.client_ptr(), n_frames) }
     }
 
     /// The estimated time in frames for the specified system time.
+    ///
+    /// # TODO
     fn time_to_frames(&self, t: u64) -> u32 {
         unsafe { j::jack_time_to_frames(self.client_ptr(), t) }
     }
@@ -322,6 +361,32 @@ pub unsafe trait JackClient: Sized {
                                                destination_port: &Port<B>)
                                                -> Result<(), JackErr> {
         self.connect_ports_by_name(source_port.name(), destination_port.name())
+    }
+
+    /// Remove a connection between two ports.
+    fn disconnect_ports<A: PortSpec, B: PortSpec>(&self,
+                                                  source: &Port<A>,
+                                                  destination: &Port<B>)
+                                                  -> Result<(), JackErr> {
+        self.disconnect_ports_by_name(source.name(), destination.name())
+    }
+
+    /// Remove a connection between two ports.
+    fn disconnect_ports_by_name(&self,
+                                source_port: &str,
+                                destination_port: &str)
+                                -> Result<(), JackErr> {
+        let source_port = ffi::CString::new(source_port).unwrap();
+        let destination_port = ffi::CString::new(destination_port).unwrap();
+        let res = unsafe {
+            j::jack_disconnect(self.client_ptr(),
+                               source_port.as_ptr(),
+                               destination_port.as_ptr())
+        };
+        match res {
+            0 => Ok(()),
+            _ => Err(JackErr::PortDisconnectionError),
+        }
     }
 }
 
@@ -402,23 +467,6 @@ impl Client {
     ///
     /// The `port_name` must be unique among all ports owned by this client. If
     /// the name is not unique, the registration will fail.
-    ///
-    /// All ports have a type, which may be any non empty string, passed as an
-    /// argument. Some port types are built into the JACK API, like
-    /// `DEFAULT_AUDIO_TYPE` and `DEFAULT_MIDI_TYPE`.
-    ///
-    /// # Parameters
-    ///
-    /// `port_name` - non-empty short name for the new port (not including the
-    /// lading "client_name:"). Must be unique.
-    ///
-    /// `port_type` - port type name. If longer than `Port::type_size()`, only
-    /// that many characters are significant.
-    ///
-    /// `flags` - `PortFlags` bit mask.
-    ///
-    /// `buffer_size` - Must be `Some(n)` if this is not a built-in
-    /// `port_type`. Otherwise, it is ignored.
     pub fn register_port<PS: PortSpec>(&mut self,
                                        port_name: &str,
                                        port_spec: PS)
@@ -441,13 +489,17 @@ impl Client {
         }
     }
 
+
     /// Toggle input monitoring for the port with name `port_name`.
     ///
     /// `Err(JackErr::PortMonitorError)` is returned on failure.
     ///
     /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
     /// happens.
-    pub fn request_monitor(&self, port_name: &str, enable_monitor: bool) -> Result<(), JackErr> {
+    pub fn request_monitor_by_name(&self,
+                                   port_name: &str,
+                                   enable_monitor: bool)
+                                   -> Result<(), JackErr> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let onoff = match enable_monitor {
             true => 1,
@@ -461,74 +513,31 @@ impl Client {
         }
     }
 
-    /// Remove a connection between two ports.
-    pub fn disconnect_ports(&self,
-                            source_port: &str,
-                            destination_port: &str)
-                            -> Result<(), JackErr> {
-        let source_port = ffi::CString::new(source_port).unwrap();
-        let destination_port = ffi::CString::new(destination_port).unwrap();
-        let res = unsafe {
-            j::jack_disconnect(self.client, source_port.as_ptr(), destination_port.as_ptr())
-        };
-        match res {
-            0 => Ok(()),
-            _ => Err(JackErr::PortDisconnectionError),
-        }
-    }
 
-    /// Start/Stop JACK's "freewheel" mode.
-    ///
-    /// When in "freewheel" mode, JACK no longer waits for any external event to
-    /// begin the start of the next process cycle. As a result, freewheel mode
-    /// causes "faster than real-time" execution of a JACK graph. If possessed,
-    /// real-time scheduling is dropped when entering freewheel mode, and if
-    /// appropriate it is reacquired when stopping.
-    ///
-    /// IMPORTANT: on systems using capabilities to provide real-time scheduling
-    /// (i.e. Linux Kernel 2.4), if enabling freewheel, this function must be
-    /// called from the thread that originally called `self.activate()`. This
-    /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
-    /// X).
-    pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
-        let onoff = match enable {
-            true => 0,
-            false => 1,
-        };
-        match unsafe { j::jack_set_freewheel(self.client, onoff) } {
-            0 => Ok(()),
-            _ => Err(JackErr::FreewheelError),
-        }
-    }
-
-    /// The current maximum size that will every be passed to the process
-    /// callback.
-    pub fn buffer_size(&self) -> usize {
-        let bsize = unsafe { j::jack_get_buffer_size(self.client_ptr()) };
-        bsize as usize
-    }
-
-    /// Change the buffer size passed to the process callback.
-    ///
-    /// This operation stops the JACK engine process cycle, then calls all
-    /// registered buffer size callback functions before restarting the process
-    /// cycle. This will cause a gap in the audio flow, so it should only be
-    /// done at appropriate stopping points.
-    pub fn set_buffer_size(&self, n_frames: usize) -> Result<(), JackErr> {
-        let n_frames = n_frames as u32;
-        let res = unsafe { j::jack_set_buffer_size(self.client, n_frames) };
-        match res {
-            0 => Ok(()),
-            _ => Err(JackErr::SetBufferSizeError),
-        }
-    }
-
-    /// Remove the port from the client, disconnecting any existing connections.
-    /// The port must have been created with this client.
-    pub fn unregister_port<PS: PortSpec>(&mut self, _port: Port<PS>) -> Result<(), JackErr> {
-        unimplemented!();
-        // port.unregister(self)
-    }
+    // TODO implement
+    // /// Start/Stop JACK's "freewheel" mode.
+    // ///
+    // /// When in "freewheel" mode, JACK no longer waits for any external event to
+    // /// begin the start of the next process cycle. As a result, freewheel mode
+    // /// causes "faster than real-time" execution of a JACK graph. If possessed,
+    // /// real-time scheduling is dropped when entering freewheel mode, and if
+    // /// appropriate it is reacquired when stopping.
+    // ///
+    // /// IMPORTANT: on systems using capabilities to provide real-time scheduling
+    // /// (i.e. Linux Kernel 2.4), if enabling freewheel, this function must be
+    // /// called from the thread that originally called `self.activate()`. This
+    // /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
+    // /// X).
+    // pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
+    //     let onoff = match enable {
+    //         true => 0,
+    //         false => 1,
+    //     };
+    //     match unsafe { j::jack_set_freewheel(self.client_ptr(), onoff) } {
+    //         0 => Ok(()),
+    //         _ => Err(JackErr::FreewheelError),
+    //     }
+    // }
 }
 
 impl<JH: JackHandler> ActiveClient<JH> {

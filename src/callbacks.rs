@@ -95,10 +95,6 @@ pub trait JackHandler: Send {
     fn port_registration(&mut self, _port_id: u32, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
-    ///
-    /// # TODO
-    /// * Possibly fix description, JACK API docs have same description
-    /// for this as port registration.
     fn port_rename(&mut self, _port_id: u32, _old_name: &str, _new_name: &str) -> JackControl {
         JackControl::Continue
     }
@@ -174,6 +170,10 @@ impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F 
         (self)(ps)
     }
 }
+
+/// `JackHandler` that doesn't do anything.
+pub struct DummyHandler;
+impl JackHandler for DummyHandler {}
 
 unsafe fn handler_and_ptr_from_void<'a, T: JackHandler>(ptr: *mut c_void)
                                                         -> &'a mut (T, *mut j::jack_client_t) {

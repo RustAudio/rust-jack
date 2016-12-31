@@ -51,7 +51,7 @@ mod jack_utils;
 mod port;
 mod port_impls;
 
-pub use callbacks::{ProcessScope, JackHandler};
+pub use callbacks::{DummyHandler, ProcessScope, JackHandler};
 pub use client::CLIENT_NAME_SIZE;
 pub use client::{JackClient, Client, ActiveClient, CycleTimes};
 pub use info::{set_info_callback, set_error_callback};
@@ -70,5 +70,7 @@ pub fn get_time() -> u64 {
     unsafe { jack_sys::jack_get_time() }
 }
 
+#[cfg(test)]
+pub use jack_utils::{default_sleep, default_longer_sleep};
 #[cfg(test)]
 mod test;
