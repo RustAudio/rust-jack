@@ -41,7 +41,7 @@ Testing expects there to be an available JACK server running at a sample rate of
 If the tests are failing, a possible gotcha may be timing issues.
 
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value of `DEFAULT_SLEEP_TIME` in `test.rs`.
+2. Increase the value used by `default_sleep` in `jack_utils.rs`.
 
 Another case is that libjack may be broken.
 Try switching between libjack and
@@ -51,6 +51,7 @@ libjack), or using a different version.
 ### Running the tests
 
 ```bash
+$ RUST_TEST_THREADS=1
 $ cargo test
 ```
 

@@ -95,10 +95,6 @@ pub trait JackHandler: Send {
     fn port_registration(&mut self, _port_id: u32, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
-    ///
-    /// # TODO
-    /// * Possibly fix description, JACK API docs have same description
-    /// for this as port registration.
     fn port_rename(&mut self, _port_id: u32, _old_name: &str, _new_name: &str) -> JackControl {
         JackControl::Continue
     }
