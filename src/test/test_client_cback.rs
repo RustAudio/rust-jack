@@ -85,23 +85,27 @@ fn client_cback_calls_buffer_size() {
 #[test]
 fn client_cback_calls_after_client_registered() {
     let ac = active_test_client("client_cback_cacr");
+    default_longer_sleep();
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.registered_client_history,
                vec!["client_cback_cacr_other"]);
-    assert_eq!(counter.unregistered_client_history, Vec::<String>::new());
+    assert!(counter.unregistered_client_history.is_empty());
 }
 
 #[test]
-fn client_cback_calls_after_client_uregistered() {
+fn client_cback_calls_after_client_unregistered() {
     let ac = active_test_client("client_cback_cacu");
+    default_longer_sleep();
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.registered_client_history,
-               vec!["client_cback_cacu_other"]);
+               vec!["client_cback_cacu_other"],
+               "wrong clients detected as registered");
     assert_eq!(counter.unregistered_client_history,
-               vec!["client_cback_cacu_other"]);
+               vec!["client_cback_cacu_other"],
+               "wrong clients detected as unregistered");
 }
 
 #[test]
