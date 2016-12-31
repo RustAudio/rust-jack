@@ -1,6 +1,8 @@
 use std::slice;
 use std::ops::{Deref, DerefMut};
 
+use jack_sys as j;
+
 use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};
 use callbacks::ProcessScope;
@@ -24,7 +26,7 @@ pub struct AudioOutSpec;
 
 unsafe impl<'a> PortSpec for AudioOutSpec {
     fn jack_port_type(&self) -> &'static str {
-        "32 bit float mono audio"
+        j::FLOAT_MONO_AUDIO
     }
 
     fn jack_flags(&self) -> PortFlags {
@@ -49,7 +51,7 @@ unsafe impl PortSpec for AudioInSpec {
     /// * `nframes` - the size of the buffer.
 
     fn jack_port_type(&self) -> &'static str {
-        "32 bit float mono audio"
+        j::FLOAT_MONO_AUDIO
     }
 
     fn jack_flags(&self) -> PortFlags {
@@ -62,7 +64,7 @@ unsafe impl PortSpec for AudioInSpec {
     }
 }
 
-/// Safetly wrap a `Port<AudioOutPort>`. Can deref into a `&mut[f32]`.
+/// Safetly wrap a `Port<AudioOutSpec>`. Derefs into a `&mut[f32]`.
 pub struct AudioOutPort<'a> {
     _port: &'a mut Port<AudioOutSpec>,
     buffer: &'a mut [f32],
@@ -100,7 +102,7 @@ impl<'a> DerefMut for AudioOutPort<'a> {
 }
 
 
-/// Safetly wrap a `Port<AudioInPort>`. Derefs into a `&[f32]`.
+/// Safetly wrap a `Port<AudioInSpec>`. Derefs into a `&[f32]`.
 pub struct AudioInPort<'a> {
     _port: &'a Port<AudioInSpec>,
     buffer: &'a [f32],

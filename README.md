@@ -1,9 +1,14 @@
 # Rust JACK
 
-[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
-[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)
-[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
-[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)
+
+|Status  |                                                                                                                                                                |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|Crates  |[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)                                                                         |
+|Docs    |[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)                                                                                             |
+|Build   |[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)                                         |
+|Coverage|[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)|
+
+
 Nice Rust bindings for
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
 
@@ -17,6 +22,9 @@ Check out the `examples` directory.
 
 * The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a JACK server through a GUI.
 
+* [JACK FAQ](http://www.jackaudio.org/faq/)
+
+
 ## Testing
 
 Testing is a little awkward to setup since it relies on a JACK server.
@@ -27,7 +35,7 @@ Testing is a little awkward to setup since it relies on a JACK server.
 $ ./dummy_jack_server.sh
 ```
 
-which runs
+which runs the command
 
 ```bash
 $ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
@@ -43,10 +51,9 @@ If the tests are failing, a possible gotcha may be timing issues.
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
 2. Increase the value used by `default_sleep` in `jack_utils.rs`.
 
-Another case is that libjack may be broken.
-Try switching between libjack and
-libjack2 (they have the same API and libjack2 isn't necessarily newer than
-libjack), or using a different version.
+Another case is that libjack may be broken on your setup.
+Try switching between libjack and libjack2 (they have the same API and libjack2
+isn't necessarily newer than libjack), or using a different version.
 
 ### Running the tests
 

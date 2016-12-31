@@ -54,23 +54,20 @@ pub struct ActiveClient<JH: JackHandler> {
 }
 
 unsafe impl JackClient for Client {
-    fn client_ptr(&self) -> *mut j::jack_client_t {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
 
 unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
-    fn client_ptr(&self) -> *mut j::jack_client_t {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
 
-/// Common `JACK` client functionality that can be accessed for both
+/// Common JACK client functionality that can be accessed for both
 /// inactive and active clients.
 pub unsafe trait JackClient: Sized {
-    #[inline(always)]
-    fn client_ptr(&self) -> *mut j::jack_client_t;
-
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     fn sample_rate(&self) -> usize {
@@ -88,17 +85,6 @@ pub unsafe trait JackClient: Sized {
         load
     }
 
-
-    /// The buffer size of a port type
-    ///
-    /// # Unsafe
-    ///
-    /// * This function may only be called in a buffer size callback.
-    unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
-        let port_type = ffi::CString::new(port_type).unwrap();
-        let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
-        n
-    }
 
     /// Get the name of the current client. This may differ from the name
     /// requested by `Client::open` as JACK will may rename a client if
@@ -388,6 +374,20 @@ pub unsafe trait JackClient: Sized {
             _ => Err(JackErr::PortDisconnectionError),
         }
     }
+
+    /// The buffer size of a port type
+    ///
+    /// # Unsafe
+    ///
+    /// * This function may only be called in a buffer size callback.
+    unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
+        let port_type = ffi::CString::new(port_type).unwrap();
+        let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
+        n
+    }
+
+    #[inline(always)]
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t;
 }
 
 impl Client {

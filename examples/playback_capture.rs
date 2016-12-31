@@ -7,7 +7,7 @@ fn main() {
     let (mut client, _status) =
         jack::Client::open("rust_jack_simple", jack::client_options::NO_START_SERVER).unwrap();
 
-    // Register ports, that will be used in a callback that will be
+    // Register ports. They will be used in a callback that will be
     // called when new data is available.
     let in_a = client.register_port("rust_in_l", jack::AudioInSpec).unwrap();
     let in_b = client.register_port("rust_in_r", jack::AudioInSpec).unwrap();
@@ -25,7 +25,7 @@ fn main() {
     // Activate the client, which starts the processing.
     let active_client = client.activate(process_callback).unwrap();
 
-    // Wait for user input
+    // Wait for user input to quit
     println!("Press enter/return to quit...");
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
