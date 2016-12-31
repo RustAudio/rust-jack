@@ -40,7 +40,7 @@ pub struct MidiOutSpec;
 
 unsafe impl PortSpec for MidiInSpec {
     fn jack_port_type(&self) -> &'static str {
-        "8 bit raw midi"
+        j::RAW_MIDI_TYPE
     }
 
     fn jack_flags(&self) -> PortFlags {
@@ -55,7 +55,7 @@ unsafe impl PortSpec for MidiInSpec {
 
 unsafe impl PortSpec for MidiOutSpec {
     fn jack_port_type(&self) -> &'static str {
-        "8 bit raw midi"
+        j::RAW_MIDI_TYPE
     }
 
     fn jack_flags(&self) -> PortFlags {
