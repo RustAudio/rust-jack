@@ -2,12 +2,12 @@
 name = "jack"
 version = "0.2.1"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
-description = "Safe JACK bindings for rust."
+description = "Real time audio and midi using safe JACK bindings."
 documentation = "https://wmedrano.github.io/rust-jack/jack/index.html"
 repository = "https://github.com/wmedrano/rust-jack"
 license = "MIT"
 readme = "README.md"
-keywords = ["jack", "realtime", "audio"]
+keywords = ["jack", "realtime", "audio", "midi"]
 
 [dependencies]
 bitflags = "0.7.0"

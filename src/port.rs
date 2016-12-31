@@ -233,12 +233,12 @@ impl<PS: PortSpec> Port<PS> {
     }
 }
 
-/// Port that holds no data from JACK, though it can be used for
-/// obtaining information about external ports.
+/// `PortSpec` for a port that holds no readable or write-able stream data from JACK, though it can
+/// be used for obtaining information about external ports.
 #[derive(Debug, Default)]
 pub struct Unowned;
 
-/// Port that holds no data from Jack, though it can be used to query
+/// `Port<UnownedSpec>` - Port that holds no data from Jack, though it can still be used to query
 /// information.
 pub type UnownedPort = Port<Unowned>;
 

@@ -21,15 +21,6 @@ pub struct ProcessScope {
 }
 
 impl ProcessScope {
-    /// Create a `ProcessScope` for the client with the given pointer
-    /// and the specified amount of frames.
-    pub unsafe fn from_raw(n_frames: pt::JackFrames, client_ptr: *mut j::jack_client_t) -> Self {
-        ProcessScope {
-            n_frames: n_frames,
-            client_ptr: client_ptr,
-        }
-    }
-
     #[inline(always)]
     pub fn n_frames(&self) -> pt::JackFrames {
         self.n_frames
@@ -38,6 +29,15 @@ impl ProcessScope {
     #[inline(always)]
     pub fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
+    }
+
+    /// Create a `ProcessScope` for the client with the given pointer
+    /// and the specified amount of frames.
+    pub unsafe fn from_raw(n_frames: pt::JackFrames, client_ptr: *mut j::jack_client_t) -> Self {
+        ProcessScope {
+            n_frames: n_frames,
+            client_ptr: client_ptr,
+        }
     }
 }
 
