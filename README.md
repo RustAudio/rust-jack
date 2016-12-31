@@ -51,6 +51,7 @@ libjack), or using a different version.
 ### Running the tests
 
 ```bash
+$ RUST_TEST_THREADS=1
 $ cargo test
 ```
 
