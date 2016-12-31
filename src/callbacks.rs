@@ -171,10 +171,6 @@ impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F 
     }
 }
 
-/// `JackHandler` that doesn't do anything.
-pub struct DummyHandler;
-impl JackHandler for DummyHandler {}
-
 unsafe fn handler_and_ptr_from_void<'a, T: JackHandler>(ptr: *mut c_void)
                                                         -> &'a mut (T, *mut j::jack_client_t) {
     assert!(!ptr.is_null());

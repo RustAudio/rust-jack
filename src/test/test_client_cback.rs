@@ -84,24 +84,24 @@ fn client_cback_calls_buffer_size() {
 
 #[test]
 fn client_cback_calls_after_client_registered() {
-    let ac = active_test_client("client_cback_calls_client_registered");
-    let _other_client = open_test_client("client_cback_calls_client_registered_other");
+    let ac = active_test_client("client_cback_cacr");
+    let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.registered_client_history,
-               vec!["client_cback_calls_client_registered_other"]);
+               vec!["client_cback_cacr_other"]);
     assert_eq!(counter.unregistered_client_history, Vec::<String>::new());
 }
 
 #[test]
 fn client_cback_calls_after_client_uregistered() {
-    let ac = active_test_client("client_cback_calls_client_registered");
-    let other_client = open_test_client("client_cback_calls_client_registered_other");
+    let ac = active_test_client("client_cback_cacu");
+    let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.registered_client_history,
-               vec!["client_cback_calls_client_registered_other"]);
+               vec!["client_cback_cacu_other"]);
     assert_eq!(counter.unregistered_client_history,
-               vec!["client_cback_calls_client_registered_other"]);
+               vec!["client_cback_cacu_other"]);
 }
 
 #[test]

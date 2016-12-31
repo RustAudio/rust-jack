@@ -23,9 +23,7 @@ fn client_port_register_port_enforces_unique_names() {
 #[test]
 fn client_port_register_port_enforces_name_length() {
     let mut c = open_test_client("cp_can_register_port");
-    let a = 0;
-    let b = *PORT_NAME_SIZE;
-    let pname = (a..b)
+    let pname = (0..*PORT_NAME_SIZE + 1)
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");

@@ -16,6 +16,17 @@ fn client_can_open() {
 }
 
 #[test]
+fn client_fails_to_open_with_large_name() {
+    default_sleep();
+    let name = (0..*CLIENT_NAME_SIZE + 1)
+        .map(|_| "a")
+        .collect::<Vec<&str>>()
+        .join("_");
+    assert_eq!(Client::open(&name, client_options::NO_START_SERVER).err(),
+               Some(JackErr::ClientError(client_status::FAILURE | client_status::SERVER_ERROR)));
+}
+
+#[test]
 fn client_can_be_named() {
     let name = "client_can_be_named";
     let (c, _) = open_test_client(name);
