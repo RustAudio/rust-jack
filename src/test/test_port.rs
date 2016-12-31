@@ -1,6 +1,8 @@
 use super::super::*;
 
 fn open_test_client(name: &str) -> Client {
+    use std::{thread, time};
+    thread::sleep(time::Duration::from_secs(1));
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 

@@ -2,10 +2,7 @@ use std::collections::HashMap;
 use std::{thread, time};
 use super::super::*;
 
-lazy_static! {
-    static ref DEFAULT_SLEEP_TIME: time::Duration = time::Duration::from_secs(1);
-}
-
+const SLEEP_TIME: u64 = 5;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 enum TestCallbackTypes {
@@ -48,7 +45,7 @@ impl JackHandler for TestHandler {
 }
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
-    thread::sleep(*DEFAULT_SLEEP_TIME);
+    thread::sleep(time::Duration::from_secs(SLEEP_TIME));
     Client::open(name, client_options::NO_START_SERVER).unwrap()
 }
 
@@ -67,7 +64,7 @@ fn thread_init_once() {
     let (client, _status) = open_test_client("aacctio");
     let handler = TestHandler::new();
     let client = client.activate(handler).unwrap();
-    thread::sleep(*DEFAULT_SLEEP_TIME);
+    thread::sleep(time::Duration::from_secs(SLEEP_TIME));
     let (_client, handler) = client.deactivate().unwrap();
     assert!(handler.get_callback_count(TestCallbackTypes::ThreadInit) > 0);
 }
@@ -77,7 +74,7 @@ fn call_process_callback() {
     let (client, _status) = open_test_client("aaccpcst");
     let handler = TestHandler::new();
     let client = client.activate(handler).unwrap();
-    thread::sleep(*DEFAULT_SLEEP_TIME);
+    thread::sleep(time::Duration::from_secs(SLEEP_TIME));
     let (_client, handler) = client.deactivate().unwrap();
     assert!(handler.get_callback_count(TestCallbackTypes::Process) > 1);
 }

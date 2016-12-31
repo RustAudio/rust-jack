@@ -1,9 +1,11 @@
 use super::super::*;
+use std::{thread, time};
 
 pub struct DummyClient;
 impl JackHandler for DummyClient {}
 
 fn open_test_client(name: &str) -> Client {
+    thread::sleep(time::Duration::from_secs(5));
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 

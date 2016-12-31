@@ -1,6 +1,5 @@
 //! ```rust
 //! extern crate jack;
-//! use std::io;
 //!
 //! fn main() {
 //!     // Create client
@@ -28,6 +27,7 @@
 //!     let active_client = client.activate(process_callback).unwrap();
 //!
 //!     // Wait for user input
+//!     use std::io;
 //!     println!("Press enter/return to quit...");
 //!     let mut user_input = String::new();
 //!     io::stdin().read_line(&mut user_input).ok();
