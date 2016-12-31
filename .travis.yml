@@ -1,15 +1,24 @@
 language: rust
 env:
   - RUST_TEST_THREADS=1
+addons:
+  apt:
+    packages:
+      - jackd
+      - libjack-dev
+      - libjack0
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install -y jackd libjack-dev libjack0
   - jackd -r -ddummy -r44100 -p1024 &
 before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
 after_success:
   - travis-cargo --only stable doc-upload
+  - travis-cargo coveralls --no-sudo --verify
 script:
   - travis-cargo test
   - travis-cargo doc -- -j 1
