@@ -4,6 +4,7 @@
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)
 [![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
 [![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)
+
 Nice Rust bindings for
 [JACK Audio Connection Kit](http://www.jackaudio.org/)
 
