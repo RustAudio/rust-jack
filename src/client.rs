@@ -54,13 +54,13 @@ pub struct ActiveClient<JH: JackHandler> {
 }
 
 unsafe impl JackClient for Client {
-    fn client_ptr(&self) -> *mut j::jack_client_t {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
 
 unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
-    fn client_ptr(&self) -> *mut j::jack_client_t {
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client
     }
 }
@@ -68,9 +68,6 @@ unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
 /// Common JACK client functionality that can be accessed for both
 /// inactive and active clients.
 pub unsafe trait JackClient: Sized {
-    #[inline(always)]
-    fn client_ptr(&self) -> *mut j::jack_client_t;
-
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     fn sample_rate(&self) -> usize {
@@ -388,6 +385,9 @@ pub unsafe trait JackClient: Sized {
         let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
         n
     }
+
+    #[inline(always)]
+    unsafe fn client_ptr(&self) -> *mut j::jack_client_t;
 }
 
 impl Client {
