@@ -89,17 +89,6 @@ pub unsafe trait JackClient: Sized {
     }
 
 
-    /// The buffer size of a port type
-    ///
-    /// # Unsafe
-    ///
-    /// * This function may only be called in a buffer size callback.
-    unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
-        let port_type = ffi::CString::new(port_type).unwrap();
-        let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
-        n
-    }
-
     /// Get the name of the current client. This may differ from the name
     /// requested by `Client::open` as JACK will may rename a client if
     /// necessary (ie: name collision, name too long). The name will only
@@ -387,6 +376,17 @@ pub unsafe trait JackClient: Sized {
             0 => Ok(()),
             _ => Err(JackErr::PortDisconnectionError),
         }
+    }
+
+    /// The buffer size of a port type
+    ///
+    /// # Unsafe
+    ///
+    /// * This function may only be called in a buffer size callback.
+    unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
+        let port_type = ffi::CString::new(port_type).unwrap();
+        let n = j::jack_port_type_get_buffer_size(self.client_ptr(), port_type.as_ptr());
+        n
     }
 }
 
