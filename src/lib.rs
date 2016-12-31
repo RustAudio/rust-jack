@@ -8,7 +8,7 @@
 //!                            jack::client_options::NO_START_SERVER)
 //!             .unwrap();
 //!
-//!     // Register ports, that will be used in a callback when new data is available.
+//!     // Register ports. They will be used in a callback when new data is available.
 //!     let in_a = client.register_port("rust_in_l", jack::AudioInSpec).unwrap();
 //!     let in_b = client.register_port("rust_in_r", jack::AudioInSpec).unwrap();
 //!     let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec).unwrap();
@@ -26,7 +26,7 @@
 //!     // Activate the client, which starts the processing.
 //!     let active_client = client.activate(process_callback).unwrap();
 //!
-//!     // Wait for user input
+//!     // Wait for user input to quit
 //!     use std::io;
 //!     println!("Press enter/return to quit...");
 //!     let mut user_input = String::new();

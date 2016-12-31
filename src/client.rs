@@ -65,7 +65,7 @@ unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
     }
 }
 
-/// Common `JACK` client functionality that can be accessed for both
+/// Common JACK client functionality that can be accessed for both
 /// inactive and active clients.
 pub unsafe trait JackClient: Sized {
     #[inline(always)]

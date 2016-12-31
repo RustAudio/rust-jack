@@ -18,7 +18,8 @@ unsafe extern "C" fn info_wrapper(msg: *const i8) {
 }
 
 static IS_INFO_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global JACK info callback.
+/// Set the global JACK info callback. It is recommended to use the [log
+/// crate](https://cratse.io/crates/log).
 ///
 /// # Example
 /// ```rust
@@ -35,7 +36,8 @@ pub fn set_info_callback(info: fn(&str)) {
 }
 
 static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global JACK error callback.
+/// Set the global JACK error callback. It is recommended to use the [log
+/// crate](https://cratse.io/crates/log).
 ///
 /// # Example
 /// ```rust
