@@ -76,7 +76,7 @@ impl<'a> AudioOutPort<'a> {
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
     pub fn new(port: &'a mut Port<AudioOutSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buff = unsafe {
             slice::from_raw_parts_mut(port.buffer(ps.n_frames()) as *mut f32,
                                       ps.n_frames() as usize)
@@ -114,7 +114,7 @@ impl<'a> AudioInPort<'a> {
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
     pub fn new(port: &'a Port<AudioInSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buff = unsafe {
             slice::from_raw_parts(port.buffer(ps.n_frames()) as *const f32,
                                   ps.n_frames() as usize)
