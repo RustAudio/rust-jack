@@ -11,7 +11,7 @@ use port::{Port, PortSpec};
 use primitive_types as pt;
 
 /// Contains 8bit raw midi information along with a timestamp relative to the process cycle.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RawMidi<'a> {
     /// The amount of time, in frames, relative to the start of the process cycle
     pub time: pt::JackFrames,

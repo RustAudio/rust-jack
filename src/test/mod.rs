@@ -9,3 +9,9 @@ mod test_client_cback;
 
 // port.rs
 mod test_port;
+
+// port_impls/audio.rs
+mod test_port_audio;
+
+// port_impls/midi.rs
+mod test_port_midi;
