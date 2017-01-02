@@ -8,8 +8,8 @@ use jack::{MidiInSpec, MidiInPort, MidiOutSpec, MidiOutPort, RawMidi};
 fn main() {
     let (mut client, _status) =
         jack::Client::open("rust_jack_show_midi", jack::client_options::NO_START_SERVER).unwrap();
-    let mut maker = client.register_port("rust_midi_maker", MidiOutSpec).unwrap();
-    let shower = client.register_port("rust_midi_shower", MidiInSpec).unwrap();
+    let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
+    let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
     let cback = move |ps: &jack::ProcessScope| -> jack::JackControl {
         let show_p = MidiInPort::new(&shower, ps);
         for e in show_p.iter() {

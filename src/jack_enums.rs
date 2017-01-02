@@ -1,3 +1,5 @@
+use libc;
+
 use jack_flags::client_status::ClientStatus;
 
 /// An error that can occur in JACK.
@@ -41,10 +43,16 @@ pub enum JackControl {
 }
 
 impl JackControl {
-    pub fn to_ffi(self) -> i32 {
+    pub fn to_ffi(self) -> libc::c_int {
         match self {
             JackControl::Continue => 0,
             JackControl::Quit => -1,
         }
+    }
+}
+
+impl Default for JackControl {
+    fn default() -> Self {
+        JackControl::Continue
     }
 }

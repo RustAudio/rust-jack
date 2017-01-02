@@ -1,19 +1,20 @@
 use std::cell::Cell;
-use std::slice;
-use std::mem;
+use std::{mem, slice};
 
 use jack_sys as j;
+use libc;
 
-use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
-use jack_enums::JackErr;
-use port::{Port, PortSpec};
 use callbacks::ProcessScope;
+use jack_enums::JackErr;
+use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::{Port, PortSpec};
+use primitive_types as pt;
 
 /// Contains 8bit raw midi information along with a timestamp relative to the process cycle.
 #[derive(Clone, Copy, Debug)]
 pub struct RawMidi<'a> {
-    /// The amount of frames relative to the start of the process cycle
-    pub time: u32,
+    /// The amount of time, in frames, relative to the start of the process cycle
+    pub time: pt::JackFrames,
     /// Midi data
     pub bytes: &'a [u8],
 }
@@ -46,7 +47,7 @@ unsafe impl PortSpec for MidiInSpec {
         IS_INPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }
@@ -61,7 +62,7 @@ unsafe impl PortSpec for MidiOutSpec {
         IS_OUTPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }
@@ -91,7 +92,7 @@ impl<'a> MidiInPort<'a> {
 
     pub fn nth(&self, n: usize) -> Option<RawMidi> {
         let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
-        let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer_ptr, n as u32) };
+        let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer_ptr, n as libc::uint32_t) };
         if res != 0 {
             return None;
         }

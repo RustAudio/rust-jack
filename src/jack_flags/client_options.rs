@@ -2,10 +2,7 @@ use jack_sys as j;
 
 bitflags! {
     /// Option flags for opening a JACK client.
-    pub flags ClientOptions: u32 {
-        /// Equivalent to `ClientOptions::empty()`
-        const NULL_OPTION     = j::JackNullOption,
-
+    pub flags ClientOptions: j::Enum_JackOptions {
         /// Do not automatically start the JACK server when it is not
         /// already running. This option is always selected if
         /// `$JACK_NO_START_SERVER` is defined in the calling process

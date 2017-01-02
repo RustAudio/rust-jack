@@ -11,12 +11,12 @@ lazy_static! {
 }
 
 unsafe extern "C" fn error_wrapper(msg: *const i8) {
-    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap();
+    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or("rust failed to interpret error message");
     ERROR_FN.lock().unwrap().get()(msg);
 }
 
 unsafe extern "C" fn info_wrapper(msg: *const i8) {
-    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap();
+    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or("rust failed to interpret info message");
     INFO_FN.lock().unwrap().get()(msg)
 }
 

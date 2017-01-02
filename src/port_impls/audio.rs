@@ -1,11 +1,12 @@
-use std::slice;
 use std::ops::{Deref, DerefMut};
+use std::slice;
 
 use jack_sys as j;
+use libc;
 
+use callbacks::ProcessScope;
 use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};
-use callbacks::ProcessScope;
 
 /// `AudioInSpec` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -33,7 +34,7 @@ unsafe impl<'a> PortSpec for AudioOutSpec {
         IS_OUTPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }
@@ -58,7 +59,7 @@ unsafe impl PortSpec for AudioInSpec {
         IS_INPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }

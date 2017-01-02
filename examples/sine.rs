@@ -71,7 +71,7 @@ fn main() {
     let (mut client, _status) = Client::open("rust_jack_sine", client_options::NO_START_SERVER)
         .unwrap();
 
-    let out_port = client.register_port("sine_out", AudioOutSpec).unwrap();
+    let out_port = client.register_port("sine_out", AudioOutSpec::default()).unwrap();
     let app = SinWave::new(out_port, 220.0, client.sample_rate() as f64);
     let freq_request = app.frequency_requester();
     let active_client = client.activate(app).unwrap();
