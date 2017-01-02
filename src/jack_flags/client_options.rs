@@ -2,7 +2,7 @@ use jack_sys as j;
 
 bitflags! {
     /// Option flags for opening a JACK client.
-    pub flags ClientOptions: u32 {
+    pub flags ClientOptions: j::Enum_JackOptions {
         /// Equivalent to `ClientOptions::empty()`
         const NULL_OPTION     = j::JackNullOption,
 

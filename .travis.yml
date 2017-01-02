@@ -1,6 +1,11 @@
 language: rust
 env:
-  - RUST_TEST_THREADS=1
+  global:
+    - RUST_TEST_THREADS=1
+  matrix:
+    - env: TARGET=i686-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-gnu  # this is the default job
+
 addons:
   apt:
     packages:

@@ -1,11 +1,12 @@
-use std::slice;
 use std::ops::{Deref, DerefMut};
+use std::slice;
 
 use jack_sys as j;
+use libc;
 
+use callbacks::ProcessScope;
 use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};
-use callbacks::ProcessScope;
 
 /// `AudioInSpec` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -33,7 +34,7 @@ unsafe impl<'a> PortSpec for AudioOutSpec {
         IS_OUTPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }
@@ -58,7 +59,7 @@ unsafe impl PortSpec for AudioInSpec {
         IS_INPUT
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         // Not needed for built in types according to JACK api
         0
     }
@@ -75,7 +76,7 @@ impl<'a> AudioOutPort<'a> {
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
     pub fn new(port: &'a mut Port<AudioOutSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buff = unsafe {
             slice::from_raw_parts_mut(port.buffer(ps.n_frames()) as *mut f32,
                                       ps.n_frames() as usize)
@@ -113,7 +114,7 @@ impl<'a> AudioInPort<'a> {
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
     pub fn new(port: &'a Port<AudioInSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buff = unsafe {
             slice::from_raw_parts(port.buffer(ps.n_frames()) as *const f32,
                                   ps.n_frames() as usize)

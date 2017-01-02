@@ -1,10 +1,12 @@
-use libc;
-
 use std::marker::Sized;
 use std::{ffi, iter};
+
+use libc;
+
+use jack_enums::JackErr;
 use jack_flags::port_flags::PortFlags;
 use jack_sys as j;
-use jack_enums::JackErr;
+use primitive_types as pt;
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -25,7 +27,7 @@ pub unsafe trait PortSpec: Sized + Default {
     fn jack_flags(&self) -> PortFlags;
 
     /// Size used by jack upon port creation.
-    fn jack_buffer_size(&self) -> u64;
+    fn jack_buffer_size(&self) -> libc::c_ulong;
 }
 
 /// An endpoint to interact with JACK data streams, for audio, midi,
@@ -49,6 +51,12 @@ impl<PS: PortSpec> Port<PS> {
         &self.spec
     }
 
+    /// Create an unowned clone of the port. These can still be used for anything, except buffer
+    /// manipulation.
+    pub fn clone_unowned(&self) -> Port<Unowned> {
+        unsafe { Port::from_raw(Unowned::default(), self.client_ptr(), self.as_ptr()) }
+    }
+
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
@@ -63,7 +71,7 @@ impl<PS: PortSpec> Port<PS> {
     /// its client.
     pub fn flags(&self) -> PortFlags {
         let bits = unsafe { j::jack_port_flags(self.port_ptr) };
-        PortFlags::from_bits(bits as u32).unwrap()
+        PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
     }
 
     /// The port type. JACK's built in types include `"32 bit float mono audio`"
@@ -102,7 +110,7 @@ impl<PS: PortSpec> Port<PS> {
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
-            j::jack_port_get_aliases(self.port_ptr(), ptrs.as_mut_ptr());
+            j::jack_port_get_aliases(self.as_ptr(), ptrs.as_mut_ptr());
         };
         [a, b]
             .iter()
@@ -218,15 +226,15 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    pub unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
+    pub fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
     }
 
-    pub unsafe fn port_ptr(&self) -> *mut j::jack_port_t {
+    pub fn as_ptr(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
 
-    pub unsafe fn buffer(&self, n_frames: u32) -> *mut libc::c_void {
+    pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }
 }
@@ -249,7 +257,7 @@ unsafe impl PortSpec for Unowned {
         unreachable!()
     }
 
-    fn jack_buffer_size(&self) -> u64 {
+    fn jack_buffer_size(&self) -> libc::c_ulong {
         unreachable!()
     }
 }

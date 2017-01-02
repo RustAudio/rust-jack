@@ -4,11 +4,11 @@ use super::super::*;
 pub struct Counter {
     pub thread_init_count: usize,
     pub frames_processed: usize,
-    pub buffer_size_change_history: Vec<u32>,
+    pub buffer_size_change_history: Vec<JackFrames>,
     pub registered_client_history: Vec<String>,
     pub unregistered_client_history: Vec<String>,
-    pub port_register_history: Vec<u32>,
-    pub port_unregister_history: Vec<u32>,
+    pub port_register_history: Vec<JackPortId>,
+    pub port_unregister_history: Vec<JackPortId>,
 }
 
 impl JackHandler for Counter {
@@ -21,8 +21,8 @@ impl JackHandler for Counter {
         JackControl::Continue
     }
 
-    fn buffer_size(&mut self, size: u32) -> JackControl {
-        self.buffer_size_change_history.push(size as u32);
+    fn buffer_size(&mut self, size: JackFrames) -> JackControl {
+        self.buffer_size_change_history.push(size);
         JackControl::Continue
     }
 
@@ -33,7 +33,7 @@ impl JackHandler for Counter {
         }
     }
 
-    fn port_registration(&mut self, pid: u32, is_registered: bool) {
+    fn port_registration(&mut self, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.port_register_history.push(pid),
             false => self.port_unregister_history.push(pid),
@@ -112,8 +112,8 @@ fn client_cback_calls_after_client_unregistered() {
 fn client_cback_doesnt_call_port_registered_when_no_ports() {
     let ac = active_test_client("client_cback_dcprwnp");
     let counter = ac.deactivate().unwrap().1;
-    assert_eq!(counter.port_register_history, Vec::<u32>::new());
-    assert_eq!(counter.port_unregister_history, Vec::<u32>::new());
+    assert!(counter.port_register_history.is_empty());
+    assert!(counter.port_unregister_history.is_empty());
 }
 
 // #[test]
