@@ -18,6 +18,7 @@ bitflags! {
         /// was used. If the specified client_name plus these extra
         /// characters would be too long, the open fails instead.
         const NAME_NOT_UNIQUE = j::JackNameNotUnique,
+
         /// The JACK server was started as a result of this
         /// operation. Otherwise, it was running already. In either
         /// case the caller is now connected to jackd, so there is no
