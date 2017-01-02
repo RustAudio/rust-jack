@@ -27,6 +27,30 @@
 //!     }
 //!     Err(e) => panic!("Failed to open JACK client, error: {:?}", e),
 //! };
+//! # // Register ports. They will be used in a callback when new data is available.
+//! # let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
+//! # let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
+//! # let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
+//! # let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
+//! # let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+//! #     let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+//! #     let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+//! #     let in_a_p = jack::AudioInPort::new(&in_a, ps);
+//! #     let in_b_p = jack::AudioInPort::new(&in_b, ps);
+//! #     We can copy the data over as if they were slices.
+//! #     out_a_p.clone_from_slice(&in_a_p);
+//! #     out_b_p.clone_from_slice(&in_b_p);
+//! #     // Continue to run the application
+//! #     jack::JackControl::Continue
+//! # };
+//! # // Activate the cilent, which starts the processing.
+//! # // Wait for user input to quit
+//! # use std::io;
+//! # println!("Press enter/return to quit...");
+//! # let mut user_input = String::new();
+//! # io::stdin().read_line(&mut user_input).ok();
+//! #
+//! # active_client.deactivate().unwrap();
 //! ```
 //!
 //! ## Ports
@@ -36,11 +60,42 @@
 //! ports. We will also register two output ports, to put the data we obtain from the inputs.
 //!
 //! ```rust
+//! # extern crate jack;
+//!
+//! # // Create client
+//! # let mut client = match Client::open("rust_jack_simple", client_options::NO_START_SERVER) {
+//! #     Ok((client, status)) => {
+//! #         println!("Opened JACK client \"{}\", with status {:?}",
+//! #                  client.name(),
+//! #                  status);
+//! #         client
+//! #     }
+//! #     Err(e) => panic!("Failed to open JACK client, error: {:?}", e),
+//! # };
 //! // Register ports. They will be used in a callback when new data is available.
 //! let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
 //! let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
 //! let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
 //! let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
+//! # let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+//! #     let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+//! #     let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+//! #     let in_a_p = jack::AudioInPort::new(&in_a, ps);
+//! #     let in_b_p = jack::AudioInPort::new(&in_b, ps);
+//! #     We can copy the data over as if they were slices.
+//! #     out_a_p.clone_from_slice(&in_a_p);
+//! #     out_b_p.clone_from_slice(&in_b_p);
+//! #     // Continue to run the application
+//! #     jack::JackControl::Continue
+//! # };
+//! # // Activate the cilent, which starts the processing.
+//! # // Wait for user input to quit
+//! # use std::io;
+//! # println!("Press enter/return to quit...");
+//! # let mut user_input = String::new();
+//! # io::stdin().read_line(&mut user_input).ok();
+//! #
+//! # active_client.deactivate().unwrap();
 //! ```
 //!
 //! ## Logic Handler
@@ -51,7 +106,42 @@
 //! `process_callback` to call itself.
 //!
 //! ```rust
+//! # extern crate jack;
+//!
+//! # // Create client
+//! # let mut client = match Client::open("rust_jack_simple", client_options::NO_START_SERVER) {
+//! #     Ok((client, status)) => {
+//! #         println!("Opened JACK client \"{}\", with status {:?}",
+//! #                  client.name(),
+//! #                  status);
+//! #         client
+//! #     }
+//! #     Err(e) => panic!("Failed to open JACK client, error: {:?}", e),
+//! # };
+//! # // Register ports. They will be used in a callback when new data is available.
+//! # let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
+//! # let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
+//! # let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
+//! # let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
 //! let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+//! #     let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+//! #     let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+//! #     let in_a_p = jack::AudioInPort::new(&in_a, ps);
+//! #     let in_b_p = jack::AudioInPort::new(&in_b, ps);
+//! #     We can copy the data over as if they were slices.
+//! #     out_a_p.clone_from_slice(&in_a_p);
+//! #     out_b_p.clone_from_slice(&in_b_p);
+//! #     // Continue to run the application
+//! #     jack::JackControl::Continue
+//! # };
+//! # // Activate the cilent, which starts the processing.
+//! # // Wait for user input to quit
+//! # use std::io;
+//! # println!("Press enter/return to quit...");
+//! # let mut user_input = String::new();
+//! # io::stdin().read_line(&mut user_input).ok();
+//! #
+//! # active_client.deactivate().unwrap();
 //! ```
 //!
 //! ## Processing Logic
@@ -63,6 +153,24 @@
 //! `jack::MidiInPort` and `jack::MidiOutPort`.
 //!
 //! ```rust
+//! # extern crate jack;
+//!
+//! # // Create client
+//! # let mut client = match Client::open("rust_jack_simple", client_options::NO_START_SERVER) {
+//! #     Ok((client, status)) => {
+//! #         println!("Opened JACK client \"{}\", with status {:?}",
+//! #                  client.name(),
+//! #                  status);
+//! #         client
+//! #     }
+//! #     Err(e) => panic!("Failed to open JACK client, error: {:?}", e),
+//! # };
+//! # // Register ports. They will be used in a callback when new data is available.
+//! # let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
+//! # let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
+//! # let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
+//! # let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
+//! let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
 //!     let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
 //!     let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
 //!     let in_a_p = jack::AudioInPort::new(&in_a, ps);
@@ -73,6 +181,14 @@
 //!     // Continue to run the application
 //!     jack::JackControl::Continue
 //! };
+//! # // Activate the cilent, which starts the processing.
+//! # // Wait for user input to quit
+//! # use std::io;
+//! # println!("Press enter/return to quit...");
+//! # let mut user_input = String::new();
+//! # io::stdin().read_line(&mut user_input).ok();
+//! #
+//! # active_client.deactivate().unwrap();
 //! ```
 //!
 //! ## Running
@@ -81,9 +197,35 @@
 //! long as the user doesn't input anything to standard in.
 //!
 //! ```rust
-//! // Activate the client, which starts the processing.
-//! let active_client = client.activate(process_callback).unwrap();
+//! # extern crate jack;
 //!
+//! # // Create client
+//! # let mut client = match Client::open("rust_jack_simple", client_options::NO_START_SERVER) {
+//! #     Ok((client, status)) => {
+//! #         println!("Opened JACK client \"{}\", with status {:?}",
+//! #                  client.name(),
+//! #                  status);
+//! #         client
+//! #     }
+//! #     Err(e) => panic!("Failed to open JACK client, error: {:?}", e),
+//! # };
+//! # // Register ports. They will be used in a callback when new data is available.
+//! # let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
+//! # let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
+//! # let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
+//! # let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
+//! # let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+//! #     let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+//! #     let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+//! #     let in_a_p = jack::AudioInPort::new(&in_a, ps);
+//! #     let in_b_p = jack::AudioInPort::new(&in_b, ps);
+//! #     We can copy the data over as if they were slices.
+//! #     out_a_p.clone_from_slice(&in_a_p);
+//! #     out_b_p.clone_from_slice(&in_b_p);
+//! #     // Continue to run the application
+//! #     jack::JackControl::Continue
+//! # };
+//! // Activate the cilent, which starts the processing.
 //! // Wait for user input to quit
 //! use std::io;
 //! println!("Press enter/return to quit...");

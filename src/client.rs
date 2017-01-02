@@ -480,7 +480,8 @@ impl Client {
             j::jack_port_register(self.client,
                                   port_name_c.as_ptr(),
                                   port_type_c.as_ptr(),
-                                  port_flags as libc::c_ulong,
+                                  // port_flags as libc::c_ulong,
+                                  port_flags as u64,
                                   buffer_size)
         };
         if pp.is_null() {
