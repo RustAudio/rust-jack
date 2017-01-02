@@ -61,6 +61,13 @@ fn client_can_deactivate() {
 }
 
 #[test]
+fn client_knows_buffer_size() {
+    let (c, _) = open_test_client("client_knows_buffer_size");
+    // 1024 - As started by dummy_jack_server.sh
+    assert_eq!(c.buffer_size(), 1024);
+}
+
+#[test]
 fn client_knows_sample_rate() {
     let (c, _) = open_test_client("client_knows_sample_rate");
     // 44100 - As started by dummy_jack_server.sh

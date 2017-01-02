@@ -9,10 +9,10 @@
 //!             .unwrap();
 //!
 //!     // Register ports. They will be used in a callback when new data is available.
-//!     let in_a = client.register_port("rust_in_l", jack::AudioInSpec).unwrap();
-//!     let in_b = client.register_port("rust_in_r", jack::AudioInSpec).unwrap();
-//!     let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec).unwrap();
-//!     let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec).unwrap();
+//!     let in_a = client.register_port("rust_in_l", jack::AudioInSpec::default()).unwrap();
+//!     let in_b = client.register_port("rust_in_r", jack::AudioInSpec::default()).unwrap();
+//!     let mut out_a = client.register_port("rust_out_l", jack::AudioOutSpec::default()).unwrap();
+//!     let mut out_b = client.register_port("rust_out_r", jack::AudioOutSpec::default()).unwrap();
 //!     let process_callback = move |ps: &jack::ProcessScope| -> jack::JackControl {
 //!         let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
 //!         let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);

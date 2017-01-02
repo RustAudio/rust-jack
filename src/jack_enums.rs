@@ -50,3 +50,9 @@ impl JackControl {
         }
     }
 }
+
+impl Default for JackControl {
+    fn default() -> Self {
+        JackControl::Continue
+    }
+}

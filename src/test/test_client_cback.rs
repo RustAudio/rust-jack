@@ -2,6 +2,7 @@ use super::super::*;
 
 #[derive(Debug, Default)]
 pub struct Counter {
+    pub process_return_val: JackControl,
     pub thread_init_count: usize,
     pub frames_processed: usize,
     pub buffer_size_change_history: Vec<JackFrames>,
@@ -120,8 +121,8 @@ fn client_cback_doesnt_call_port_registered_when_no_ports() {
 // fn client_cback_calls_port_registered() {
 //     let ac = active_test_client("client_cback_cpr");
 //     let mut other = open_test_client("client_cback_cpr_ports");
-//     let _pa = other.register_port("pa", AudioInSpec).unwrap();
-//     let _pb = other.register_port("pb", AudioInSpec).unwrap();
+//     let _pa = other.register_port("pa", AudioInSpec::default()).unwrap();
+//     let _pb = other.register_port("pb", AudioInSpec::default()).unwrap();
 //     let counter = ac.deactivate().unwrap().1;
 //     assert_eq!(counter.port_register_history.len(), 2);
 //     assert_eq!(counter.port_unregister_history.len(), 0);
@@ -131,8 +132,8 @@ fn client_cback_doesnt_call_port_registered_when_no_ports() {
 // fn client_cback_calls_port_unregistered() {
 //     let ac = active_test_client("client_cback_cpu");
 //     let mut other = open_test_client("client_cback_cpu_ports");
-//     other.register_port("pa", AudioInSpec).unwrap().unregister().unwrap();
-//     other.register_port("pb", AudioInSpec).unwrap().unregister().unwrap();
+//     other.register_port("pa", AudioInSpec::default()).unwrap().unregister().unwrap();
+//     other.register_port("pb", AudioInSpec::default()).unwrap().unregister().unwrap();
 //     default_longer_sleep();
 //     let counter = ac.deactivate().unwrap().1;
 //     assert_eq!(counter.port_register_history.len(), 2);

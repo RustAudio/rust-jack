@@ -4,7 +4,7 @@ use jack_sys as j;
 use libc;
 
 use jack_enums::*;
-use jack_flags::client_status::{ClientStatus, UNKNOWN_ERROR};
+use jack_flags::client_status::ClientStatus;
 use primitive_types as pt;
 
 /// `ProcessScope` provides information on the client and frame
@@ -203,7 +203,7 @@ unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
         Ok(s) => s,
         Err(_) => "Failed to interpret error.",
     };
-    obj.0.shutdown(ClientStatus::from_bits(code).unwrap_or(UNKNOWN_ERROR),
+    obj.0.shutdown(ClientStatus::from_bits(code).unwrap_or(ClientStatus::empty()),
                    reason_str)
 }
 

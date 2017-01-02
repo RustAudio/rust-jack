@@ -18,7 +18,7 @@ lazy_static! {
 
 /// Represents the data of a Port within a `JackHandler::process`
 /// callback.
-pub unsafe trait PortSpec: Sized + Default {
+pub unsafe trait PortSpec: Default + Sized {
     /// String used by JACK upon port creation to identify the port
     /// type.
     fn jack_port_type(&self) -> &'static str;
@@ -33,9 +33,8 @@ pub unsafe trait PortSpec: Sized + Default {
 /// An endpoint to interact with JACK data streams, for audio, midi,
 /// etc...
 ///
-/// Most JACK functionality is exposed, including the raw pointers,
-/// but it should be possible to create a client without the need for
-/// calling `unsafe` `Port` methods.
+/// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
+/// create a client without the need for calling `unsafe` `Port` methods.
 #[derive(Debug)]
 pub struct Port<PS: PortSpec> {
     spec: PS,
@@ -53,39 +52,38 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.port_ptr)).to_str().unwrap() }
+        unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr())).to_str().unwrap() }
     }
 
     /// Returns the short name of the port, it excludes the "client_name:" prefix.
     pub fn short_name<'a>(&'a self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_short_name(self.port_ptr)).to_str().unwrap() }
+        unsafe { ffi::CStr::from_ptr(j::jack_port_short_name(self.as_ptr())).to_str().unwrap() }
     }
 
     /// The flags for the port. These are set when the port is registered with
     /// its client.
     pub fn flags(&self) -> PortFlags {
-        let bits = unsafe { j::jack_port_flags(self.port_ptr) };
+        let bits = unsafe { j::jack_port_flags(self.as_ptr()) };
         PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
     }
 
-    /// The port type. JACK's built in types include `"32 bit float mono audio`"
-    /// and `"8 bit raw midi"`. Custom types may also be used.
+    /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
+    /// midi"`. Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.port_ptr)).to_str().unwrap() }
+        unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr())).to_str().unwrap() }
     }
 
     /// Number of ports connected to/from
     pub fn connected_count(&self) -> usize {
-        let n = unsafe { j::jack_port_connected(self.port_ptr) };
+        let n = unsafe { j::jack_port_connected(self.as_ptr()) };
         n as usize
     }
 
-    /// Returns `true` if the port is directly connected to a port with the name
-    /// `port_name`.
+    /// Returns `true` if the port is directly connected to a port with the name `port_name`.
     pub fn is_connected_to(&self, port_name: &str) -> bool {
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
-            j::jack_port_connected_to(self.port_ptr, port_name.as_ptr())
+            j::jack_port_connected_to(self.as_ptr(), port_name.as_ptr())
         };
         match res {
             0 => false,
@@ -93,9 +91,6 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    // TODO implement
-    /// Not implemented.
-    ///
     /// Get the alias names for `self`.
     ///
     /// Will return a vector of strings of up to 2 elements.
@@ -104,7 +99,7 @@ impl<PS: PortSpec> Port<PS> {
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
-            j::jack_port_get_aliases(self.port_ptr(), ptrs.as_mut_ptr());
+            j::jack_port_get_aliases(self.as_ptr(), ptrs.as_mut_ptr());
         };
         [a, b]
             .iter()
@@ -116,7 +111,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> bool {
-        match unsafe { j::jack_port_monitoring_input(self.port_ptr) } {
+        match unsafe { j::jack_port_monitoring_input(self.as_ptr()) } {
             0 => false,
             _ => true,
         }
@@ -130,33 +125,33 @@ impl<PS: PortSpec> Port<PS> {
             true => 1,
             false => 0,
         };
-        let res = unsafe { j::jack_port_request_monitor(self.port_ptr, onoff) };
+        let res = unsafe { j::jack_port_request_monitor(self.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortMonitorError),
         }
     }
 
-    /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is
-    /// turned on if it was off, and turns it off if only one request has been
-    /// made to turn it on. Otherwise it does nothing.
+    /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is turned on if it was
+    /// off, and turns it off if only one request has been made to turn it on. Otherwise it does
+    /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
         };
-        let res = unsafe { j::jack_port_ensure_monitor(self.port_ptr, onoff) };
+        let res = unsafe { j::jack_port_ensure_monitor(self.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortMonitorError),
         }
     }
 
-    /// Set's the short name of the port. If the full name is longer than
-    /// `PORT_NAME_SIZE`, then it will be truncated.
+    /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
+    /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), JackErr> {
         let short_name = ffi::CString::new(short_name).unwrap();
-        let res = unsafe { j::jack_port_set_name(self.port_ptr, short_name.as_ptr()) };
+        let res = unsafe { j::jack_port_set_name(self.as_ptr(), short_name.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortNamingError),
@@ -165,17 +160,17 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Sets `alias` as an alias for `self`.
     ///
-    /// May be called at any time. If the alias is longer than
-    /// `PORT_NAME_SIZE`, it will be truncated.
+    /// May be called at any time. If the alias is longer than `PORT_NAME_SIZE`, it will be
+    /// truncated.
     ///
-    /// After a successful call, and until JACK exists, or the alias is unset,
-    /// `alias` may be used as an alternate name for the port.
+    /// After a successful call, and until JACK exists, or the alias is unset, `alias` may be used
+    /// as an alternate name for the port.
     ///
-    /// Ports can have up to two aliases - if both are already set, this
-    /// function will return an error.
+    /// Ports can have up to two aliases - if both are already set, this function will return an
+    /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), JackErr> {
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { j::jack_port_set_alias(self.port_ptr, alias.as_ptr()) };
+        let res = unsafe { j::jack_port_set_alias(self.as_ptr(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortAliasError),
@@ -184,24 +179,23 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Remove `alias` as an alias for port. May be called at any time.
     ///
-    /// After a successful call, `alias` can no longer be used as an alternate
-    /// name for `self`.
+    /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), JackErr> {
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { j::jack_port_unset_alias(self.port_ptr, alias.as_ptr()) };
+        let res = unsafe { j::jack_port_unset_alias(self.as_ptr(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortAliasError),
         }
     }
 
-    /// Remove the port from the client, disconnecting any existing connections.
-    /// The port must have been created with the provided client.
+    /// Remove the port from the client, disconnecting any existing connections.  The port must have
+    /// been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
         if self.client_ptr.is_null() {
             return Ok(());
         };
-        let res = unsafe { j::jack_port_unregister(self.client_ptr, self.port_ptr) };
+        let res = unsafe { j::jack_port_unregister(self.client_ptr, self.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(JackErr::PortDisconnectionError),
@@ -220,14 +214,17 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
+    #[inline(always)]
     pub unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
     }
 
-    pub unsafe fn port_ptr(&self) -> *mut j::jack_port_t {
+    #[inline(always)]
+    pub fn as_ptr(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
 
+    #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }

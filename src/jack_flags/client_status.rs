@@ -51,8 +51,5 @@ bitflags! {
 
         /// No documentation found. TODO: dig deeper
         const CLIENT_ZOMBIE   = j::JackClientZombie,
-
-        /// An error unknown to JACK occurred.
-        const UNKNOWN_ERROR   = 0x2000, // TODO: don't use this
     }
 }
