@@ -1,12 +1,12 @@
 # Rust JACK
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-|Status  |                                                                                                                                                                |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|Crates  |[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)                                                                         |
-|Docs    |[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)                                                                                             |
-|Build   |[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)                                         |
-|Coverage|[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)|
+[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
+[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)
+
+[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
+[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)
 
 
 Nice Rust bindings for
