@@ -1,4 +1,5 @@
-use super::super::*;
+use prelude::*;
+use jack_utils::*;
 
 #[derive(Debug, Default)]
 pub struct Counter {

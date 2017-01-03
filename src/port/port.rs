@@ -4,7 +4,7 @@ use std::{ffi, iter};
 use libc;
 
 use jack_enums::JackErr;
-use jack_flags::port_flags::PortFlags;
+use port::port_flags::PortFlags;
 use jack_sys as j;
 use primitive_types as pt;
 
@@ -16,8 +16,8 @@ lazy_static! {
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
-/// Represents the data of a Port within a `JackHandler::process`
-/// callback.
+/// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
+/// midi output, etc...
 pub unsafe trait PortSpec: Default + Sized {
     /// String used by JACK upon port creation to identify the port
     /// type.

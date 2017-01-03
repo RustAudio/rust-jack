@@ -6,7 +6,7 @@ use libc;
 
 use callbacks::ProcessScope;
 use jack_enums::JackErr;
-use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};
 use primitive_types as pt;
 

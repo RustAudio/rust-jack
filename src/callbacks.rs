@@ -4,7 +4,7 @@ use jack_sys as j;
 use libc;
 
 use jack_enums::*;
-use jack_flags::client_status::ClientStatus;
+use client::client_status::ClientStatus;
 use primitive_types as pt;
 
 /// `ProcessScope` provides information on the client and frame

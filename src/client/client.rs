@@ -5,9 +5,9 @@ use libc;
 
 use callbacks::{JackHandler, ProcessScope, register_callbacks, clear_callbacks};
 use jack_enums::*;
-use jack_flags::client_options::ClientOptions;
-use jack_flags::client_status::ClientStatus;
-use jack_flags::port_flags::PortFlags;
+use client::client_options::ClientOptions;
+use client::client_status::ClientStatus;
+use port::port_flags::PortFlags;
 use jack_utils::collect_strs;
 use port::{Port, PortSpec, UnownedPort};
 use port;

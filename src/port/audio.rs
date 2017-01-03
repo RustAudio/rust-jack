@@ -5,7 +5,7 @@ use jack_sys as j;
 use libc;
 
 use callbacks::ProcessScope;
-use jack_flags::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};
 
 /// `AudioInSpec` implements the `PortSpec` trait which, defines an

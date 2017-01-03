@@ -1,4 +1,5 @@
-use super::super::*;
+use prelude::*;
+use jack_utils::*;
 use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
