@@ -36,11 +36,6 @@ pub struct CycleTimes {
 }
 
 /// A client to interact with a JACK server.
-///
-/// # Example
-/// ```
-/// // TODO: make example
-/// ```
 #[derive(Debug)]
 pub struct Client {
     client: *mut j::jack_client_t,
