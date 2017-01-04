@@ -1,4 +1,8 @@
 language: rust
+rust:
+  - stable
+  - beta
+  - nightly
 env:
   - RUST_TEST_THREADS=1
 addons:
@@ -14,13 +18,21 @@ addons:
 before_install:
   - jackd -r -ddummy -r44100 -p1024 &
 before_script:
-  - pip install 'travis-cargo<0.2' --user
-  - export PATH=#HOME/.local:$PATH
+    - pip install 'travis-cargo>=0.1.0,<0.2.0' --user
+    - pip install 'CppHeaderParser>=2.7.2,<3.0.0' --user
+    - export PATH="$HOME/.local/bin:$PATH"
+    - git clone https://github.com/arcnmx/cargo-clippy.git
+    - cd cargo-clippy
+    - travis-cargo --only nightly build
+    - export PATH="$PWD/target/debug:$PATH"
+    - cd ..
 after_success:
   - travis-cargo --only stable doc-upload
   - travis-cargo coveralls --no-sudo --verify
   - ./kcov/build/src/kcov --verify --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/jack-*
 script:
+  - travis-cargo build
+  - cargo clippy --lib
   - travis-cargo test
   - travis-cargo doc -- -j 1
 cache:
