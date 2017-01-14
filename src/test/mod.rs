@@ -1,3 +1,6 @@
+// time related functionality in lib.rs
+mod test_time;
+
 // client.rs excluding functionality that involves ports or callbacks
 mod test_client;
 
