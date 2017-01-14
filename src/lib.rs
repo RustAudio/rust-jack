@@ -5,14 +5,20 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
+/// Defines callback traits and `ProcessScope`.
 pub mod callbacks;
+
+/// Create a connection to a JACK server.
 pub mod client;
+
 mod info;
 mod jack_enums;
 mod jack_utils;
-pub mod port;
-mod primitive_types;
 
+/// Types for interacting with port data from JACK.
+pub mod port;
+
+mod primitive_types;
 pub use info::{set_info_callback, set_error_callback};
 pub use jack_enums::{JackControl, JackErr};
 pub use primitive_types::{JackFrames, JackPortId, JackTime};
@@ -23,19 +29,21 @@ pub fn get_time() -> JackTime {
     unsafe { jack_sys::jack_get_time() }
 }
 
+/// Contains every trait defined in the jack crate.
 pub mod traits {
     pub use client::JackClient;
     pub use callbacks::JackHandler;
     pub use port::PortSpec;
 }
 
+/// Contains most functionality to interact with JACK.
 pub mod prelude {
-    pub use callbacks::*;
+    pub use callbacks::{JackHandler, ProcessScope};
     pub use client::*;
-    pub use port::*;
-    pub use jack_enums::*;
-    pub use primitive_types::*;
     pub use info::*;
+    pub use jack_enums::*;
+    pub use port::*;
+    pub use primitive_types::*;
 }
 
 #[cfg(test)]
