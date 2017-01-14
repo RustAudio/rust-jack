@@ -1,4 +1,6 @@
 language: rust
+rust:
+  - stable
 env:
   - RUST_TEST_THREADS=1
 addons:

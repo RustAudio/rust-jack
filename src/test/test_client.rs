@@ -1,4 +1,5 @@
-use super::super::*;
+use prelude::*;
+use jack_utils::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     default_sleep();

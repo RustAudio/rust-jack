@@ -3,14 +3,15 @@
 //! Note On and Off event, once every cycle, on the output port.
 extern crate jack;
 use std::io;
-use jack::{MidiInSpec, MidiInPort, MidiOutSpec, MidiOutPort, RawMidi};
+use jack::prelude::{Client, JackControl, MidiInSpec, MidiInPort, MidiOutSpec, MidiOutPort,
+                    ProcessScope, RawMidi, client_options};
 
 fn main() {
     let (mut client, _status) =
-        jack::Client::open("rust_jack_show_midi", jack::client_options::NO_START_SERVER).unwrap();
+        Client::open("rust_jack_show_midi", client_options::NO_START_SERVER).unwrap();
     let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
     let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
-    let cback = move |ps: &jack::ProcessScope| -> jack::JackControl {
+    let cback = move |ps: &ProcessScope| -> JackControl {
         let show_p = MidiInPort::new(&shower, ps);
         for e in show_p.iter() {
             println!("{:?}", e);
@@ -28,7 +29,7 @@ fn main() {
                          0b01000000 /* Key number */, 0b01111111 /* Velocity */],
             })
             .unwrap();
-        jack::JackControl::Continue
+        JackControl::Continue
     };
     let active_client = client.activate(cback).unwrap();
     println!("Press any key to quit");

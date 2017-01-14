@@ -1,6 +1,6 @@
 use libc;
 
-use jack_flags::client_status::ClientStatus;
+use client::client_status::ClientStatus;
 
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]

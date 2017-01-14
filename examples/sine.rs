@@ -3,8 +3,8 @@ extern crate jack;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::{Sender, Receiver, channel};
-use jack::{client_options, AudioOutPort, AudioOutSpec, Client, JackClient, JackHandler,
-           JackControl, Port, ProcessScope};
+use jack::prelude::{client_options, AudioOutPort, AudioOutSpec, Client, JackClient, JackHandler,
+                    JackControl, Port, ProcessScope};
 
 
 pub struct SinWave {

@@ -42,3 +42,10 @@ pub fn default_longer_sleep() {
         default_sleep();
     }
 }
+
+#[cfg(test)]
+use callbacks;
+#[cfg(test)]
+pub struct DummyHandler;
+#[cfg(test)]
+impl callbacks::JackHandler for DummyHandler {}
