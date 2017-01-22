@@ -1,4 +1,5 @@
 use std::{ffi, mem, ptr};
+use std::sync::Mutex;
 
 use jack_sys as j;
 use libc;
@@ -12,6 +13,10 @@ use jack_utils::collect_strs;
 use port::{Port, PortSpec, UnownedPort};
 use port;
 use primitive_types as pt;
+
+lazy_static! {
+    static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 /// The maximum length of the JACK client name string. Unlike the "C" JACK
 /// API, this does not take into account the final `NULL` character and
@@ -438,6 +443,7 @@ impl Client {
     pub fn open(client_name: &str,
                 options: ClientOptions)
                 -> Result<(Self, ClientStatus), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
@@ -461,6 +467,7 @@ impl Client {
     /// `handler` is consumed, but it is returned when `Client::deactivate` is
     /// called.
     pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let handler_ptr = try!(register_callbacks(handler, self.client, self.as_ptr()));
             if handler_ptr.is_null() {
@@ -549,6 +556,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
     /// In the case of error, the `Client` is destroyed because its state is
     /// unknown, and it is therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let ActiveClient { client, handler } = self;
 
@@ -584,6 +592,12 @@ impl<JH: JackHandler> ActiveClient<JH> {
 /// Close the client, deactivating if necessary.
 impl Drop for Client {
     fn drop(&mut self) {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        #[cfg(test)]
+        {
+            use jack_utils::default_sleep;
+            default_sleep();
+        }
         debug_assert!(!self.client.is_null()); // Rep invariant
 
         // Client isn't active, so no need to deactivate
@@ -597,6 +611,7 @@ impl Drop for Client {
 /// Closes the client.
 impl<JH: JackHandler> Drop for ActiveClient<JH> {
     fn drop(&mut self) {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             debug_assert!(!self.client.is_null()); // Rep invariant
 
