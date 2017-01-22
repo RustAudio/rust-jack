@@ -1,3 +1,5 @@
+mod test_logging;
+
 // time related functionality in lib.rs
 mod test_time;
 

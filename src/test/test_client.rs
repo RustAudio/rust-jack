@@ -3,7 +3,9 @@ use jack_utils::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     default_sleep();
-    Client::open(name, client_options::NO_START_SERVER).unwrap()
+    let ret = Client::open(name, client_options::NO_START_SERVER).unwrap();
+    default_sleep();
+    ret
 }
 
 #[test]
@@ -61,6 +63,7 @@ fn client_can_deactivate() {
     let a = c.activate(DummyHandler).unwrap();
     default_sleep();
     a.deactivate().unwrap();
+    default_sleep();
 }
 
 #[test]
