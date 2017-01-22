@@ -38,7 +38,7 @@ pub fn default_sleep() {
 // Sleeps for a longer while than `default_sleep()`.
 #[cfg(test)]
 pub fn default_longer_sleep() {
-    for _ in 0..10 {
+    for _ in 0..5 {
         default_sleep();
     }
 }

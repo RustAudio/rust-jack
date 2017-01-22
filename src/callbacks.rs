@@ -48,7 +48,7 @@ impl ProcessScope {
 ///
 /// # TODO
 /// * convert C enum return values to Rust enums.
-pub trait JackHandler: Send {
+pub trait JackHandler: Send + Sync {
     /// Called just once after the creation of the thread in which all other
     /// callbacks will be handled.
     ///
@@ -179,6 +179,9 @@ pub trait JackHandler: Send {
 pub struct ProcessHandler<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> {
     pub process: F,
 }
+
+unsafe impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> Sync for ProcessHandler<F> {}
+
 
 impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]

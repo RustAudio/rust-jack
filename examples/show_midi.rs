@@ -3,8 +3,8 @@
 //! Note On and Off event, once every cycle, on the output port.
 extern crate jack;
 use std::io;
-use jack::prelude::{Client, JackControl, MidiInPort, MidiInSpec, MidiOutPort, MidiOutSpec,
-                    ProcessHandler, ProcessScope, RawMidi, client_options};
+use jack::prelude::{Client, JackClient, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
+                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, client_options};
 
 fn main() {
     let (mut client, _status) =

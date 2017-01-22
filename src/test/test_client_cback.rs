@@ -142,25 +142,34 @@ fn client_cback_reports_xruns() {
             "No xruns encountered.");
 }
 
-// #[test]
-// fn client_cback_calls_port_registered() {
-//     let ac = active_test_client("client_cback_cpr");
-//     let mut other = open_test_client("client_cback_cpr_ports");
-//     let _pa = other.register_port("pa", AudioInSpec::default()).unwrap();
-//     let _pb = other.register_port("pb", AudioInSpec::default()).unwrap();
-//     let counter = ac.deactivate().unwrap().1;
-//     assert_eq!(counter.port_register_history.len(), 2);
-//     assert_eq!(counter.port_unregister_history.len(), 0);
-// }
+#[test]
+fn client_cback_calls_port_registered() {
+    let mut ac = active_test_client("client_cback_cpr");
+    let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
+    let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
+    default_sleep();
+    let counter = ac.deactivate().unwrap().1;
+    assert_eq!(counter.port_register_history.lock().unwrap().len(),
+               2,
+               "Did not detect port registrations.");
+    assert!(counter.port_unregister_history.lock().unwrap().is_empty(),
+            "Detected false port deregistrations.");
+}
 
-// #[test]
-// fn client_cback_calls_port_unregistered() {
-//     let ac = active_test_client("client_cback_cpu");
-//     let mut other = open_test_client("client_cback_cpu_ports");
-//     other.register_port("pa", AudioInSpec::default()).unwrap().unregister().unwrap();
-//     other.register_port("pb", AudioInSpec::default()).unwrap().unregister().unwrap();
-//     default_longer_sleep();
-//     let counter = ac.deactivate().unwrap().1;
-//     assert_eq!(counter.port_register_history.len(), 2);
-//     assert_eq!(counter.port_unregister_history.len(), 2);
-// }
+#[test]
+fn client_cback_calls_port_unregistered() {
+    let mut ac = active_test_client("client_cback_cpr");
+    let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
+    let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
+    default_sleep();
+    _pa.unregister().unwrap();
+    _pb.unregister().unwrap();
+    default_sleep();
+    let counter = ac.deactivate().unwrap().1;
+    assert_eq!(counter.port_register_history.lock().unwrap().len(),
+               2,
+               "Did not detect port registrations.");
+    assert_eq!(counter.port_unregister_history.lock().unwrap().len(),
+               2,
+               "Did not detect port deregistrations.");
+}
