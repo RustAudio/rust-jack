@@ -153,9 +153,8 @@ impl<'a> MidiOutPort<'a> {
         };
         let res = unsafe { j::jack_midi_event_write(self.buffer_ptr, ev.time, ev.buffer, ev.size) };
         match res {
-            ::libc::ENOBUFS => Err(JackErr::NotEnoughSpace),
             0 => Ok(()),
-            _ => Err(JackErr::UnknownError),
+            _ => Err(JackErr::NotEnoughSpace),
         }
     }
 

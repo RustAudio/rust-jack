@@ -3,7 +3,7 @@ use std::{ffi, mem, ptr};
 use jack_sys as j;
 use libc;
 
-use callbacks::{JackHandler, ProcessScope, register_callbacks, clear_callbacks};
+use callbacks::{JackHandler, ProcessScope, clear_callbacks, register_callbacks};
 use jack_enums::*;
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
