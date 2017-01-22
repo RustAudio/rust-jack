@@ -40,7 +40,8 @@ fn client_can_be_named() {
 #[test]
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
-    c.activate(DummyHandler).unwrap();
+    let _ac = c.activate(DummyHandler).unwrap();
+    default_sleep();
 }
 
 #[test]
@@ -58,6 +59,7 @@ fn client_can_set_buffer_size() {
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
     let a = c.activate(DummyHandler).unwrap();
+    default_sleep();
     a.deactivate().unwrap();
 }
 

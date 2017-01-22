@@ -1,5 +1,7 @@
 use prelude::*;
 use jack_utils::*;
+
+use std::sync::Mutex;
 use std::sync::mpsc;
 use std::time;
 
@@ -50,13 +52,13 @@ fn client_port_can_get_port_by_name() {
 }
 
 pub struct PortIdHandler {
-    pub reg_tx: mpsc::SyncSender<JackPortId>,
+    pub reg_tx: Mutex<mpsc::SyncSender<JackPortId>>,
 }
 
 impl JackHandler for PortIdHandler {
     fn port_registration(&self, pid: JackPortId, is_registered: bool) {
         match is_registered {
-            true => self.reg_tx.send(pid).unwrap(),
+            true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
             _ => (),
         }
     }
@@ -68,7 +70,7 @@ fn client_port_can_get_port_by_id() {
 
     // Create handler
     let (reg_tx, reg_rx) = mpsc::sync_channel(100);
-    let h = PortIdHandler { reg_tx: reg_tx };
+    let h = PortIdHandler { reg_tx: Mutex::new(reg_tx) };
 
     // Open and activate client
     let c = open_test_client(client_name);
