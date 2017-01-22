@@ -136,3 +136,21 @@ fn port_can_unset_alias() {
     p.unset_alias("first_alias").unwrap();
     assert_eq!(p.aliases(), vec!["second_alias".to_string()]);
 }
+
+#[test]
+#[should_panic]
+fn port_unowned_no_port_type() {
+    Unowned::default().jack_port_type();
+}
+
+#[test]
+#[should_panic]
+fn port_unowned_no_port_flags() {
+    Unowned::default().jack_flags();
+}
+
+#[test]
+#[should_panic]
+fn port_unowned_no_port_size() {
+    Unowned::default().jack_buffer_size();
+}

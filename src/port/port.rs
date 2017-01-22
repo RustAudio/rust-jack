@@ -241,14 +241,17 @@ pub struct Unowned;
 pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortSpec for Unowned {
+    /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_port_type(&self) -> &'static str {
         unreachable!()
     }
 
+    /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_flags(&self) -> PortFlags {
         unreachable!()
     }
 
+    /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_buffer_size(&self) -> libc::c_ulong {
         unreachable!()
     }

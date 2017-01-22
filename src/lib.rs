@@ -5,7 +5,7 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
-/// Defines callback traits and `ProcessScope`.
+/// Defines callback handlers and traits.
 pub mod callbacks;
 
 /// Create a connection to a JACK server.
@@ -39,10 +39,10 @@ pub mod traits {
 
 /// Contains most functionality to interact with JACK.
 pub mod prelude {
-    pub use callbacks::{JackHandler, ProcessHandler, ProcessScope};
+    pub use callbacks::*;
     pub use client::*;
-    pub use logging::*;
     pub use jack_enums::*;
+    pub use logging::*;
     pub use port::*;
     pub use primitive_types::*;
 }

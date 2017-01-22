@@ -176,12 +176,13 @@ pub trait JackHandler: Send + Sync {
     fn latency(&self, _mode: LatencyType) {}
 }
 
+/// Wrap a closure that can handle the `process` callback. This is called every time data from ports
+/// is available from JACK.
 pub struct ProcessHandler<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> {
     pub process: F,
 }
 
 unsafe impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> Sync for ProcessHandler<F> {}
-
 
 impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
@@ -328,14 +329,16 @@ unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode
     obj.0.latency(mode)
 }
 
-/// Clears the callbacks registered to `client`.
+/// Unsafe ffi wrapper that clears the callbacks registered to `client`.
 ///
 /// Returns `Err(JackErr::CallbackDeregistrationError)` on failure.
 ///
 /// # Unsafe
+///
 /// * Uses ffi calls, be careful.
 ///
 /// # TODO
+///
 /// * Implement correctly. Freezes on my system.
 pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), JackErr> {
     // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
@@ -357,10 +360,13 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 /// client.
 ///
 /// # TODO
+///
 /// * Handled failed registrations
 /// * Fix `jack_set_port_rename_callback`
 ///
 /// # Unsafe
+///
+/// * makes ffi calls
 /// * `handler` will not be automatically deallocated.
 pub unsafe fn register_callbacks<T: JackHandler>
     (handler: T,
