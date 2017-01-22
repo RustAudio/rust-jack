@@ -53,7 +53,7 @@ pub trait JackHandler: Send {
     /// callbacks will be handled.
     ///
     /// It does not need to be suitable for real-time execution.
-    fn thread_init(&mut self) {}
+    fn thread_init(&self) {}
 
     /// Called when the JACK server shuts down the client thread. The function
     /// must be written as if it were an asynchronous POSIX signal handler ---
@@ -61,7 +61,7 @@ pub trait JackHandler: Send {
     /// another thread. A typical funcion might set a flag or write to a pipe so
     /// that the rest of the application knows that the JACK client thread has
     /// shut down.
-    fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
+    fn shutdown(&self, _status: ClientStatus, _reason: &str) {}
 
     /// Called whenever there is work to be done.
     ///
@@ -72,33 +72,33 @@ pub trait JackHandler: Send {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, process_scope: &ProcessScope) -> JackControl {
+    fn process(&self, process_scope: &ProcessScope) -> JackControl {
         let _ = process_scope;
         JackControl::Continue
     }
 
     /// Called whenever "freewheel" mode is entered or leaving.
-    fn freewheel(&mut self, _is_freewheel_enabled: bool) {}
+    fn freewheel(&self, _is_freewheel_enabled: bool) {}
 
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change.
-    fn buffer_size(&mut self, _size: pt::JackFrames) -> JackControl {
+    fn buffer_size(&self, _size: pt::JackFrames) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever the system sample rate changes.
-    fn sample_rate(&mut self, _srate: pt::JackFrames) -> JackControl {
+    fn sample_rate(&self, _srate: pt::JackFrames) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever a client is registered or unregistered
-    fn client_registration(&mut self, _name: &str, _is_registered: bool) {}
+    fn client_registration(&self, _name: &str, _is_registered: bool) {}
 
     /// Called whenever a port is registered or unregistered
-    fn port_registration(&mut self, _port_id: pt::JackPortId, _is_registered: bool) {}
+    fn port_registration(&self, _port_id: pt::JackPortId, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
-    fn port_rename(&mut self,
+    fn port_rename(&self,
                    _port_id: pt::JackPortId,
                    _old_name: &str,
                    _new_name: &str)
@@ -107,14 +107,14 @@ pub trait JackHandler: Send {
     }
 
     /// Called whenever ports are connected/disconnected to/from each other.
-    fn ports_connected(&mut self,
+    fn ports_connected(&self,
                        _port_id_a: pt::JackPortId,
                        _port_id_b: pt::JackPortId,
                        _are_connected: bool) {
     }
 
     /// Called whenever the processing graph is reordered.
-    fn graph_reorder(&mut self) -> JackControl {
+    fn graph_reorder(&self) -> JackControl {
         JackControl::Continue
     }
 
@@ -122,7 +122,7 @@ pub trait JackHandler: Send {
     ///
     /// An xrun is a buffer under or over run, which means some data has been
     /// missed.
-    fn xrun(&mut self) -> JackControl {
+    fn xrun(&self) -> JackControl {
         JackControl::Continue
     }
 
@@ -173,12 +173,30 @@ pub trait JackHandler: Send {
     /// callback should operate. Remember that the mode argument given to the
     /// latency callback will need to be passed into
     /// jack_port_set_latency_range()
-    fn latency(&mut self, _mode: LatencyType) {}
+    fn latency(&self, _mode: LatencyType) {}
 }
 
-impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F {
-    fn process(&mut self, ps: &ProcessScope) -> JackControl {
-        (self)(ps)
+pub struct ProcessHandler<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> {
+    pub process: F,
+}
+
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
+    #[allow(mutable_transmutes)]
+    fn process(&self, ps: &ProcessScope) -> JackControl {
+        // This may seem highly unsafe but here is why it is okay.
+        //
+        // process takes & instead of &mut because many callbacks may try to access fields at the
+        // same time, since it is not guaranteed that the callbacks don't run at the same
+        // time. However, in this case, it is ensured that process is the only one with access to
+        // `process` field.
+        let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
+        (f)(ps)
+    }
+}
+
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> ProcessHandler<F> {
+    pub fn new(f: F) -> ProcessHandler<F> {
+        ProcessHandler { process: f }
     }
 }
 

@@ -19,7 +19,7 @@ mod jack_utils;
 pub mod port;
 
 mod primitive_types;
-pub use info::{set_info_callback, set_error_callback};
+pub use info::{set_error_callback, set_info_callback};
 pub use jack_enums::{JackControl, JackErr};
 pub use primitive_types::{JackFrames, JackPortId, JackTime};
 
@@ -38,7 +38,7 @@ pub mod traits {
 
 /// Contains most functionality to interact with JACK.
 pub mod prelude {
-    pub use callbacks::{JackHandler, ProcessScope};
+    pub use callbacks::{JackHandler, ProcessHandler, ProcessScope};
     pub use client::*;
     pub use info::*;
     pub use jack_enums::*;
@@ -47,6 +47,6 @@ pub mod prelude {
 }
 
 #[cfg(test)]
-pub use jack_utils::{default_sleep, default_longer_sleep};
+pub use jack_utils::{default_longer_sleep, default_sleep};
 #[cfg(test)]
 mod test;

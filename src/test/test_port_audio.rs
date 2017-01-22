@@ -34,7 +34,7 @@ fn port_audio_can_read_write() {
         }
         JackControl::Continue
     };
-    let ac = c.activate(process_callback).unwrap();
+    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
     default_longer_sleep();
     ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
         .unwrap();
