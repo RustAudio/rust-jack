@@ -176,11 +176,21 @@ pub trait JackHandler: Send {
     fn latency(&self, _mode: LatencyType) {}
 }
 
-impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for F {
+pub struct ProcessHandler<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> {
+    pub process: F,
+}
+
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
     fn process(&self, ps: &ProcessScope) -> JackControl {
-        let f = unsafe { mem::transmute::<&F, &mut F>(self) };
+        let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
         (f)(ps)
+    }
+}
+
+impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> ProcessHandler<F> {
+    pub fn new(f: F) -> ProcessHandler<F> {
+        ProcessHandler { process: f }
     }
 }
 

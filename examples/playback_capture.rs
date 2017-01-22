@@ -23,8 +23,9 @@ fn main() {
         out_b_p.clone_from_slice(&in_b_p);
         j::JackControl::Continue
     };
+    let process = j::ProcessHandler::new(process_callback);
     // Activate the client, which starts the processing.
-    let active_client = client.activate(process_callback).unwrap();
+    let active_client = client.activate(process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");
