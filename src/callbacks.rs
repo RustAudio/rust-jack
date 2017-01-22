@@ -183,6 +183,12 @@ pub struct ProcessHandler<F: 'static + Send + FnMut(&ProcessScope) -> JackContro
 impl<F: 'static + Send + FnMut(&ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
     fn process(&self, ps: &ProcessScope) -> JackControl {
+        // This may seem highly unsafe but here is why it is okay.
+        //
+        // process takes & instead of &mut because many callbacks may try to access fields at the
+        // same time, since it is not guaranteed that the callbacks don't run at the same
+        // time. However, in this case, it is ensured that process is the only one with access to
+        // `process` field.
         let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
         (f)(ps)
     }
