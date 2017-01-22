@@ -92,6 +92,15 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
+    /// Remove connections to/from port `self`.
+    pub fn disconnect(&self) -> Result<(), JackErr> {
+        let res = unsafe { j::jack_port_disconnect(self.client_ptr(), self.as_ptr()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(JackErr::PortDisconnectionError),
+        }
+    }
+
     /// Get the alias names for `self`.
     ///
     /// Will return a vector of strings of up to 2 elements.

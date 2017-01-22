@@ -86,8 +86,8 @@ fn client_cback_calls_process() {
 fn client_cback_calls_buffer_size() {
     let ac = active_test_client("client_cback_calls_process");
     let initial = ac.buffer_size();
-    let second = 2 * initial;
-    let third = 2 * second;
+    let second = initial / 2;
+    let third = second / 2;
     ac.set_buffer_size(second).unwrap();
     ac.set_buffer_size(third).unwrap();
     ac.set_buffer_size(initial).unwrap();

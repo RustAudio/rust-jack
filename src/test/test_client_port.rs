@@ -192,8 +192,6 @@ fn client_port_recognizes_already_connected_ports() {
                                                  in_p.name().to_string())));
 }
 
-
-
 #[test]
 fn client_port_fails_to_connect_nonexistant_ports() {
     let client = open_test_client("client_port_ftcnp");
@@ -201,6 +199,22 @@ fn client_port_fails_to_connect_nonexistant_ports() {
     assert_eq!(client.connect_ports_by_name("doesnt_exist", "also_no_exist"),
                Err(JackErr::PortConnectionError("doesnt_exist".to_string(),
                                                 "also_no_exist".to_string())));
+}
+
+#[test]
+fn client_port_can_disconnect_port_from_all() {
+    let mut client = open_test_client("client_port_cdpfa");
+
+    // initialize ports
+    let in_p = client.register_port("conna", AudioInSpec::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
+
+    // start client
+    let client = client.activate(DummyHandler).unwrap();
+
+    // connect and disconnect
+    client.connect_ports(&out_p, &in_p).unwrap();
+    in_p.disconnect().unwrap();
 }
 
 #[test]
