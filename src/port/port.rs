@@ -43,6 +43,7 @@ pub struct Port<PS: PortSpec> {
 }
 
 unsafe impl<PS: PortSpec> Send for Port<PS> {}
+unsafe impl<PS: PortSpec> Sync for Port<PS> {}
 
 impl<PS: PortSpec> Port<PS> {
     /// Returns the spec that was used to create this port.

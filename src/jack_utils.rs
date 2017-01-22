@@ -32,13 +32,13 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
 #[cfg(test)]
 pub fn default_sleep() {
     use std::{thread, time};
-    thread::sleep(time::Duration::from_millis(200));
+    thread::sleep(time::Duration::from_millis(400));
 }
 
 // Sleeps for a longer while than `default_sleep()`.
 #[cfg(test)]
 pub fn default_longer_sleep() {
-    for _ in 0..10 {
+    for _ in 0..5 {
         default_sleep();
     }
 }

@@ -1,6 +1,7 @@
 //! Takes 2 audio inputs and outputs them to 2 audio outputs.
 extern crate jack;
 use jack::prelude as j;
+use jack::traits::*;
 use std::io;
 
 fn main() {

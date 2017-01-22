@@ -1,9 +1,10 @@
 use std::{ffi, mem, ptr};
+use std::sync::Mutex;
 
 use jack_sys as j;
 use libc;
 
-use callbacks::{JackHandler, ProcessScope, register_callbacks, clear_callbacks};
+use callbacks::{JackHandler, ProcessScope, clear_callbacks, register_callbacks};
 use jack_enums::*;
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
@@ -12,6 +13,10 @@ use jack_utils::collect_strs;
 use port::{Port, PortSpec, UnownedPort};
 use port;
 use primitive_types as pt;
+
+lazy_static! {
+    static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());
+}
 
 /// The maximum length of the JACK client name string. Unlike the "C" JACK
 /// API, this does not take into account the final `NULL` character and
@@ -179,16 +184,51 @@ pub unsafe trait JackClient: Sized {
         }
     }
 
-    // TODO implement
-    // // Get a `Port` by its port id.
-    // fn port_by_id(&self, port_id: pt::JackPortId) -> Option<UnownedPort> {
-    //     let pp = unsafe { j::jack_port_by_id(self.as_ptr(), port_id) };
-    //     if pp.is_null() {
-    //         None
-    //     } else {
-    //         Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
-    //     }
-    // }
+    /// Create a new port for the client. This is an object used for moving data
+    /// of any type in or out of the client. Ports may be connected in various
+    /// ways.
+    ///
+    /// Each port has a short name. The port's full name contains the name of
+    /// the client concatenated with a colon (:) followed by its short
+    /// name. `Port::name_size()` is the maximum length of the full
+    /// name. Exceeding that will cause the port registration to fail and return
+    /// `Err(())`.
+    ///
+    /// The `port_name` must be unique among all ports owned by this client. If
+    /// the name is not unique, the registration will fail.
+    fn register_port<PS: PortSpec>(&mut self,
+                                   port_name: &str,
+                                   port_spec: PS)
+                                   -> Result<Port<PS>, JackErr> {
+        let port_name_c = ffi::CString::new(port_name).unwrap();
+        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
+        let port_flags = port_spec.jack_flags().bits();
+        let buffer_size = port_spec.jack_buffer_size();
+        let pp = unsafe {
+            j::jack_port_register(self.as_ptr(),
+                                  port_name_c.as_ptr(),
+                                  port_type_c.as_ptr(),
+                                  port_flags as libc::c_ulong,
+                                  buffer_size)
+        };
+        if pp.is_null() {
+            Err(JackErr::PortRegistrationError(port_name.to_string()))
+        } else {
+            Ok(unsafe { Port::from_raw(port_spec, self.as_ptr(), pp) })
+        }
+    }
+
+
+
+    // Get a `Port` by its port id.
+    fn port_by_id(&self, port_id: pt::JackPortId) -> Option<UnownedPort> {
+        let pp = unsafe { j::jack_port_by_id(self.as_ptr(), port_id) };
+        if pp.is_null() {
+            None
+        } else {
+            Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
+        }
+    }
 
     /// Get a `Port` by its port name.
     fn port_by_name(&self, port_name: &str) -> Option<UnownedPort> {
@@ -403,6 +443,7 @@ impl Client {
     pub fn open(client_name: &str,
                 options: ClientOptions)
                 -> Result<(Self, ClientStatus), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
@@ -426,6 +467,7 @@ impl Client {
     /// `handler` is consumed, but it is returned when `Client::deactivate` is
     /// called.
     pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let handler_ptr = try!(register_callbacks(handler, self.client, self.as_ptr()));
             if handler_ptr.is_null() {
@@ -452,41 +494,6 @@ impl Client {
             }
         }
     }
-
-    /// Create a new port for the client. This is an object used for moving data
-    /// of any type in or out of the client. Ports may be connected in various
-    /// ways.
-    ///
-    /// Each port has a short name. The port's full name contains the name of
-    /// the client concatenated with a colon (:) followed by its short
-    /// name. `Port::name_size()` is the maximum length of the full
-    /// name. Exceeding that will cause the port registration to fail and return
-    /// `Err(())`.
-    ///
-    /// The `port_name` must be unique among all ports owned by this client. If
-    /// the name is not unique, the registration will fail.
-    pub fn register_port<PS: PortSpec>(&mut self,
-                                       port_name: &str,
-                                       port_spec: PS)
-                                       -> Result<Port<PS>, JackErr> {
-        let port_name_c = ffi::CString::new(port_name).unwrap();
-        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
-        let port_flags = port_spec.jack_flags().bits();
-        let buffer_size = port_spec.jack_buffer_size();
-        let pp = unsafe {
-            j::jack_port_register(self.client,
-                                  port_name_c.as_ptr(),
-                                  port_type_c.as_ptr(),
-                                  port_flags as libc::c_ulong,
-                                  buffer_size)
-        };
-        if pp.is_null() {
-            Err(JackErr::PortRegistrationError(port_name.to_string()))
-        } else {
-            Ok(unsafe { Port::from_raw(port_spec, self.as_ptr(), pp) })
-        }
-    }
-
 
     /// Toggle input monitoring for the port with name `port_name`.
     ///
@@ -549,6 +556,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
     /// In the case of error, the `Client` is destroyed because its state is
     /// unknown, and it is therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let ActiveClient { client, handler } = self;
 
@@ -584,6 +592,12 @@ impl<JH: JackHandler> ActiveClient<JH> {
 /// Close the client, deactivating if necessary.
 impl Drop for Client {
     fn drop(&mut self) {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        #[cfg(test)]
+        {
+            use jack_utils::default_sleep;
+            default_sleep();
+        }
         debug_assert!(!self.client.is_null()); // Rep invariant
 
         // Client isn't active, so no need to deactivate
@@ -597,6 +611,7 @@ impl Drop for Client {
 /// Closes the client.
 impl<JH: JackHandler> Drop for ActiveClient<JH> {
     fn drop(&mut self) {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             debug_assert!(!self.client.is_null()); // Rep invariant
 
