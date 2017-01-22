@@ -11,7 +11,9 @@ pub mod callbacks;
 /// Create a connection to a JACK server.
 pub mod client;
 
-mod info;
+/// Control error and info logging from JACK.
+pub mod logging;
+
 mod jack_enums;
 mod jack_utils;
 
@@ -19,7 +21,6 @@ mod jack_utils;
 pub mod port;
 
 mod primitive_types;
-pub use info::{set_error_callback, set_info_callback};
 pub use jack_enums::{JackControl, JackErr};
 pub use primitive_types::{JackFrames, JackPortId, JackTime};
 
@@ -40,7 +41,7 @@ pub mod traits {
 pub mod prelude {
     pub use callbacks::{JackHandler, ProcessHandler, ProcessScope};
     pub use client::*;
-    pub use info::*;
+    pub use logging::*;
     pub use jack_enums::*;
     pub use port::*;
     pub use primitive_types::*;
