@@ -3,7 +3,7 @@ use std::{ffi, mem, ptr};
 use jack_sys as j;
 use libc;
 
-use callbacks::{JackHandler, ProcessScope, register_callbacks, clear_callbacks};
+use callbacks::{JackHandler, ProcessScope, clear_callbacks, register_callbacks};
 use jack_enums::*;
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
@@ -179,16 +179,51 @@ pub unsafe trait JackClient: Sized {
         }
     }
 
-    // TODO implement
-    // // Get a `Port` by its port id.
-    // fn port_by_id(&self, port_id: pt::JackPortId) -> Option<UnownedPort> {
-    //     let pp = unsafe { j::jack_port_by_id(self.as_ptr(), port_id) };
-    //     if pp.is_null() {
-    //         None
-    //     } else {
-    //         Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
-    //     }
-    // }
+    /// Create a new port for the client. This is an object used for moving data
+    /// of any type in or out of the client. Ports may be connected in various
+    /// ways.
+    ///
+    /// Each port has a short name. The port's full name contains the name of
+    /// the client concatenated with a colon (:) followed by its short
+    /// name. `Port::name_size()` is the maximum length of the full
+    /// name. Exceeding that will cause the port registration to fail and return
+    /// `Err(())`.
+    ///
+    /// The `port_name` must be unique among all ports owned by this client. If
+    /// the name is not unique, the registration will fail.
+    fn register_port<PS: PortSpec>(&mut self,
+                                   port_name: &str,
+                                   port_spec: PS)
+                                   -> Result<Port<PS>, JackErr> {
+        let port_name_c = ffi::CString::new(port_name).unwrap();
+        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
+        let port_flags = port_spec.jack_flags().bits();
+        let buffer_size = port_spec.jack_buffer_size();
+        let pp = unsafe {
+            j::jack_port_register(self.as_ptr(),
+                                  port_name_c.as_ptr(),
+                                  port_type_c.as_ptr(),
+                                  port_flags as libc::c_ulong,
+                                  buffer_size)
+        };
+        if pp.is_null() {
+            Err(JackErr::PortRegistrationError(port_name.to_string()))
+        } else {
+            Ok(unsafe { Port::from_raw(port_spec, self.as_ptr(), pp) })
+        }
+    }
+
+
+
+    // Get a `Port` by its port id.
+    fn port_by_id(&self, port_id: pt::JackPortId) -> Option<UnownedPort> {
+        let pp = unsafe { j::jack_port_by_id(self.as_ptr(), port_id) };
+        if pp.is_null() {
+            None
+        } else {
+            Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
+        }
+    }
 
     /// Get a `Port` by its port name.
     fn port_by_name(&self, port_name: &str) -> Option<UnownedPort> {
@@ -452,41 +487,6 @@ impl Client {
             }
         }
     }
-
-    /// Create a new port for the client. This is an object used for moving data
-    /// of any type in or out of the client. Ports may be connected in various
-    /// ways.
-    ///
-    /// Each port has a short name. The port's full name contains the name of
-    /// the client concatenated with a colon (:) followed by its short
-    /// name. `Port::name_size()` is the maximum length of the full
-    /// name. Exceeding that will cause the port registration to fail and return
-    /// `Err(())`.
-    ///
-    /// The `port_name` must be unique among all ports owned by this client. If
-    /// the name is not unique, the registration will fail.
-    pub fn register_port<PS: PortSpec>(&mut self,
-                                       port_name: &str,
-                                       port_spec: PS)
-                                       -> Result<Port<PS>, JackErr> {
-        let port_name_c = ffi::CString::new(port_name).unwrap();
-        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
-        let port_flags = port_spec.jack_flags().bits();
-        let buffer_size = port_spec.jack_buffer_size();
-        let pp = unsafe {
-            j::jack_port_register(self.client,
-                                  port_name_c.as_ptr(),
-                                  port_type_c.as_ptr(),
-                                  port_flags as libc::c_ulong,
-                                  buffer_size)
-        };
-        if pp.is_null() {
-            Err(JackErr::PortRegistrationError(port_name.to_string()))
-        } else {
-            Ok(unsafe { Port::from_raw(port_spec, self.as_ptr(), pp) })
-        }
-    }
-
 
     /// Toggle input monitoring for the port with name `port_name`.
     ///

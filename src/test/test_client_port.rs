@@ -1,5 +1,7 @@
 use prelude::*;
 use jack_utils::*;
+use std::sync::mpsc;
+use std::time;
 
 fn open_test_client(name: &str) -> Client {
     default_sleep();
@@ -45,6 +47,32 @@ fn client_port_can_get_port_by_name() {
     let mut c = open_test_client("cp_can_get_port_by_name");
     let p = c.register_port("named_port", AudioInSpec::default()).unwrap();
     let _p = c.port_by_name(p.name()).unwrap();
+}
+
+pub struct PortIdHandler {
+    pub reg_tx: mpsc::SyncSender<JackPortId>,
+}
+
+impl JackHandler for PortIdHandler {
+    fn port_registration(&self, pid: JackPortId, is_registered: bool) {
+        match is_registered {
+            true => self.reg_tx.send(pid).unwrap(),
+            _ => (),
+        }
+    }
+}
+
+#[test]
+fn client_port_can_get_port_by_id() {
+    let (client_name, port_name) = ("cp_can_get_port_by_id", "cp_registered_port_name");
+    let (reg_tx, reg_rx) = mpsc::sync_channel(100);
+    let h = PortIdHandler { reg_tx: reg_tx };
+    let c = open_test_client(client_name);
+    let mut ac = c.activate(h).unwrap();
+    let _pa = ac.register_port(port_name, AudioInSpec::default()).unwrap();
+    let pa_unowned = ac.port_by_id(reg_rx.recv_timeout(time::Duration::from_secs(1)).unwrap())
+        .unwrap();
+    assert_eq!(pa_unowned.name(), format!("{}:{}", client_name, port_name));
 }
 
 #[test]
