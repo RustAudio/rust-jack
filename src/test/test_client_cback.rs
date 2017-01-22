@@ -6,6 +6,7 @@ use jack_utils::*;
 #[derive(Debug, Default)]
 pub struct Counter {
     pub process_return_val: JackControl,
+    pub induce_xruns: bool,
     pub thread_init_count: Mutex<usize>,
     pub frames_processed: Mutex<usize>,
     pub buffer_size_change_history: Mutex<Vec<JackFrames>>,
@@ -13,6 +14,7 @@ pub struct Counter {
     pub unregistered_client_history: Mutex<Vec<String>>,
     pub port_register_history: Mutex<Vec<JackPortId>>,
     pub port_unregister_history: Mutex<Vec<JackPortId>>,
+    pub xruns_count: Mutex<usize>,
 }
 
 impl JackHandler for Counter {
@@ -22,6 +24,9 @@ impl JackHandler for Counter {
 
     fn process(&self, ps: &ProcessScope) -> JackControl {
         *self.frames_processed.lock().unwrap() += ps.n_frames() as usize;
+        if self.induce_xruns {
+            default_sleep();
+        }
         JackControl::Continue
     }
 
@@ -42,6 +47,11 @@ impl JackHandler for Counter {
             true => self.port_register_history.lock().unwrap().push(pid),
             false => self.port_unregister_history.lock().unwrap().push(pid),
         }
+    }
+
+    fn xrun(&self) -> JackControl {
+        *self.xruns_count.lock().unwrap() += 1;
+        JackControl::Continue
     }
 }
 
@@ -118,6 +128,18 @@ fn client_cback_doesnt_call_port_registered_when_no_ports() {
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.port_register_history.lock().unwrap().is_empty());
     assert!(counter.port_unregister_history.lock().unwrap().is_empty());
+}
+
+#[test]
+fn client_cback_reports_xruns() {
+    let c = open_test_client("client_cback_reports_xruns");
+    let mut counter = Counter::default();
+    counter.induce_xruns = true;
+    let ac = c.activate(counter).unwrap();
+    default_longer_sleep();
+    let counter = ac.deactivate().unwrap().1;
+    assert!(*counter.xruns_count.lock().unwrap() > 0,
+            "No xruns encountered.");
 }
 
 // #[test]
