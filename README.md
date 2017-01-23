@@ -16,6 +16,14 @@ Nice Rust bindings for
 
 Check out the `examples` directory.
 
+## Completeness
+
+For details on which functions from the JACK headers have been implemented, see `ffi_completeness.md`.
+
+More high-level, creating clients, creating/reading/writing/connecting ports, audio, and midi are supported.
+
+Missing categories include, JACK threading, synchronous processing, transport and control functionality.
+
 ## Running
 
 * `libjack` is required. Consult your package manager or the [official](http://www.jackaudio.org/downloads/) website.
