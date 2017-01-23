@@ -444,11 +444,13 @@ impl Client {
                 options: ClientOptions)
                 -> Result<(Self, ClientStatus), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
             j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
         };
+        sleep_on_test();
         let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
         if client.is_null() {
             Err(JackErr::ClientError(status))
@@ -470,16 +472,21 @@ impl Client {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let handler_ptr = try!(register_callbacks(handler, self.client, self.as_ptr()));
+            sleep_on_test();
             if handler_ptr.is_null() {
                 Err(JackErr::CallbackRegistrationError)
             } else {
                 let res = j::jack_activate(self.client);
+                for _ in 0..3 {
+                    sleep_on_test();
+                }
                 match res {
                     0 => {
                         let Client { client } = self;
 
                         // Don't run destructor -- we want the client to stay open
                         mem::forget(self);
+                        sleep_on_test();
 
                         Ok(ActiveClient {
                             client: client,
@@ -563,6 +570,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
             // Prevent destructor from running, as this would cause double-deactivation
             mem::forget(self);
 
+            sleep_on_test();
             let res = match j::jack_deactivate(client) {
                 // We own the handler post-deactivation
                 0 => Ok(Box::from_raw(handler)),
@@ -571,8 +579,10 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 // without more information about the error condition
                 _ => Err(JackErr::ClientDeactivationError),
             };
+            sleep_on_test();
 
             let callback_res = clear_callbacks(client);
+            sleep_on_test();
 
             match (res, callback_res) {
                 (Ok(handler_ptr), Ok(())) => {
@@ -582,6 +592,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed
                     j::jack_client_close(client);
+                    sleep_on_test();
                     Err(err)
                 }
             }
@@ -593,16 +604,13 @@ impl<JH: JackHandler> ActiveClient<JH> {
 impl Drop for Client {
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        #[cfg(test)]
-        {
-            use jack_utils::default_sleep;
-            default_sleep();
-        }
+
         debug_assert!(!self.client.is_null()); // Rep invariant
 
         // Client isn't active, so no need to deactivate
 
         let res = unsafe { j::jack_client_close(self.client) }; // close the client
+        sleep_on_test();
         assert_eq!(res, 0);
         self.client = ptr::null_mut();
     }
@@ -616,11 +624,22 @@ impl<JH: JackHandler> Drop for ActiveClient<JH> {
             debug_assert!(!self.client.is_null()); // Rep invariant
 
             j::jack_deactivate(self.client); // result doesn't matter
+            sleep_on_test();
             drop(Box::from_raw(self.handler)); // drop the handler
 
             let res = j::jack_client_close(self.client); // close the client
+            sleep_on_test();
             assert_eq!(res, 0);
             self.client = ptr::null_mut();
         }
     }
+}
+
+#[cfg(test)]
+use jack_utils;
+
+#[inline(always)]
+pub fn sleep_on_test() {
+    #[cfg(test)]
+    jack_utils::default_sleep();
 }

@@ -56,14 +56,12 @@ impl JackHandler for Counter {
 }
 
 fn open_test_client(name: &str) -> Client {
-    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 fn active_test_client(name: &str) -> (ActiveClient<Counter>) {
     let c = open_test_client(name);
     let ac = c.activate(Counter::default()).unwrap();
-    default_longer_sleep();
     ac
 }
 
@@ -99,7 +97,6 @@ fn client_cback_calls_buffer_size() {
 #[test]
 fn client_cback_calls_after_client_registered() {
     let ac = active_test_client("client_cback_cacr");
-    default_longer_sleep();
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(*counter.registered_client_history.lock().unwrap(),
@@ -110,10 +107,8 @@ fn client_cback_calls_after_client_registered() {
 #[test]
 fn client_cback_calls_after_client_unregistered() {
     let ac = active_test_client("client_cback_cacu");
-    default_longer_sleep();
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
-    default_longer_sleep();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(*counter.registered_client_history.lock().unwrap(),
                vec!["client_cback_cacu_other"],
@@ -137,7 +132,6 @@ fn client_cback_reports_xruns() {
     let mut counter = Counter::default();
     counter.induce_xruns = true;
     let ac = c.activate(counter).unwrap();
-    default_longer_sleep();
     let counter = ac.deactivate().unwrap().1;
     assert!(*counter.xruns_count.lock().unwrap() > 0,
             "No xruns encountered.");
@@ -148,7 +142,6 @@ fn client_cback_calls_port_registered() {
     let mut ac = active_test_client("client_cback_cpr");
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
-    default_sleep();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.port_register_history.lock().unwrap().len(),
                2,
@@ -162,10 +155,8 @@ fn client_cback_calls_port_unregistered() {
     let mut ac = active_test_client("client_cback_cpr");
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
-    default_sleep();
     _pa.unregister().unwrap();
     _pb.unregister().unwrap();
-    default_sleep();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(counter.port_register_history.lock().unwrap().len(),
                2,

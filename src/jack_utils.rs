@@ -29,18 +29,11 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
 }
 
 // Sleeps for a short while.
+#[inline(always)]
 #[cfg(test)]
 pub fn default_sleep() {
     use std::{thread, time};
     thread::sleep(time::Duration::from_millis(400));
-}
-
-// Sleeps for a longer while than `default_sleep()`.
-#[cfg(test)]
-pub fn default_longer_sleep() {
-    for _ in 0..5 {
-        default_sleep();
-    }
 }
 
 #[cfg(test)]

@@ -4,7 +4,6 @@ use std::sync::mpsc::channel;
 use std::sync::Mutex;
 
 fn open_test_client(name: &str) -> Client {
-    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
@@ -42,7 +41,6 @@ fn port_midi_can_read_write() {
 
     // activate
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
-    default_longer_sleep();
 
     // connect ports to each other
     ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
@@ -51,7 +49,7 @@ fn port_midi_can_read_write() {
         .unwrap();
 
     // check correctness
-    default_longer_sleep();
+    default_sleep();
     assert!(did_succeed.iter().any(|b| b),
             "input port does not have expected data");
     ac.deactivate().unwrap();
@@ -76,10 +74,8 @@ fn port_midi_can_get_max_event_size() {
 
     // activate
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
-    default_longer_sleep();
 
     // check correctness
-    default_longer_sleep();
     assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
     ac.deactivate().unwrap();
 }
@@ -113,10 +109,8 @@ fn port_midi_cant_execeed_max_event_size() {
 
     // activate
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
-    default_longer_sleep();
 
     // check correctness
-    default_longer_sleep();
     assert_eq!(*PMCEMES_DID_EXCEED.lock().unwrap(),
                Some(JackErr::NotEnoughSpace));
     ac.deactivate().unwrap();

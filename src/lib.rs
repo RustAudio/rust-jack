@@ -48,6 +48,6 @@ pub mod prelude {
 }
 
 #[cfg(test)]
-pub use jack_utils::{default_longer_sleep, default_sleep};
+pub use jack_utils::default_sleep;
 #[cfg(test)]
 mod test;
