@@ -2,9 +2,7 @@ use prelude::*;
 use jack_utils::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
-    default_sleep();
     let ret = Client::open(name, client_options::NO_START_SERVER).unwrap();
-    default_sleep();
     ret
 }
 
@@ -21,7 +19,6 @@ fn client_can_open() {
 #[test]
 #[should_panic]
 fn client_fails_to_open_with_large_name() {
-    default_sleep();
     let name = (0..*CLIENT_NAME_SIZE + 1)
         .map(|_| "a")
         .collect::<Vec<&str>>()
@@ -43,7 +40,6 @@ fn client_can_be_named() {
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
     let _ac = c.activate(DummyHandler).unwrap();
-    default_sleep();
 }
 
 #[test]
@@ -61,9 +57,7 @@ fn client_can_set_buffer_size() {
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
     let a = c.activate(DummyHandler).unwrap();
-    default_sleep();
     a.deactivate().unwrap();
-    default_sleep();
 }
 
 #[test]

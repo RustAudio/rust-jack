@@ -1,9 +1,7 @@
 use prelude::*;
-use jack_utils::*;
 use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
-    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
@@ -35,12 +33,10 @@ fn port_audio_can_read_write() {
         JackControl::Continue
     };
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
-    default_longer_sleep();
     ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
         .unwrap();
     ac.connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
         .unwrap();
-    default_longer_sleep();
     assert!(did_succeed.iter().any(|b| b),
             "input port does not have expected data");
     ac.deactivate().unwrap();
