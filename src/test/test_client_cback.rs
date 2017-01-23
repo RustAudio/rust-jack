@@ -113,6 +113,7 @@ fn client_cback_calls_after_client_unregistered() {
     default_longer_sleep();
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
+    default_longer_sleep();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(*counter.registered_client_history.lock().unwrap(),
                vec!["client_cback_cacu_other"],
