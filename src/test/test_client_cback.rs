@@ -1,7 +1,7 @@
 use std::sync::Mutex;
+use std::{thread, time};
 
 use prelude::*;
-use jack_utils::*;
 
 #[derive(Debug, Default)]
 pub struct Counter {
@@ -18,38 +18,38 @@ pub struct Counter {
 }
 
 impl JackHandler for Counter {
-    fn thread_init(&self) {
+    fn thread_init(&self, _: &WeakClient) {
         *self.thread_init_count.lock().unwrap() += 1;
     }
 
-    fn process(&self, ps: &ProcessScope) -> JackControl {
+    fn process(&self, _: &WeakClient, ps: &ProcessScope) -> JackControl {
         *self.frames_processed.lock().unwrap() += ps.n_frames() as usize;
         if self.induce_xruns {
-            default_sleep();
+            thread::sleep(time::Duration::from_millis(400));
         }
         JackControl::Continue
     }
 
-    fn buffer_size(&self, size: JackFrames) -> JackControl {
+    fn buffer_size(&self, _: &WeakClient, size: JackFrames) -> JackControl {
         self.buffer_size_change_history.lock().unwrap().push(size);
         JackControl::Continue
     }
 
-    fn client_registration(&self, name: &str, is_registered: bool) {
+    fn client_registration(&self, _: &WeakClient, name: &str, is_registered: bool) {
         match is_registered {
             true => self.registered_client_history.lock().unwrap().push(name.to_string()),
             false => self.unregistered_client_history.lock().unwrap().push(name.to_string()),
         }
     }
 
-    fn port_registration(&self, pid: JackPortId, is_registered: bool) {
+    fn port_registration(&self, _: &WeakClient, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.port_register_history.lock().unwrap().push(pid),
             false => self.port_unregister_history.lock().unwrap().push(pid),
         }
     }
 
-    fn xrun(&self) -> JackControl {
+    fn xrun(&self, _: &WeakClient) -> JackControl {
         *self.xruns_count.lock().unwrap() += 1;
         JackControl::Continue
     }

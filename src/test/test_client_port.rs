@@ -6,7 +6,6 @@ use std::sync::mpsc;
 use std::time;
 
 fn open_test_client(name: &str) -> Client {
-    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
@@ -56,7 +55,7 @@ pub struct PortIdHandler {
 }
 
 impl JackHandler for PortIdHandler {
-    fn port_registration(&self, pid: JackPortId, is_registered: bool) {
+    fn port_registration(&self, _: &WeakClient, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
             _ => (),

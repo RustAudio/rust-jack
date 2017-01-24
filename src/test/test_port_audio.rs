@@ -13,7 +13,7 @@ fn port_audio_can_read_write() {
     let mut out_a = c.register_port("oa", AudioOutSpec::default()).unwrap();
     let mut out_b = c.register_port("ob", AudioOutSpec::default()).unwrap();
     let (signal_succeed, did_succeed) = channel();
-    let process_callback = move |ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let exp_a = 0.31244352;
         let exp_b = -0.61212;
         let in_a = AudioInPort::new(&in_a, ps);

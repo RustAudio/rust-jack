@@ -5,8 +5,6 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
-/// Defines callback handlers and traits.
-pub mod callbacks;
 
 /// Create a connection to a JACK server.
 pub mod client;
@@ -32,14 +30,12 @@ pub fn get_time() -> JackTime {
 
 /// Contains every trait defined in the jack crate.
 pub mod traits {
-    pub use client::JackClient;
-    pub use callbacks::JackHandler;
+    pub use client::{JackClient, JackHandler};
     pub use port::PortSpec;
 }
 
 /// Contains most functionality to interact with JACK.
 pub mod prelude {
-    pub use callbacks::*;
     pub use client::*;
     pub use jack_enums::*;
     pub use logging::*;
@@ -47,7 +43,5 @@ pub mod prelude {
     pub use primitive_types::*;
 }
 
-#[cfg(test)]
-pub use jack_utils::default_sleep;
 #[cfg(test)]
 mod test;

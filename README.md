@@ -57,7 +57,7 @@ Testing expects there to be an available JACK server running at a sample rate of
 If the tests are failing, a possible gotcha may be timing issues.
 
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value used by `default_sleep` in `jack_utils.rs`.
+2. Increase the value used by `sleep_on_test`.
 
 Another case is that libjack may be broken on your setup.
 Try switching between libjack and libjack2 (they have the same API and libjack2

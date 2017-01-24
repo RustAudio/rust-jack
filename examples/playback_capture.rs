@@ -15,7 +15,7 @@ fn main() {
     let in_b = client.register_port("rust_in_r", j::AudioInSpec::default()).unwrap();
     let mut out_a = client.register_port("rust_out_l", j::AudioOutSpec::default()).unwrap();
     let mut out_b = client.register_port("rust_out_r", j::AudioOutSpec::default()).unwrap();
-    let process_callback = move |ps: &j::ProcessScope| -> jack::JackControl {
+    let process_callback = move |_: &j::WeakClient, ps: &j::ProcessScope| -> jack::JackControl {
         let mut out_a_p = j::AudioOutPort::new(&mut out_a, ps);
         let mut out_b_p = j::AudioOutPort::new(&mut out_b, ps);
         let in_a_p = j::AudioInPort::new(&in_a, ps);

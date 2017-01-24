@@ -1,35 +1,15 @@
-use std::{ffi, mem, ptr};
-use std::sync::Mutex;
+use std::ffi;
 
 use jack_sys as j;
 use libc;
 
-use callbacks::{JackHandler, ProcessScope, clear_callbacks, register_callbacks};
 use jack_enums::*;
-use client::client_options::ClientOptions;
-use client::client_status::ClientStatus;
 use port::port_flags::PortFlags;
 use jack_utils::collect_strs;
 use port::{Port, PortSpec, UnownedPort};
 use port;
 use primitive_types as pt;
-
-lazy_static! {
-    static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());
-}
-
-/// The maximum length of the JACK client name string. Unlike the "C" JACK
-/// API, this does not take into account the final `NULL` character and
-/// instead corresponds directly to `.len()`. This value is constant.
-fn client_name_size() -> usize {
-    let s = unsafe { j::jack_client_name_size() - 1 };
-    s as usize
-}
-
-lazy_static! {
-    /// The maximum string length for port names.
-    pub static ref CLIENT_NAME_SIZE: usize = client_name_size();
-}
+use primitive_types::ProcessScope;
 
 /// Internal cycle timing information.
 #[derive(Clone, Copy, Debug)]
@@ -40,29 +20,23 @@ pub struct CycleTimes {
     pub period_usecs: libc::c_float,
 }
 
-/// A client to interact with a JACK server.
+/// Similar to a `Client`, but usually exposed only through reference.
+///
+/// On a technical level, the difference between `WeakClient` and `Client` is that `WeakClient` does
+/// not close on drop.
 #[derive(Debug)]
-pub struct Client {
-    client: *mut j::jack_client_t,
-}
+#[repr(C)]
+pub struct WeakClient(*mut j::jack_client_t);
 
-/// A `JackClient` that is currently active. Active clients may
-/// contain `JackHandler`s that are processing data in real-time.
-#[derive(Debug)]
-pub struct ActiveClient<JH: JackHandler> {
-    client: *mut j::jack_client_t,
-    handler: *mut (JH, *mut j::jack_client_t),
-}
-
-unsafe impl JackClient for Client {
-    fn as_ptr(&self) -> *mut j::jack_client_t {
-        self.client
+impl WeakClient {
+    pub unsafe fn from_raw(client_ptr: *mut j::jack_client_t) -> Self {
+        WeakClient(client_ptr)
     }
 }
 
-unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
+unsafe impl JackClient for WeakClient {
     fn as_ptr(&self) -> *mut j::jack_client_t {
-        self.client
+        self.0
     }
 }
 
@@ -426,220 +400,4 @@ pub unsafe trait JackClient: Sized {
 
     #[inline(always)]
     fn as_ptr(&self) -> *mut j::jack_client_t;
-}
-
-impl Client {
-    /// The maximum length of the JACK client name string. Unlike the "C" JACK
-    /// API, this does not take into account the final `NULL` character and
-    /// instead corresponds directly to `.len()`.
-
-    /// Opens a JACK client with the given name and options. If the client is
-    /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
-    ///
-    /// Although the client may be successful in opening, there still may be
-    /// some errors minor errors when attempting to opening. To access these,
-    /// check the returned `ClientStatus`.
-    pub fn open(client_name: &str,
-                options: ClientOptions)
-                -> Result<(Self, ClientStatus), JackErr> {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        sleep_on_test();
-        let mut status_bits = 0;
-        let client = unsafe {
-            let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
-        };
-        sleep_on_test();
-        let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
-        if client.is_null() {
-            Err(JackErr::ClientError(status))
-        } else {
-            Ok((Client { client: client }, status))
-        }
-    }
-
-
-    /// Tell the JACK server that the program is ready to start processing
-    /// audio. JACK will call the methods specified by the `JackHandler` trait, from `handler`.
-    ///
-    /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
-    /// `Err(JackErr::ClientActivationError)` is returned.
-    ///
-    /// `handler` is consumed, but it is returned when `Client::deactivate` is
-    /// called.
-    pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        unsafe {
-            let handler_ptr = try!(register_callbacks(handler, self.client, self.as_ptr()));
-            sleep_on_test();
-            if handler_ptr.is_null() {
-                Err(JackErr::CallbackRegistrationError)
-            } else {
-                let res = j::jack_activate(self.client);
-                for _ in 0..3 {
-                    sleep_on_test();
-                }
-                match res {
-                    0 => {
-                        let Client { client } = self;
-
-                        // Don't run destructor -- we want the client to stay open
-                        mem::forget(self);
-                        sleep_on_test();
-
-                        Ok(ActiveClient {
-                            client: client,
-                            handler: handler_ptr,
-                        })
-                    }
-                    _ => {
-                        drop(Box::from_raw(handler_ptr));
-                        Err(JackErr::ClientActivationError)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Toggle input monitoring for the port with name `port_name`.
-    ///
-    /// `Err(JackErr::PortMonitorError)` is returned on failure.
-    ///
-    /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
-    /// happens.
-    pub fn request_monitor_by_name(&self,
-                                   port_name: &str,
-                                   enable_monitor: bool)
-                                   -> Result<(), JackErr> {
-        let port_name = ffi::CString::new(port_name).unwrap();
-        let onoff = match enable_monitor {
-            true => 1,
-            false => 0,
-        };
-        let res =
-            unsafe { j::jack_port_request_monitor_by_name(self.client, port_name.as_ptr(), onoff) };
-        match res {
-            0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
-        }
-    }
-
-
-    // TODO implement
-    // /// Start/Stop JACK's "freewheel" mode.
-    // ///
-    // /// When in "freewheel" mode, JACK no longer waits for any external event to
-    // /// begin the start of the next process cycle. As a result, freewheel mode
-    // /// causes "faster than real-time" execution of a JACK graph. If possessed,
-    // /// real-time scheduling is dropped when entering freewheel mode, and if
-    // /// appropriate it is reacquired when stopping.
-    // ///
-    // /// IMPORTANT: on systems using capabilities to provide real-time scheduling
-    // /// (i.e. Linux Kernel 2.4), if enabling freewheel, this function must be
-    // /// called from the thread that originally called `self.activate()`. This
-    // /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
-    // /// X).
-    // pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
-    //     let onoff = match enable {
-    //         true => 0,
-    //         false => 1,
-    //     };
-    //     match unsafe { j::jack_set_freewheel(self.as_ptr(), onoff) } {
-    //         0 => Ok(()),
-    //         _ => Err(JackErr::FreewheelError),
-    //     }
-    // }
-}
-
-impl<JH: JackHandler> ActiveClient<JH> {
-    /// Tell the JACK server to remove this client from the process graph. Also,
-    /// disconnect all ports belonging to it since inactive clients have no port
-    /// connections.
-    ///
-    /// The `handler` that was used for `Client::activate` is returned on
-    /// success. Its state may have changed due to JACK calling its methods.
-    ///
-    /// In the case of error, the `Client` is destroyed because its state is
-    /// unknown, and it is therefore unsafe to continue using.
-    pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        unsafe {
-            let ActiveClient { client, handler } = self;
-
-            // Prevent destructor from running, as this would cause double-deactivation
-            mem::forget(self);
-
-            sleep_on_test();
-            let res = match j::jack_deactivate(client) {
-                // We own the handler post-deactivation
-                0 => Ok(Box::from_raw(handler)),
-
-                // We may still own the handler here, but it's not safe to say
-                // without more information about the error condition
-                _ => Err(JackErr::ClientDeactivationError),
-            };
-            sleep_on_test();
-
-            let callback_res = clear_callbacks(client);
-            sleep_on_test();
-
-            match (res, callback_res) {
-                (Ok(handler_ptr), Ok(())) => {
-                    let (handler, _) = *handler_ptr;
-                    Ok(( Client { client: client }, handler ))
-                }
-                (Err(err), _) | (_, Err(err)) => {
-                    // We've invalidated the client, so it must be closed
-                    j::jack_client_close(client);
-                    sleep_on_test();
-                    Err(err)
-                }
-            }
-        }
-    }
-}
-
-/// Close the client, deactivating if necessary.
-impl Drop for Client {
-    fn drop(&mut self) {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-
-        debug_assert!(!self.client.is_null()); // Rep invariant
-
-        // Client isn't active, so no need to deactivate
-
-        let res = unsafe { j::jack_client_close(self.client) }; // close the client
-        sleep_on_test();
-        assert_eq!(res, 0);
-        self.client = ptr::null_mut();
-    }
-}
-
-/// Closes the client.
-impl<JH: JackHandler> Drop for ActiveClient<JH> {
-    fn drop(&mut self) {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        unsafe {
-            debug_assert!(!self.client.is_null()); // Rep invariant
-
-            j::jack_deactivate(self.client); // result doesn't matter
-            sleep_on_test();
-            drop(Box::from_raw(self.handler)); // drop the handler
-
-            let res = j::jack_client_close(self.client); // close the client
-            sleep_on_test();
-            assert_eq!(res, 0);
-            self.client = ptr::null_mut();
-        }
-    }
-}
-
-#[cfg(test)]
-use jack_utils;
-
-#[inline(always)]
-pub fn sleep_on_test() {
-    #[cfg(test)]
-    jack_utils::default_sleep();
 }

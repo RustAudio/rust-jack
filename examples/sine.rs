@@ -4,7 +4,7 @@ use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
 use jack::prelude::{AudioOutPort, AudioOutSpec, Client, JackClient, JackControl, ProcessHandler,
-                    ProcessScope, client_options};
+                    ProcessScope, WeakClient, client_options};
 
 
 fn read_freq() -> Option<f64> {
@@ -26,7 +26,7 @@ fn main() {
     let mut time = 0.0;
     let (tx, rx) = channel();
 
-    let process = ProcessHandler::new(move |ps: &ProcessScope| -> JackControl {
+    let process = ProcessHandler::new(move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         // Get output buffer
         let mut out_p = AudioOutPort::new(&mut out_port, ps);
         let out: &mut [f32] = &mut out_p;

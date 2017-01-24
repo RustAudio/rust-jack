@@ -4,14 +4,14 @@
 extern crate jack;
 use std::io;
 use jack::prelude::{Client, JackClient, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
-                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, client_options};
+                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, WeakClient, client_options};
 
 fn main() {
     let (mut client, _status) =
         Client::open("rust_jack_show_midi", client_options::NO_START_SERVER).unwrap();
     let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
     let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
-    let cback = move |ps: &ProcessScope| -> JackControl {
+    let cback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let show_p = MidiInPort::new(&shower, ps);
         for e in show_p.iter() {
             println!("{:?}", e);

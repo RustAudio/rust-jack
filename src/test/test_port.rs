@@ -2,7 +2,6 @@ use prelude::*;
 use jack_utils::*;
 
 fn open_test_client(name: &str) -> Client {
-    default_sleep();
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
 }
 
