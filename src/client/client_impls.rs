@@ -3,15 +3,13 @@ use std::sync::Mutex;
 
 use jack_sys as j;
 
-use self::callbacks::{clear_callbacks, register_callbacks};
+use super::callbacks::{clear_callbacks, register_callbacks};
 use jack_enums::*;
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
 
-mod base;
-pub use self::base::{CycleTimes, JackClient, WeakClient};
-mod callbacks;
-pub use self::callbacks::{JackHandler, ProcessHandler};
+use super::base::{JackClient, WeakClient};
+pub use super::callbacks::{JackHandler, ProcessHandler};
 
 lazy_static! {
     static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());

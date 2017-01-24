@@ -4,7 +4,7 @@ use std::{mem, slice};
 use jack_sys as j;
 use libc;
 
-use primitive_types::ProcessScope;
+use client::ProcessScope;
 use jack_enums::JackErr;
 use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 use port::{Port, PortSpec};

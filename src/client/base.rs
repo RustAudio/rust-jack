@@ -9,9 +9,7 @@ use jack_utils::collect_strs;
 use port::{Port, PortSpec, UnownedPort};
 use port;
 use primitive_types as pt;
-use primitive_types::ProcessScope;
 
-/// Internal cycle timing information.
 #[derive(Clone, Copy, Debug)]
 pub struct CycleTimes {
     pub current_frames: pt::JackFrames,
@@ -19,6 +17,40 @@ pub struct CycleTimes {
     pub next_usecs: pt::JackTime,
     pub period_usecs: libc::c_float,
 }
+
+/// timings within a `process` callback.
+#[derive(Debug)]
+pub struct ProcessScope {
+    // To be used _only_ for runtime verification that the client who wrote
+    // that the only ports being used are ones created by the client whose
+    // handler is being run.
+    client_ptr: *mut j::jack_client_t,
+
+    // Used to allow safe access to IO port buffers
+    n_frames: pt::JackFrames,
+}
+
+impl ProcessScope {
+    #[inline(always)]
+    pub fn n_frames(&self) -> pt::JackFrames {
+        self.n_frames
+    }
+
+    #[inline(always)]
+    pub fn client_ptr(&self) -> *mut j::jack_client_t {
+        self.client_ptr
+    }
+
+    /// Create a `ProcessScope` for the client with the given pointer
+    /// and the specified amount of frames.
+    pub unsafe fn from_raw(n_frames: pt::JackFrames, client_ptr: *mut j::jack_client_t) -> Self {
+        ProcessScope {
+            n_frames: n_frames,
+            client_ptr: client_ptr,
+        }
+    }
+}
+
 
 /// Similar to a `Client`, but usually exposed only through reference.
 ///

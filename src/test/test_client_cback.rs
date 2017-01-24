@@ -1,5 +1,5 @@
 use std::sync::Mutex;
-use std::{thread, time};
+use std::{ptr, thread, time};
 
 use prelude::*;
 
@@ -63,6 +63,38 @@ fn active_test_client(name: &str) -> (ActiveClient<Counter>) {
     let c = open_test_client(name);
     let ac = c.activate(Counter::default()).unwrap();
     ac
+}
+
+pub struct DummyHandler;
+impl JackHandler for DummyHandler {}
+
+#[test]
+fn client_cback_has_proper_default_callbacks() {
+    // defaults shouldn't care about these params
+    let wc = unsafe { WeakClient::from_raw(ptr::null_mut()) };
+    let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut()) };
+    let h = DummyHandler;
+
+    // check each callbacks
+    assert_eq!(h.thread_init(&wc), ());
+    assert_eq!(h.shutdown(client_status::ClientStatus::empty(), "mock"), ());
+    assert_eq!(h.process(&wc, &ps), JackControl::Continue);
+    assert_eq!(h.freewheel(&wc, true), ());
+    assert_eq!(h.freewheel(&wc, false), ());
+    assert_eq!(h.buffer_size(&wc, 0), JackControl::Continue);
+    assert_eq!(h.sample_rate(&wc, 0), JackControl::Continue);
+    assert_eq!(h.client_registration(&wc, "mock", true), ());
+    assert_eq!(h.client_registration(&wc, "mock", false), ());
+    assert_eq!(h.port_registration(&wc, 0, true), ());
+    assert_eq!(h.port_registration(&wc, 0, false), ());
+    assert_eq!(h.port_rename(&wc, 0, "old_mock", "new_mock"),
+               JackControl::Continue);
+    assert_eq!(h.ports_connected(&wc, 0, 1, true), ());
+    assert_eq!(h.ports_connected(&wc, 2, 3, false), ());
+    assert_eq!(h.graph_reorder(&wc), JackControl::Continue);
+    assert_eq!(h.xrun(&wc), JackControl::Continue);
+    assert_eq!(h.latency(&wc, LatencyType::Capture), ());
+    assert_eq!(h.latency(&wc, LatencyType::Playback), ());
 }
 
 #[test]

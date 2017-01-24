@@ -5,9 +5,8 @@ use libc;
 
 use jack_enums::*;
 use client::client_status::ClientStatus;
-use client::{WeakClient, JackClient};
+use client::{WeakClient, JackClient, ProcessScope};
 use primitive_types as pt;
-use primitive_types::ProcessScope;
 
 /// Specifies callbacks for JACK.
 ///
