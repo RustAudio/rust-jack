@@ -105,6 +105,9 @@ impl<'a> MidiInPort<'a> {
     }
 
     pub fn len(&self) -> usize {
+        if self.buffer_ptr.is_null() {
+            return 0;
+        };
         let n = unsafe { j::jack_midi_get_event_count(self.buffer_ptr) };
         n as usize
     }
@@ -203,7 +206,8 @@ impl<'a> Iterator for MidiIter<'a> {
     }
 
     fn last(self) -> Option<Self::Item> {
-        self.port.nth(self.port.len() - 1)
+        let n = self.port.len();
+        if n == 0 { None } else { self.port.nth(n - 1) }
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {

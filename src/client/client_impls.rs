@@ -30,27 +30,25 @@ lazy_static! {
 
 /// A client to interact with a JACK server.
 #[derive(Debug)]
-pub struct Client {
-    client: WeakClient,
-}
+pub struct Client(WeakClient);
 
 /// A `JackClient` that is currently active. Active clients may
 /// contain `JackHandler`s that are processing data in real-time.
 #[derive(Debug)]
 pub struct ActiveClient<JH: JackHandler> {
-    client: *mut j::jack_client_t,
+    client: Client,
     handler: *mut (JH, *mut j::jack_client_t),
 }
 
 unsafe impl JackClient for Client {
     fn as_ptr(&self) -> *mut j::jack_client_t {
-        self.client.as_ptr()
+        self.0.as_ptr()
     }
 }
 
 unsafe impl<JH: JackHandler> JackClient for ActiveClient<JH> {
     fn as_ptr(&self) -> *mut j::jack_client_t {
-        self.client
+        self.client.as_ptr()
     }
 }
 
@@ -81,15 +79,9 @@ impl Client {
         if client.is_null() {
             Err(JackErr::ClientError(status))
         } else {
-            Ok((Client { client: unsafe { WeakClient::from_raw(client) } }, status))
+            Ok((Client(unsafe { WeakClient::from_raw(client) }), status))
         }
     }
-
-    ///
-    pub fn as_weak(&self) -> &WeakClient {
-        &self.client
-    }
-
 
     /// Tell the JACK server that the program is ready to start processing
     /// audio. JACK will call the methods specified by the `JackHandler` trait, from `handler`.
@@ -102,28 +94,24 @@ impl Client {
     pub fn activate<JH: JackHandler>(self, handler: JH) -> Result<ActiveClient<JH>, JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
+            sleep_on_test();
             let handler_ptr = try!(register_callbacks(handler, self.as_ptr()));
             sleep_on_test();
             if handler_ptr.is_null() {
                 Err(JackErr::CallbackRegistrationError)
             } else {
                 let res = j::jack_activate(self.as_ptr());
-                for _ in 0..3 {
+                for _ in 0..4 {
                     sleep_on_test();
                 }
                 match res {
                     0 => {
-                        let client_ptr = self.as_ptr();
-
-                        // Don't run destructor -- we want the client to stay open
-                        mem::forget(self);
-                        sleep_on_test();
-
                         Ok(ActiveClient {
-                            client: client_ptr,
+                            client: self,
                             handler: handler_ptr,
                         })
                     }
+
                     _ => {
                         drop(Box::from_raw(handler_ptr));
                         Err(JackErr::ClientActivationError)
@@ -184,7 +172,7 @@ impl Client {
     // }
 
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
-        Client { client: WeakClient::from_raw(p) }
+        Client(WeakClient::from_raw(p))
     }
 }
 
@@ -201,13 +189,15 @@ impl<JH: JackHandler> ActiveClient<JH> {
     pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
-            let ActiveClient { client, handler } = self;
-
-            // Prevent destructor from running, as this would cause double-deactivation
+            // Collect contents, cleanup will be manual, instead of automatic as we don't want to
+            // drop our inner client, since it may still be open.
+            let (client_ptr, handler) = (self.client.as_ptr(), self.handler);
+            let client = Client::from_raw(client_ptr);
             mem::forget(self);
 
+            // Deactivate, but not close, the client
             sleep_on_test();
-            let res = match j::jack_deactivate(client) {
+            let res = match j::jack_deactivate(client.as_ptr()) {
                 // We own the handler post-deactivation
                 0 => Ok(Box::from_raw(handler)),
 
@@ -215,19 +205,21 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 // without more information about the error condition
                 _ => Err(JackErr::ClientDeactivationError),
             };
-            sleep_on_test();
 
-            let callback_res = clear_callbacks(client);
+            // Clear the callbacks
+            sleep_on_test();
+            let callback_res = clear_callbacks(client.as_ptr());
             sleep_on_test();
 
             match (res, callback_res) {
                 (Ok(handler_ptr), Ok(())) => {
                     let (handler, _) = *handler_ptr;
-                    Ok(( Client { client: WeakClient::from_raw(client) }, handler ))
+                    Ok((client, handler))
                 }
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed
-                    j::jack_client_close(client);
+                    sleep_on_test();
+                    drop(client);
                     sleep_on_test();
                     Err(err)
                 }
@@ -245,10 +237,12 @@ impl Drop for Client {
 
         // Client isn't active, so no need to deactivate
 
+        // Close the client
+        sleep_on_test();
         let res = unsafe { j::jack_client_close(self.as_ptr()) }; // close the client
         sleep_on_test();
         assert_eq!(res, 0);
-        self.client = unsafe { WeakClient::from_raw(ptr::null_mut()) };
+        self.0 = unsafe { WeakClient::from_raw(ptr::null_mut()) };
     }
 }
 
@@ -257,16 +251,15 @@ impl<JH: JackHandler> Drop for ActiveClient<JH> {
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
-            debug_assert!(!self.client.is_null()); // Rep invariant
-
-            j::jack_deactivate(self.client); // result doesn't matter
+            // Deactivate the handler
             sleep_on_test();
-            drop(Box::from_raw(self.handler)); // drop the handler
-
-            let res = j::jack_client_close(self.client); // close the client
+            j::jack_deactivate(self.client.as_ptr()); // result doesn't matter
             sleep_on_test();
-            assert_eq!(res, 0);
-            self.client = ptr::null_mut();
+
+            // Drop the handler
+            drop(Box::from_raw(self.handler));
+
+            // The client will close itself on drop
         }
     }
 }
@@ -276,6 +269,6 @@ fn sleep_on_test() {
     #[cfg(test)]
     {
         use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(400));
+        thread::sleep(time::Duration::from_millis(200));
     }
 }

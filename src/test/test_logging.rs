@@ -11,6 +11,7 @@ fn logging_can_set_info() {
     // set
     set_info_callback(null_log_fn);
     assert!(get_info_callback().is_some());
+    get_info_callback().unwrap()("Using info callback!.");
 
     // reset
     reset_info_callback();
@@ -26,6 +27,7 @@ fn logging_can_set_error() {
     // set
     set_error_callback(null_log_fn);
     assert!(get_error_callback().is_some());
+    get_error_callback().unwrap()("Using error callback!.");
 
     // reset
     reset_error_callback();

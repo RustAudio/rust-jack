@@ -10,6 +10,7 @@ use port::{Port, PortSpec, UnownedPort};
 use port;
 use primitive_types as pt;
 
+/// Internal cycle timing information.
 #[derive(Clone, Copy, Debug)]
 pub struct CycleTimes {
     pub current_frames: pt::JackFrames,
@@ -18,7 +19,7 @@ pub struct CycleTimes {
     pub period_usecs: libc::c_float,
 }
 
-/// timings within a `process` callback.
+/// `ProcessScope` provides information on the client and frame timings within a process callback.
 #[derive(Debug)]
 pub struct ProcessScope {
     // To be used _only_ for runtime verification that the client who wrote
