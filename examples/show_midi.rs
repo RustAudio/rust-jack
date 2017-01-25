@@ -7,8 +7,11 @@ use jack::prelude::{Client, JackClient, JackControl, MidiInPort, MidiInSpec, Mid
                     MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, WeakClient, client_options};
 
 fn main() {
+    // open client
     let (client, _status) = Client::open("rust_jack_show_midi", client_options::NO_START_SERVER)
         .unwrap();
+
+    // process logic
     let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
     let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
     let cback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
@@ -31,10 +34,16 @@ fn main() {
             .unwrap();
         JackControl::Continue
     };
+
+    // activate
     let process = ProcessHandler::new(cback);
     let active_client = client.activate(process).unwrap();
+
+    // wait
     println!("Press any key to quit");
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
+
+    // optional deactivation
     active_client.deactivate().unwrap();
 }

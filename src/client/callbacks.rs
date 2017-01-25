@@ -144,12 +144,7 @@ impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl>
     JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
     fn process(&self, c: &WeakClient, ps: &ProcessScope) -> JackControl {
-        // This may seem highly unsafe but here is why it is okay.
-        //
-        // process takes & instead of &mut because many callbacks may try to access fields at the
-        // same time, since it is not guaranteed that the callbacks don't run at the same
-// time. However, in this case, it is ensured that process is the only one with access to
-// `process` field.
+        // Casting to mut is safe because no other callbacks will accessing the `process` field.
         let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
         (f)(c, ps)
     }
@@ -288,6 +283,8 @@ unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode
 
 /// Unsafe ffi wrapper that clears the callbacks registered to `client`.
 ///
+/// This is mostly for use within the jack crate itself.
+///
 /// Returns `Err(JackErr::CallbackDeregistrationError)` on failure.
 ///
 /// # Unsafe
@@ -304,6 +301,8 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 }
 
 /// Registers methods from `handler` to be used by JACK with `client`.
+///
+/// This is mostly for use within the jack crate itself.
 ///
 /// Returns `Ok(handler_ptr)` on success, or `Err(JackErr::CallbackRegistrationError)` on failure.
 ///

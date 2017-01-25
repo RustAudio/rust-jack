@@ -121,6 +121,9 @@ impl Client {
         }
     }
 
+    /// Create a `Client` from an ffi pointer.
+    ///
+    /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
         Client(WeakClient::from_raw(p))
     }
@@ -168,9 +171,7 @@ impl<JH: JackHandler> ActiveClient<JH> {
                 }
                 (Err(err), _) | (_, Err(err)) => {
                     // We've invalidated the client, so it must be closed
-                    sleep_on_test();
                     drop(client);
-                    sleep_on_test();
                     Err(err)
                 }
             }

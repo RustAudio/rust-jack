@@ -85,15 +85,18 @@ impl ProcessScope {
         // }
     }
 
-    /// Expose the `client_ptr` for low level purposes. This should not be needed by things outside
-    /// the jack crate.
+    /// Expose the `client_ptr` for low level purposes.
+    ///
+    /// This is mostly for use within the jack crate itself.
     #[inline(always)]
     pub fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
     }
 
     /// Create a `ProcessScope` for the client with the given pointer and the specified amount of
-    /// frames. It should not be needed outside the jack crate.
+    /// frames.
+    ///
+    /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(n_frames: pt::JackFrames, client_ptr: *mut j::jack_client_t) -> Self {
         ProcessScope {
             n_frames: n_frames,
@@ -112,7 +115,9 @@ impl ProcessScope {
 pub struct WeakClient(*mut j::jack_client_t);
 
 impl WeakClient {
-    /// Construct a `WeakClient`. This should not be needed outside the jack crate.
+    /// Construct a `WeakClient`.
+    ///
+    /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(client_ptr: *mut j::jack_client_t) -> Self {
         WeakClient(client_ptr)
     }
@@ -478,7 +483,9 @@ pub unsafe trait JackClient: Sized {
         n
     }
 
-    /// Expose the underlying ffi pointer. This should not be needed outside the jack crate.
+    /// Expose the underlying ffi pointer.
+    ///
+    /// This is mostly for use within the jack crate itself.
     #[inline(always)]
     fn as_ptr(&self) -> *mut j::jack_client_t;
 }
