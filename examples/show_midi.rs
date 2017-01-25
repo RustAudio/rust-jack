@@ -7,8 +7,8 @@ use jack::prelude::{Client, JackClient, JackControl, MidiInPort, MidiInSpec, Mid
                     MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, WeakClient, client_options};
 
 fn main() {
-    let (mut client, _status) =
-        Client::open("rust_jack_show_midi", client_options::NO_START_SERVER).unwrap();
+    let (client, _status) = Client::open("rust_jack_show_midi", client_options::NO_START_SERVER)
+        .unwrap();
     let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
     let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
     let cback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {

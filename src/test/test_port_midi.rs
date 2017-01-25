@@ -11,7 +11,7 @@ fn open_test_client(name: &str) -> Client {
 #[test]
 fn port_midi_can_read_write() {
     // open clients and ports
-    let mut c = open_test_client("port_midi_crw");
+    let c = open_test_client("port_midi_crw");
     let in_a = c.register_port("ia", MidiInSpec::default()).unwrap();
     let in_b = c.register_port("ib", MidiInSpec::default()).unwrap();
     let mut out_a = c.register_port("oa", MidiOutSpec::default()).unwrap();
@@ -63,7 +63,7 @@ lazy_static! {
 #[test]
 fn port_midi_can_get_max_event_size() {
     // open clients and ports
-    let mut c = open_test_client("port_midi_cglc");
+    let c = open_test_client("port_midi_cglc");
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
@@ -89,7 +89,7 @@ lazy_static! {
 #[test]
 fn port_midi_cant_execeed_max_event_size() {
     // open clients and ports
-    let mut c = open_test_client("port_midi_cglc");
+    let c = open_test_client("port_midi_cglc");
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
@@ -128,7 +128,7 @@ lazy_static! {
 #[test]
 fn port_midi_has_good_iter() {
     // open clients and ports
-    let mut c = open_test_client("port_midi_has_good_iter");
+    let c = open_test_client("port_midi_has_good_iter");
     let in_p = c.register_port("ip", MidiInSpec::default()).unwrap();
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 

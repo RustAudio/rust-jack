@@ -7,7 +7,7 @@ fn open_test_client(name: &str) -> Client {
 
 #[test]
 fn port_audio_can_read_write() {
-    let mut c = open_test_client("port_audio_crw");
+    let c = open_test_client("port_audio_crw");
     let in_a = c.register_port("ia", AudioInSpec::default()).unwrap();
     let in_b = c.register_port("ib", AudioInSpec::default()).unwrap();
     let mut out_a = c.register_port("oa", AudioOutSpec::default()).unwrap();

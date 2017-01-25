@@ -16,7 +16,7 @@ fn read_freq() -> Option<f64> {
 }
 
 fn main() {
-    let (mut client, _status) = Client::open("rust_jack_sine", client_options::NO_START_SERVER)
+    let (client, _status) = Client::open("rust_jack_sine", client_options::NO_START_SERVER)
         .unwrap();
 
     let mut out_port = client.register_port("sine_out", AudioOutSpec::default()).unwrap();

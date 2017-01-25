@@ -6,8 +6,8 @@ use std::io;
 
 fn main() {
     // Create client
-    let (mut client, _status) =
-        j::Client::open("rust_jack_simple", j::client_options::NO_START_SERVER).unwrap();
+    let (client, _status) = j::Client::open("rust_jack_simple", j::client_options::NO_START_SERVER)
+        .unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.

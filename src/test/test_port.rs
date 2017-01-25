@@ -6,7 +6,7 @@ fn open_test_client(name: &str) -> Client {
 }
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioInSpec>) {
-    let mut c = open_test_client(client);
+    let c = open_test_client(client);
     let p = c.register_port(port, AudioInSpec::default()).unwrap();
     (c, p)
 }
@@ -37,7 +37,7 @@ fn port_can_rename() {
 
 #[test]
 fn port_connected_count() {
-    let mut c = open_test_client("port_connected_count");
+    let c = open_test_client("port_connected_count");
     let pa = c.register_port("pa", AudioInSpec::default()).unwrap();
     let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
     let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();
@@ -53,7 +53,7 @@ fn port_connected_count() {
 
 #[test]
 fn port_knows_connections() {
-    let mut c = open_test_client("port_knows_connections");
+    let c = open_test_client("port_knows_connections");
     let pa = c.register_port("pa", AudioInSpec::default()).unwrap();
     let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
     let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();

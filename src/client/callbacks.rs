@@ -5,37 +5,33 @@ use libc;
 
 use jack_enums::*;
 use client::client_status::ClientStatus;
-use client::{WeakClient, JackClient, ProcessScope};
+use client::{JackClient, ProcessScope, WeakClient};
 use primitive_types as pt;
 
 /// Specifies callbacks for JACK.
 ///
-/// All callbacks happen on the same thread (not concurrently), unless otherwise
-/// stated.
+/// All callbacks happen on the same thread (not concurrently), unless otherwise stated.
 ///
 /// # TODO
 /// * convert C enum return values to Rust enums.
 pub trait JackHandler: Send + Sync {
-    /// Called just once after the creation of the thread in which all other
-    /// callbacks will be handled.
+    /// Called just once after the creation of the thread in which all other callbacks will be
+    /// handled.
     ///
     /// It does not need to be suitable for real-time execution.
     fn thread_init(&self, _: &WeakClient) {}
 
-    /// Called when the JACK server shuts down the client thread. The function
-    /// must be written as if it were an asynchronous POSIX signal handler ---
-    /// use only async-safe functions, and remember that it is executed from
-    /// another thread. A typical funcion might set a flag or write to a pipe so
-    /// that the rest of the application knows that the JACK client thread has
-    /// shut down.
+    /// Called when the JACK server shuts down the client thread. The function must be written as if
+    /// it were an asynchronous POSIX signal handler --- use only async-safe functions, and remember
+    /// that it is executed from another thread. A typical funcion might set a flag or write to a
+    /// pipe so that the rest of the application knows that the JACK client thread has shut down.
     fn shutdown(&self, _status: ClientStatus, _reason: &str) {}
 
     /// Called whenever there is work to be done.
     ///
-    /// It needs to be suitable for real-time execution. That means that it
-    /// cannot call functions that might block for a long time. This includes
-    /// all I/O functions (disk, TTY, network), malloc, free, printf,
-    /// pthread_mutex_lock, sleep, wait, poll, select, pthread_join,
+    /// It needs to be suitable for real-time execution. That means that it cannot call functions
+    /// that might block for a long time. This includes all I/O functions (disk, TTY, network),
+    /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select, pthread_join,
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
@@ -46,8 +42,7 @@ pub trait JackHandler: Send + Sync {
     /// Called whenever "freewheel" mode is entered or leaving.
     fn freewheel(&self, _: &WeakClient, _is_freewheel_enabled: bool) {}
 
-    /// Called whenever the size of the buffer that will be passed to `process`
-    /// is about to change.
+    /// Called whenever the size of the buffer that will be passed to `process` is about to change.
     fn buffer_size(&self, _: &WeakClient, _size: pt::JackFrames) -> JackControl {
         JackControl::Continue
     }
@@ -88,25 +83,22 @@ pub trait JackHandler: Send + Sync {
 
     /// Called whenever an xrun occurs.
     ///
-    /// An xrun is a buffer under or over run, which means some data has been
-    /// missed.
+    /// An xrun is a buffer under or over run, which means some data has been missed.
     fn xrun(&self, _: &WeakClient) -> JackControl {
         JackControl::Continue
     }
 
-    /// Called whenever it is necessary to recompute the latencies for some or
-    /// all JACK ports.
+    /// Called whenever it is necessary to recompute the latencies for some or all JACK ports.
     ///
-    /// It will be called twice each time it is needed, once being passed
-    /// `CaptureLatency` and once with `PlayBackLatency. See managing and
-    /// determining latency for the definition of each type of latency and
-    /// related functions. TODO: clear up the "see managing and ..." in the
+    /// It will be called twice each time it is needed, once being passed `CaptureLatency` and once
+    /// with `PlayBackLatency. See managing and determining latency for the definition of each type
+    /// of latency and related functions. TODO: clear up the "see managing and ..." in the
     /// docstring.
     ///
     /// IMPORTANT: Most JACK clients do NOT need to register a latency callback.
     ///
-    /// Clients that meed any of the following conditions do NOT need to
-    /// register a latency callback:
+    /// Clients that meed any of the following conditions do NOT need to register a latency
+    /// callback:
     ///
     /// * have only input ports
     ///
@@ -114,33 +106,28 @@ pub trait JackHandler: Send + Sync {
     ///
     /// * their output is totally unrelated to their input
     ///
-    /// * their output is not delayed relative to their input (i.e. data that
-    /// arrives in a `process` is processed and output again in the same
-    /// callback)
+    /// * their output is not delayed relative to their input (i.e. data that arrives in a `process`
+    /// is processed and output again in the same callback)
     ///
     /// Clients NOT registering a latency callback MUST also satisfy this condition
     ///
     /// * have no multiple distinct internal signal pathways
     ///
-    /// This means that if your client has more than 1 input and output port,
-    /// and considers them always "correlated" (e.g. as a stereo pair), then
-    /// there is only 1 (e.g. stereo) signal pathway through the client. This
-    /// would be true, for example, of a stereo FX rack client that has a
-    /// left/right input pair and a left/right output pair.
+    /// This means that if your client has more than 1 input and output port, and considers them
+    /// always "correlated" (e.g. as a stereo pair), then there is only 1 (e.g. stereo) signal
+    /// pathway through the client. This would be true, for example, of a stereo FX rack client that
+    /// has a left/right input pair and a left/right output pair.
     ///
-    /// However, this is somewhat a matter of perspective. The same FX rack
-    /// client could be connected so that its two input ports were connected to
-    /// entirely separate sources. Under these conditions, the fact that the
-    /// client does not register a latency callback MAY result in port latency
-    /// values being incorrect.
+    /// However, this is somewhat a matter of perspective. The same FX rack client could be
+    /// connected so that its two input ports were connected to entirely separate sources. Under
+    /// these conditions, the fact that the client does not register a latency callback MAY result
+    /// in port latency values being incorrect.
     ///
-    /// Clients that do not meet any of those conditions SHOULD register a
-    /// latency callback.
+    /// Clients that do not meet any of those conditions SHOULD register a latency callback.
     ///
-    /// See the documentation for `jack_port_set_latency_range()` on how the
-    /// callback should operate. Remember that the mode argument given to the
-    /// latency callback will need to be passed into
-    /// jack_port_set_latency_range()
+    /// See the documentation for `jack_port_set_latency_range()` on how the callback should
+    /// operate. Remember that the mode argument given to the latency callback will need to be
+    /// passed into jack_port_set_latency_range()
     fn latency(&self, _: &WeakClient, _mode: LatencyType) {}
 }
 
@@ -150,17 +137,19 @@ pub struct ProcessHandler<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) 
     pub process: F,
 }
 
-unsafe impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl> Sync for ProcessHandler<F> {}
+unsafe impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl>
+    Sync for ProcessHandler<F> {}
 
-impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl> JackHandler for ProcessHandler<F> {
+impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl>
+    JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
     fn process(&self, c: &WeakClient, ps: &ProcessScope) -> JackControl {
         // This may seem highly unsafe but here is why it is okay.
         //
         // process takes & instead of &mut because many callbacks may try to access fields at the
         // same time, since it is not guaranteed that the callbacks don't run at the same
-        // time. However, in this case, it is ensured that process is the only one with access to
-        // `process` field.
+// time. However, in this case, it is ensured that process is the only one with access to
+// `process` field.
         let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
         (f)(c, ps)
     }
@@ -316,16 +305,14 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 
 /// Registers methods from `handler` to be used by JACK with `client`.
 ///
-/// Returns `Ok(handler_ptr)` on success, or
-/// `Err(JackErr::CallbackRegistrationError)` on failure.
+/// Returns `Ok(handler_ptr)` on success, or `Err(JackErr::CallbackRegistrationError)` on failure.
 ///
 /// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut j::jack_client_t)`.
 ///
 /// Registers `handler` with JACK. All JACK calls to `client` will be handled by
-/// `handler`. `handler` is consumed, but it is not deallocated. `handler`
-/// should be manually deallocated when JACK will no longer make calls to it,
-/// such as when registering new callbacks with the same client, or dropping the
-/// client.
+/// `handler`. `handler` is consumed, but it is not deallocated. `handler` should be manually
+/// deallocated when JACK will no longer make calls to it, such as when registering new callbacks
+/// with the same client, or dropping the client.
 ///
 /// # TODO
 ///
@@ -340,8 +327,7 @@ pub unsafe fn register_callbacks<T: JackHandler>
     (handler: T,
      client: *mut j::jack_client_t)
      -> Result<*mut (T, *mut j::jack_client_t), JackErr> {
-    let handler_ptr: *mut (T, *mut j::jack_client_t) = Box::into_raw(Box::new((handler,
-                                                                               client)));
+    let handler_ptr: *mut (T, *mut j::jack_client_t) = Box::into_raw(Box::new((handler, client)));
     let data_ptr = mem::transmute(handler_ptr);
     j::jack_set_thread_init_callback(client, Some(thread_init_callback::<T>), data_ptr);
     j::jack_on_info_shutdown(client, Some(shutdown::<T>), data_ptr);

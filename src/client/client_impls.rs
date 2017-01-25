@@ -121,56 +121,6 @@ impl Client {
         }
     }
 
-    /// Toggle input monitoring for the port with name `port_name`.
-    ///
-    /// `Err(JackErr::PortMonitorError)` is returned on failure.
-    ///
-    /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
-    /// happens.
-    pub fn request_monitor_by_name(&self,
-                                   port_name: &str,
-                                   enable_monitor: bool)
-                                   -> Result<(), JackErr> {
-        let port_name = ffi::CString::new(port_name).unwrap();
-        let onoff = match enable_monitor {
-            true => 1,
-            false => 0,
-        };
-        let res = unsafe {
-            j::jack_port_request_monitor_by_name(self.as_ptr(), port_name.as_ptr(), onoff)
-        };
-        match res {
-            0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
-        }
-    }
-
-
-    // TODO implement
-    // /// Start/Stop JACK's "freewheel" mode.
-    // ///
-    // /// When in "freewheel" mode, JACK no longer waits for any external event to
-    // /// begin the start of the next process cycle. As a result, freewheel mode
-    // /// causes "faster than real-time" execution of a JACK graph. If possessed,
-    // /// real-time scheduling is dropped when entering freewheel mode, and if
-    // /// appropriate it is reacquired when stopping.
-    // ///
-    // /// IMPORTANT: on systems using capabilities to provide real-time scheduling
-    // /// (i.e. Linux Kernel 2.4), if enabling freewheel, this function must be
-    // /// called from the thread that originally called `self.activate()`. This
-    // /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
-    // /// X).
-    // pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
-    //     let onoff = match enable {
-    //         true => 0,
-    //         false => 1,
-    //     };
-    //     match unsafe { j::jack_set_freewheel(self.as_ptr(), onoff) } {
-    //         0 => Ok(()),
-    //         _ => Err(JackErr::FreewheelError),
-    //     }
-    // }
-
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
         Client(WeakClient::from_raw(p))
     }

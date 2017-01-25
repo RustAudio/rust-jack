@@ -171,7 +171,7 @@ fn client_cback_reports_xruns() {
 
 #[test]
 fn client_cback_calls_port_registered() {
-    let mut ac = active_test_client("client_cback_cpr");
+    let ac = active_test_client("client_cback_cpr");
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
     let counter = ac.deactivate().unwrap().1;
@@ -184,7 +184,7 @@ fn client_cback_calls_port_registered() {
 
 #[test]
 fn client_cback_calls_port_unregistered() {
-    let mut ac = active_test_client("client_cback_cpr");
+    let ac = active_test_client("client_cback_cpr");
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
     _pa.unregister().unwrap();
