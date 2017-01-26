@@ -81,7 +81,7 @@ impl<'a> MidiInPort<'a> {
     /// that registered the port. Panics if the port does not belong
     /// to the client that created the process.
     pub fn new(port: &'a Port<MidiInSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
         MidiInPort {
             _port: port,
@@ -134,7 +134,7 @@ impl<'a> MidiOutPort<'a> {
     ///
     /// The data in the port is cleared.
     pub fn new(port: &'a mut Port<MidiOutSpec>, ps: &'a ProcessScope) -> Self {
-        unsafe { assert_eq!(port.client_ptr(), ps.client_ptr()) };
+        assert_eq!(port.client_ptr(), ps.client_ptr());
         let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
         unsafe { j::jack_midi_clear_buffer(buffer_ptr) };
         MidiOutPort {

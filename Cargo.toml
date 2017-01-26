@@ -1,6 +1,6 @@
 [package]
 name = "jack"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi using safe JACK bindings."
 documentation = "https://wmedrano.github.io/rust-jack/jack/index.html"
@@ -12,5 +12,5 @@ keywords = ["jack", "realtime", "audio", "midi"]
 [dependencies]
 bitflags = "0.7.0"
 jack-sys = "0.1.4"
-lazy_static = "0.2.1"
+lazy_static = "0.2.2"
 libc = "0.2"
