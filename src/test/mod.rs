@@ -1,3 +1,4 @@
+// info/error related stuff in logging.rs
 mod test_logging;
 
 // time related functionality in lib.rs

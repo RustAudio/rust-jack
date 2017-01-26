@@ -33,7 +33,7 @@ pub enum LatencyType {
 }
 
 /// Specify an option, either to continue processing, or to stop.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum JackControl {
     /// Continue processing.
     Continue,

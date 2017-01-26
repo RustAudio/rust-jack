@@ -4,14 +4,17 @@
 extern crate jack;
 use std::io;
 use jack::prelude::{Client, JackClient, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
-                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, client_options};
+                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, WeakClient, client_options};
 
 fn main() {
-    let (mut client, _status) =
-        Client::open("rust_jack_show_midi", client_options::NO_START_SERVER).unwrap();
+    // open client
+    let (client, _status) = Client::open("rust_jack_show_midi", client_options::NO_START_SERVER)
+        .unwrap();
+
+    // process logic
     let mut maker = client.register_port("rust_midi_maker", MidiOutSpec::default()).unwrap();
     let shower = client.register_port("rust_midi_shower", MidiInSpec::default()).unwrap();
-    let cback = move |ps: &ProcessScope| -> JackControl {
+    let cback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let show_p = MidiInPort::new(&shower, ps);
         for e in show_p.iter() {
             println!("{:?}", e);
@@ -31,10 +34,16 @@ fn main() {
             .unwrap();
         JackControl::Continue
     };
+
+    // activate
     let process = ProcessHandler::new(cback);
     let active_client = client.activate(process).unwrap();
+
+    // wait
     println!("Press any key to quit");
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
+
+    // optional deactivation
     active_client.deactivate().unwrap();
 }

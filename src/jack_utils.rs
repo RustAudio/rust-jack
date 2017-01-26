@@ -28,17 +28,9 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
     strs
 }
 
-// Sleeps for a short while.
-#[inline(always)]
 #[cfg(test)]
-pub fn default_sleep() {
-    use std::{thread, time};
-    thread::sleep(time::Duration::from_millis(400));
-}
-
-#[cfg(test)]
-use callbacks;
+use client::JackHandler;
 #[cfg(test)]
 pub struct DummyHandler;
 #[cfg(test)]
-impl callbacks::JackHandler for DummyHandler {}
+impl JackHandler for DummyHandler {}

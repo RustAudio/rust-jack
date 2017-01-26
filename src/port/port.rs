@@ -202,9 +202,6 @@ impl<PS: PortSpec> Port<PS> {
     /// Remove the port from the client, disconnecting any existing connections.  The port must have
     /// been created with the provided client.
     pub fn unregister(self) -> Result<(), JackErr> {
-        if self.client_ptr.is_null() {
-            return Ok(());
-        };
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.as_ptr()) };
         match res {
             0 => Ok(()),
@@ -213,6 +210,8 @@ impl<PS: PortSpec> Port<PS> {
     }
 
     /// Create a Port from raw JACK pointers.
+    ///
+    /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(spec: PS,
                            client_ptr: *mut j::jack_client_t,
                            port_ptr: *mut j::jack_port_t)
@@ -224,16 +223,25 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
+    /// Obtain the client pointer that spawned this port.
+    ///
+    /// This is mostly for use within the jack crate itself.
     #[inline(always)]
-    pub unsafe fn client_ptr(&self) -> *mut j::jack_client_t {
+    pub fn client_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
     }
 
+    /// Obtain the ffi port pointer.
+    ///
+    /// This is mostly for use within the jack crate itself.
     #[inline(always)]
     pub fn as_ptr(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
 
+    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider an
+    /// adapter, `AudioInPort`, `AudioOutPort`, `MidiInPort`, `MidiOutPort`. For custom data,
+    /// consider implementing your own adapter.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)

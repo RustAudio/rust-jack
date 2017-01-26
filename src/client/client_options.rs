@@ -3,9 +3,8 @@ use jack_sys as j;
 bitflags! {
     /// Option flags for opening a JACK client.
     pub flags ClientOptions: j::Enum_JackOptions {
-        /// Do not automatically start the JACK server when it is not
-        /// already running. This option is always selected if
-        /// `$JACK_NO_START_SERVER` is defined in the calling process
+        /// Do not automatically start the JACK server when it is not already running. This option
+        /// is always selected if `$JACK_NO_START_SERVER` is defined in the calling process
         /// environment.
         const NO_START_SERVER = j::JackNoStartServer,
 
@@ -29,8 +28,7 @@ bitflags! {
         /// TODO: implement
         const LOAD_INIT       = j::JackLoadInit,
 
-        /// Pass a SessionID token. This allows the session manager to
-        /// identify the client again.
+        /// Pass a SessionID token. This allows the session manager to identify the client again.
         const SESSION_ID      = j::JackSessionID,
     }
 }

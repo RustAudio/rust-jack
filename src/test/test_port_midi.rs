@@ -1,7 +1,8 @@
 use prelude::*;
-use jack_utils::*;
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
+use std::{thread, time};
+use std::iter::Iterator;
 
 fn open_test_client(name: &str) -> Client {
     Client::open(name, client_options::NO_START_SERVER).unwrap().0
@@ -10,7 +11,7 @@ fn open_test_client(name: &str) -> Client {
 #[test]
 fn port_midi_can_read_write() {
     // open clients and ports
-    let mut c = open_test_client("port_audio_crw");
+    let c = open_test_client("port_midi_crw");
     let in_a = c.register_port("ia", MidiInSpec::default()).unwrap();
     let in_b = c.register_port("ib", MidiInSpec::default()).unwrap();
     let mut out_a = c.register_port("oa", MidiOutSpec::default()).unwrap();
@@ -18,7 +19,7 @@ fn port_midi_can_read_write() {
 
     // set callback routine
     let (signal_succeed, did_succeed) = channel();
-    let process_callback = move |ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let exp_a = RawMidi {
             time: 0,
             bytes: &[0b10010000, 0b01000000],
@@ -43,13 +44,13 @@ fn port_midi_can_read_write() {
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
 
     // connect ports to each other
-    ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
+    ac.connect_ports_by_name("port_midi_crw:oa", "port_midi_crw:ia")
         .unwrap();
-    ac.connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
+    ac.connect_ports_by_name("port_midi_crw:ob", "port_midi_crw:ib")
         .unwrap();
 
     // check correctness
-    default_sleep();
+    thread::sleep(time::Duration::from_millis(400));
     assert!(did_succeed.iter().any(|b| b),
             "input port does not have expected data");
     ac.deactivate().unwrap();
@@ -62,11 +63,11 @@ lazy_static! {
 #[test]
 fn port_midi_can_get_max_event_size() {
     // open clients and ports
-    let mut c = open_test_client("port_audio_cglc");
+    let c = open_test_client("port_midi_cglc");
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
-    let process_callback = move |ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let out_p = MidiOutPort::new(&mut out_p, ps);
         *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
         JackControl::Continue
@@ -82,17 +83,17 @@ fn port_midi_can_get_max_event_size() {
 
 
 lazy_static! {
-    static ref PMCEMES_DID_EXCEED: Mutex<Option<JackErr>> = Mutex::new(None);
+    static ref PMCEMES_WRITE_RESULT: Mutex<Result<(), JackErr>> = Mutex::new(Ok(()));
 }
 
 #[test]
 fn port_midi_cant_execeed_max_event_size() {
     // open clients and ports
-    let mut c = open_test_client("port_audio_cglc");
+    let c = open_test_client("port_midi_cglc");
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
-    let process_callback = move |ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
         let mut out_p = MidiOutPort::new(&mut out_p, ps);
         *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
 
@@ -102,7 +103,7 @@ fn port_midi_cant_execeed_max_event_size() {
             bytes: &bytes,
         };
 
-        *PMCEMES_DID_EXCEED.lock().unwrap() = out_p.write(&msg).err();
+        *PMCEMES_WRITE_RESULT.lock().unwrap() = out_p.write(&msg);
 
         JackControl::Continue
     };
@@ -111,7 +112,60 @@ fn port_midi_cant_execeed_max_event_size() {
     let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
-    assert_eq!(*PMCEMES_DID_EXCEED.lock().unwrap(),
-               Some(JackErr::NotEnoughSpace));
+    assert_eq!(*PMCEMES_WRITE_RESULT.lock().unwrap(),
+               Err(JackErr::NotEnoughSpace));
     ac.deactivate().unwrap();
+}
+
+lazy_static! {
+    static ref PMI_NEXT: Mutex<Option<(JackFrames, Vec<u8>)>> = Mutex::default();
+    static ref PMI_SIZE_HINT: Mutex<(usize, Option<usize>)> = Mutex::new((0, None));
+    static ref PMI_COUNT: Mutex<usize> = Mutex::default();
+    static ref PMI_LAST: Mutex<Option<(JackFrames, Vec<u8>)>> = Mutex::default();
+    static ref PMI_THIRD: Mutex<Option<(JackFrames, Vec<u8>)>> = Mutex::default();
+}
+
+#[test]
+fn port_midi_has_good_iter() {
+    // open clients and ports
+    let c = open_test_client("port_midi_has_good_iter");
+    let in_p = c.register_port("ip", MidiInSpec::default()).unwrap();
+    let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
+
+    // set callback routine
+    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+        let in_p = MidiInPort::new(&in_p, ps);
+        let mut out_p = MidiOutPort::new(&mut out_p, ps);
+
+        for i in 10..14 {
+            let msg = RawMidi {
+                time: i,
+                bytes: &[i as u8],
+            };
+            out_p.write(&msg).ok();
+        }
+
+        let rm_to_owned = |m: &RawMidi| (m.time, m.bytes.to_vec());
+        *PMI_NEXT.lock().unwrap() = in_p.iter().next().map(|m| rm_to_owned(&m));
+        *PMI_SIZE_HINT.lock().unwrap() = in_p.iter().size_hint();
+        *PMI_COUNT.lock().unwrap() = in_p.iter().count();
+        *PMI_LAST.lock().unwrap() = in_p.iter().last().map(|m| rm_to_owned(&m));
+        *PMI_THIRD.lock().unwrap() = in_p.iter().nth(2).map(|m| rm_to_owned(&m));
+
+        JackControl::Continue
+    };
+
+    // run
+    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    ac.connect_ports_by_name("port_midi_has_good_iter:op", "port_midi_has_good_iter:ip")
+        .unwrap();
+    thread::sleep(time::Duration::from_millis(200));
+    ac.deactivate().unwrap();
+
+    // check correctness
+    assert_eq!(*PMI_NEXT.lock().unwrap(), Some((10, [10].to_vec())));
+    assert_eq!(*PMI_SIZE_HINT.lock().unwrap(), (4, Some(4)));
+    assert_eq!(*PMI_COUNT.lock().unwrap(), 4);
+    assert_eq!(*PMI_LAST.lock().unwrap(), Some((13, [13].to_vec())));
+    assert_eq!(*PMI_THIRD.lock().unwrap(), Some((12, [12].to_vec())));
 }

@@ -2,27 +2,23 @@ use jack_sys as j;
 
 bitflags! {
     /// Status flags for JACK clients.
-    /// File an issue if you can get it to appear.
     pub flags ClientStatus: j::Enum_JackStatus {
-        /// Overall operation failed.
+        /// Overall operation failed. File an issue if you can get it to appear.
         const FAILURE         = j::JackFailure,
 
         /// The operation contained an invalid or unsupported option.
         const INVALID_OPTION  = j::JackInvalidOption,
 
-        /// The desired client name was not unique. With the
-        /// `USE_EXACT_NAME` option this situation is
-        /// fatal. Otherwise, the name was modified by appending a
-        /// dash and a two-digit number in the range "-01" to
-        /// "-99". `Client::name()` will return the exact string that
-        /// was used. If the specified client_name plus these extra
-        /// characters would be too long, the open fails instead.
+        /// The desired client name was not unique. With the `USE_EXACT_NAME` option this situation
+        /// is fatal. Otherwise, the name was modified by appending a dash and a two-digit number in
+        /// the range "-01" to "-99". `Client::name()` will return the exact string that was
+        /// used. If the specified client_name plus these extra characters would be too long, the
+        /// open fails instead.
         const NAME_NOT_UNIQUE = j::JackNameNotUnique,
-        /// The JACK server was started as a result of this
-        /// operation. Otherwise, it was running already. In either
-        /// case the caller is now connected to jackd, so there is no
-        /// race condition. When the server shuts down, the client
-        /// will find out.
+
+        /// The JACK server was started as a result of this operation. Otherwise, it was running
+        /// already. In either case the caller is now connected to jackd, so there is no race
+        /// condition. When the server shuts down, the client will find out.
         const SERVER_STARTED  = j::JackServerStarted,
 
         /// Unable to connect to the JACK server.
