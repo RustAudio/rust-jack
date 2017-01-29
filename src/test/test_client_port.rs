@@ -282,11 +282,12 @@ fn client_port_can_get_existing_ports() {
                        "system:playback_1".to_string(),
                        "system:capture_1".to_string(),
                        "system:capture_2".to_string()];
-    let exp: HashSet<String> = known_ports.into_iter().map(|x| x.clone()).collect();
+    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
     let got: HashSet<String> = port_getter.ports(None, None, PortFlags::empty())
         .into_iter()
         .collect();
-    assert_eq!(got, exp);
+    let intersection: HashSet<String> = exp.intersection(&got).cloned().collect();
+    assert_eq!(exp, intersection);
 }
 
 #[test]
@@ -296,7 +297,7 @@ fn client_port_can_get_port_by_name_pattern() {
     // retrieve
     use std::collections::HashSet;
     let known_ports = ["system:playback_2".to_string(), "system:capture_2".to_string()];
-    let exp: HashSet<String> = known_ports.into_iter().map(|x| x.clone()).collect();
+    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
     let got: HashSet<String> = client.ports(Some("2"), None, PortFlags::empty())
         .into_iter()
         .collect();
@@ -305,17 +306,20 @@ fn client_port_can_get_port_by_name_pattern() {
 
 #[test]
 fn client_port_can_get_port_by_type_pattern() {
-    let client = open_test_client("client_port_cgpbnp");
+    let cname = "client_port_cgpbtp";
+    let pname = "midip";
+    let full_name = format!("{}:{}", cname, pname);
+    let client = open_test_client(cname);
 
-    // register port with more unique type name, like midi
-    let _p = client.register_port("midip", MidiInSpec::default());
+    // register port with type name, like midi
+    let _p = client.register_port(pname, MidiInSpec::default());
+    use std::{thread, time};
+    thread::sleep(time::Duration::from_millis(400));
 
     // retrieve
-    use std::collections::HashSet;
-    let known_ports = ["client_port_cgpbnp:midip".to_string()];
-    let exp: HashSet<String> = known_ports.into_iter().map(|x| x.clone()).collect();
-    let got: HashSet<String> = client.ports(None, Some("midi"), PortFlags::empty())
-        .into_iter()
-        .collect();
-    assert_eq!(got, exp);
+    let ports = client.ports(None, Some("midi"), PortFlags::empty());
+    assert!(ports.contains(&full_name),
+            "{:?} does not contain {}",
+            &ports,
+            &full_name);
 }
