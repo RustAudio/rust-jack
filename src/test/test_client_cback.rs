@@ -101,7 +101,7 @@ fn client_cback_has_proper_default_callbacks() {
 fn client_cback_calls_thread_init() {
     let ac = active_test_client("client_cback_calls_thread_init");
     let counter = ac.deactivate().unwrap().1;
-    // IDK why this isn't 1.
+    // IDK why this isn't 1, even with a single thread.
     assert!(*counter.thread_init_count.lock().unwrap() > 0);
 }
 
