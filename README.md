@@ -52,23 +52,30 @@ $ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
 Testing expects there to be an available JACK server running at a sample rate of
 44.1kHz and a buffer size of 1024 samples.
 
+### Running the tests
+
+```bash
+$ cargo test
+```
+
+If you want test coverage as well, try `cargo kcov`.
+
+```bash
+$ cargo install cargo-kcov
+$ cargo kcov
+```
+
 #### Possible Issues
 
 If the tests are failing, a possible gotcha may be timing issues.
 
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value used by `sleep_on_test`.
+2. Increase the value used by `sleep_on_test` in `client_impls.rs`.
 
-Another case is that libjack may be broken on your setup.
-Try switching between libjack and libjack2 (they have the same API and libjack2
-isn't necessarily newer than libjack), or using a different version.
+Another case is that libjack may be broken on your setup.  Try switching between
+libjack and libjack2 (they have the same API and libjack2 isn't necessarily
+newer than libjack), or using a different version.
 
-### Running the tests
-
-```bash
-$ RUST_TEST_THREADS=1
-$ cargo test
-```
 
 ## "C" & Rust API differences
 * String lengths in the "C" API include the `NULL` character while these Rust
