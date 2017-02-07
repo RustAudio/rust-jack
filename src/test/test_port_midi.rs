@@ -19,7 +19,7 @@ fn port_midi_can_read_write() {
 
     // set callback routine
     let (signal_succeed, did_succeed) = channel();
-    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &Client, ps: &ProcessScope| -> JackControl {
         let exp_a = RawMidi {
             time: 0,
             bytes: &[0b10010000, 0b01000000],
@@ -41,7 +41,7 @@ fn port_midi_can_read_write() {
     };
 
     // activate
-    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    let ac = ActiveClient::new(c, ProcessHandler::new(process_callback)).unwrap();
 
     // connect ports to each other
     ac.connect_ports_by_name("port_midi_crw:oa", "port_midi_crw:ia")
@@ -67,14 +67,14 @@ fn port_midi_can_get_max_event_size() {
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
-    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &Client, ps: &ProcessScope| -> JackControl {
         let out_p = MidiOutPort::new(&mut out_p, ps);
         *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
         JackControl::Continue
     };
 
     // activate
-    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    let ac = ActiveClient::new(c, ProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
     assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
@@ -93,7 +93,7 @@ fn port_midi_cant_execeed_max_event_size() {
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
-    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &Client, ps: &ProcessScope| -> JackControl {
         let mut out_p = MidiOutPort::new(&mut out_p, ps);
         *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
 
@@ -109,7 +109,7 @@ fn port_midi_cant_execeed_max_event_size() {
     };
 
     // activate
-    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    let ac = ActiveClient::new(c, ProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
     assert_eq!(*PMCEMES_WRITE_RESULT.lock().unwrap(),
@@ -133,7 +133,7 @@ fn port_midi_has_good_iter() {
     let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
 
     // set callback routine
-    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &Client, ps: &ProcessScope| -> JackControl {
         let in_p = MidiInPort::new(&in_p, ps);
         let mut out_p = MidiOutPort::new(&mut out_p, ps);
 
@@ -156,7 +156,7 @@ fn port_midi_has_good_iter() {
     };
 
     // run
-    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    let ac = ActiveClient::new(c, ProcessHandler::new(process_callback)).unwrap();
     ac.connect_ports_by_name("port_midi_has_good_iter:op", "port_midi_has_good_iter:ip")
         .unwrap();
     thread::sleep(time::Duration::from_millis(200));

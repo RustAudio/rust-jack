@@ -30,7 +30,7 @@ pub fn get_time() -> JackTime {
 
 /// Contains every trait defined in the jack crate.
 pub mod traits {
-    pub use client::{JackClient, JackHandler};
+    pub use client::JackHandler;
     pub use port::PortSpec;
 }
 

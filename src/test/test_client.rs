@@ -39,7 +39,7 @@ fn client_can_be_named() {
 #[test]
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
-    let _ac = c.activate(DummyHandler).unwrap();
+    let _ac = ActiveClient::new(c, DummyHandler).unwrap();
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn client_can_set_buffer_size() {
 #[test]
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
-    let a = c.activate(DummyHandler).unwrap();
+    let a = ActiveClient::new(c, DummyHandler).unwrap();
     a.deactivate().unwrap();
 }
 

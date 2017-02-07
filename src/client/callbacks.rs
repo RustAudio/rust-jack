@@ -5,7 +5,8 @@ use libc;
 
 use jack_enums::*;
 use client::client_status::ClientStatus;
-use client::{JackClient, ProcessScope, WeakClient};
+use client::ProcessScope;
+use client::base::Client;
 use primitive_types as pt;
 
 /// Specifies callbacks for JACK.
@@ -19,7 +20,7 @@ pub trait JackHandler: Send + Sync {
     /// handled.
     ///
     /// It does not need to be suitable for real-time execution.
-    fn thread_init(&self, _: &WeakClient) {}
+    fn thread_init(&self, _: &Client) {}
 
     /// Called when the JACK server shuts down the client thread. The function must be written as if
     /// it were an asynchronous POSIX signal handler --- use only async-safe functions, and remember
@@ -35,32 +36,32 @@ pub trait JackHandler: Send + Sync {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&self, _: &WeakClient, _process_scope: &ProcessScope) -> JackControl {
+    fn process(&self, _: &Client, _process_scope: &ProcessScope) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever "freewheel" mode is entered or leaving.
-    fn freewheel(&self, _: &WeakClient, _is_freewheel_enabled: bool) {}
+    fn freewheel(&self, _: &Client, _is_freewheel_enabled: bool) {}
 
     /// Called whenever the size of the buffer that will be passed to `process` is about to change.
-    fn buffer_size(&self, _: &WeakClient, _size: pt::JackFrames) -> JackControl {
+    fn buffer_size(&self, _: &Client, _size: pt::JackFrames) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever the system sample rate changes.
-    fn sample_rate(&self, _: &WeakClient, _srate: pt::JackFrames) -> JackControl {
+    fn sample_rate(&self, _: &Client, _srate: pt::JackFrames) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever a client is registered or unregistered
-    fn client_registration(&self, _: &WeakClient, _name: &str, _is_registered: bool) {}
+    fn client_registration(&self, _: &Client, _name: &str, _is_registered: bool) {}
 
     /// Called whenever a port is registered or unregistered
-    fn port_registration(&self, _: &WeakClient, _port_id: pt::JackPortId, _is_registered: bool) {}
+    fn port_registration(&self, _: &Client, _port_id: pt::JackPortId, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
     fn port_rename(&self,
-                   _: &WeakClient,
+                   _: &Client,
                    _port_id: pt::JackPortId,
                    _old_name: &str,
                    _new_name: &str)
@@ -70,21 +71,21 @@ pub trait JackHandler: Send + Sync {
 
     /// Called whenever ports are connected/disconnected to/from each other.
     fn ports_connected(&self,
-                       _: &WeakClient,
+                       _: &Client,
                        _port_id_a: pt::JackPortId,
                        _port_id_b: pt::JackPortId,
                        _are_connected: bool) {
     }
 
     /// Called whenever the processing graph is reordered.
-    fn graph_reorder(&self, _: &WeakClient) -> JackControl {
+    fn graph_reorder(&self, _: &Client) -> JackControl {
         JackControl::Continue
     }
 
     /// Called whenever an xrun occurs.
     ///
     /// An xrun is a buffer under or over run, which means some data has been missed.
-    fn xrun(&self, _: &WeakClient) -> JackControl {
+    fn xrun(&self, _: &Client) -> JackControl {
         JackControl::Continue
     }
 
@@ -128,43 +129,43 @@ pub trait JackHandler: Send + Sync {
     /// See the documentation for `jack_port_set_latency_range()` on how the callback should
     /// operate. Remember that the mode argument given to the latency callback will need to be
     /// passed into jack_port_set_latency_range()
-    fn latency(&self, _: &WeakClient, _mode: LatencyType) {}
+    fn latency(&self, _: &Client, _mode: LatencyType) {}
 }
 
 /// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
-pub struct ProcessHandler<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl> {
+pub struct ProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> {
     pub process: F,
 }
 
-unsafe impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl>
+unsafe impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
     Sync for ProcessHandler<F> {}
 
-impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl>
+impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
     JackHandler for ProcessHandler<F> {
     #[allow(mutable_transmutes)]
-    fn process(&self, c: &WeakClient, ps: &ProcessScope) -> JackControl {
+    fn process(&self, c: &Client, ps: &ProcessScope) -> JackControl {
         // Casting to mut is safe because no other callbacks will accessing the `process` field.
         let f = unsafe { mem::transmute::<&F, &mut F>(&self.process) };
         (f)(c, ps)
     }
 }
 
-impl<F: 'static + Send + FnMut(&WeakClient, &ProcessScope) -> JackControl> ProcessHandler<F> {
+impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> ProcessHandler<F> {
     pub fn new(f: F) -> ProcessHandler<F> {
         ProcessHandler { process: f }
     }
 }
 
 unsafe fn handler_and_ptr_from_void<'a, T: JackHandler>(ptr: *mut libc::c_void)
-                                                        -> &'a mut (T, WeakClient) {
+                                                        -> &'a mut (T, Client) {
     assert!(!ptr.is_null());
-    let obj_ptr: *mut (T, WeakClient) = mem::transmute(ptr);
+    let obj_ptr: *mut (T, Client) = mem::transmute(ptr);
     &mut *obj_ptr
 }
 
 unsafe extern "C" fn thread_init_callback<T: JackHandler>(data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.thread_init(&obj.1)
 }
 
@@ -184,13 +185,13 @@ unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
 unsafe extern "C" fn process<T: JackHandler>(n_frames: pt::JackFrames,
                                              data: *mut libc::c_void)
                                              -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let scope = ProcessScope::from_raw(n_frames, obj.1.as_ptr());
     obj.0.process(&obj.1, &scope).to_ffi()
 }
 
 unsafe extern "C" fn freewheel<T: JackHandler>(starting: libc::c_int, data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let is_starting = match starting {
         0 => false,
         _ => true,
@@ -201,21 +202,21 @@ unsafe extern "C" fn freewheel<T: JackHandler>(starting: libc::c_int, data: *mut
 unsafe extern "C" fn buffer_size<T: JackHandler>(n_frames: pt::JackFrames,
                                                  data: *mut libc::c_void)
                                                  -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.buffer_size(&obj.1, n_frames).to_ffi()
 }
 
 unsafe extern "C" fn sample_rate<T: JackHandler>(n_frames: pt::JackFrames,
                                                  data: *mut libc::c_void)
                                                  -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.sample_rate(&obj.1, n_frames).to_ffi()
 }
 
 unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
                                                          register: libc::c_int,
                                                          data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
         0 => false,
@@ -228,7 +229,7 @@ unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
 unsafe extern "C" fn port_registration<T: JackHandler>(port_id: pt::JackPortId,
                                                        register: libc::c_int,
                                                        data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let register = match register {
         0 => false,
         _ => true,
@@ -242,7 +243,7 @@ unsafe extern "C" fn port_rename<T: JackHandler>(port_id: pt::JackPortId,
                                                  new_name: *const i8,
                                                  data: *mut libc::c_void)
                                                  -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
     let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
     obj.0.port_rename(&obj.1, port_id, old_name, new_name).to_ffi()
@@ -252,7 +253,7 @@ unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: pt::JackPortId,
                                                   port_id_b: pt::JackPortId,
                                                   connect: libc::c_int,
                                                   data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let are_connected = match connect {
         0 => false,
         _ => true,
@@ -261,18 +262,18 @@ unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: pt::JackPortId,
 }
 
 unsafe extern "C" fn graph_order<T: JackHandler>(data: *mut libc::c_void) -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.graph_reorder(&obj.1).to_ffi()
 }
 
 unsafe extern "C" fn xrun<T: JackHandler>(data: *mut libc::c_void) -> libc::c_int {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.xrun(&obj.1).to_ffi()
 }
 
 unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t,
                                              data: *mut libc::c_void) {
-    let obj: &mut (T, WeakClient) = handler_and_ptr_from_void(data);
+    let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
         j::JackPlaybackLatency => LatencyType::Playback,

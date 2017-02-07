@@ -1,6 +1,7 @@
 mod client_impls;
 mod base;
 mod callbacks;
+mod common;
 
 /// Contains `ClientOptions` flags used when opening a client.
 pub mod client_options;
