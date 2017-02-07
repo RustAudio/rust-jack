@@ -1,4 +1,4 @@
-mod client_impls;
+mod active;
 mod base;
 mod callbacks;
 mod common;
@@ -11,5 +11,5 @@ pub mod client_status;
 
 pub use self::client_options::ClientOptions;
 pub use self::client_status::ClientStatus;
-pub use self::client_impls::*;
+pub use self::active::*;
 pub use self::base::*;

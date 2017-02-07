@@ -70,7 +70,7 @@ $ cargo kcov
 If the tests are failing, a possible gotcha may be timing issues.
 
 1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value used by `sleep_on_test` in `client_impls.rs`.
+2. Increase the value used by `sleep_on_test` in `client/common.rs`.
 
 Another case is that libjack may be broken on your setup.  Try switching between
 libjack and libjack2 (they have the same API and libjack2 isn't necessarily
