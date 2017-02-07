@@ -16,6 +16,8 @@ Nice Rust bindings for
 
 Check out the `examples` directory.
 
+Have an API or feature request? File an [issue](https://github.com/wmedrano/rust-jack/issues) on Github!
+
 ## Completeness
 
 For details on which functions from the JACK headers have been implemented, see `ffi_completeness.md`.
