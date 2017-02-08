@@ -13,6 +13,13 @@ use port::{Port, PortSpec};
 /// point buffer for audio.
 ///
 /// `AudioInSpec::buffer()` is used to gain access the buffer.
+///
+/// # Example
+/// ```
+/// let client = jack::client::Client::new("rusty_client", jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// let spec = jack::port::AudioInSpec::default();
+/// let audio_in_port = client.register_port("in", spec).unwrap();
+/// ```
 #[derive(Debug, Default)]
 pub struct AudioInSpec;
 
@@ -21,6 +28,13 @@ pub struct AudioInSpec;
 /// point buffer for audio.
 ///
 /// `AudioOutSpec::buffer()` is used to gain access the buffer.
+///
+/// # Example
+/// ```
+/// let client = jack::client::Client::new("rusty_client", jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// let spec = jack::port::AudioInSpec::default();
+/// let audio_out_port = client.register_port("out", spec).unwrap();
+/// ```
 #[derive(Debug, Default)]
 pub struct AudioOutSpec;
 
@@ -66,6 +80,19 @@ unsafe impl PortSpec for AudioInSpec {
 }
 
 /// Safetly wrap a `Port<AudioOutSpec>`. Derefs into a `&mut[f32]`.
+///
+/// # Example
+/// ```
+/// let client = jack::client::Client::new("c", jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// let mut out_port = client.register_port("p", jack::port::AudioOutSpec::default()).unwrap();
+/// let process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
+///     let mut out_p = jack::port::AudioOutPort::new(&mut out_port, ps);
+///     {
+///         let out_b: &mut [f32] = &mut out_p; // can deref into &mut [f32]
+///     }
+///     out_p[0] = 0.0;
+/// };
+/// ```
 pub struct AudioOutPort<'a> {
     _port: &'a mut Port<AudioOutSpec>,
     buffer: &'a mut [f32],
@@ -104,6 +131,19 @@ impl<'a> DerefMut for AudioOutPort<'a> {
 
 
 /// Safetly wrap a `Port<AudioInSpec>`. Derefs into a `&[f32]`.
+///
+/// # Example
+/// ```
+/// let client = jack::client::Client::new("c", jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// let in_port = client.register_port("p", jack::port::AudioInSpec::default()).unwrap();
+/// let process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
+///     let in_p = jack::port::AudioInPort::new(&in_port, ps);
+///     {
+///         let in_b: &[f32] = &in_p; // can deref into &[f32]
+///     }
+///     let x = in_p[0];
+/// };
+/// ```
 pub struct AudioInPort<'a> {
     _port: &'a Port<AudioInSpec>,
     buffer: &'a [f32],

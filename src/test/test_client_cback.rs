@@ -56,12 +56,12 @@ impl JackHandler for Counter {
 }
 
 fn open_test_client(name: &str) -> Client {
-    Client::open(name, client_options::NO_START_SERVER).unwrap().0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
-fn active_test_client(name: &str) -> (ActiveClient<Counter>) {
+fn active_test_client(name: &str) -> (AsyncClient<Counter>) {
     let c = open_test_client(name);
-    let ac = ActiveClient::new(c, Counter::default()).unwrap();
+    let ac = AsyncClient::new(c, Counter::default()).unwrap();
     ac
 }
 
@@ -169,7 +169,7 @@ fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
     let mut counter = Counter::default();
     counter.induce_xruns = true;
-    let ac = ActiveClient::new(c, counter).unwrap();
+    let ac = AsyncClient::new(c, counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(*counter.xruns_count.lock().unwrap() > 0,
             "No xruns encountered.");

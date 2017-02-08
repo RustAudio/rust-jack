@@ -3,28 +3,14 @@ use std::{ffi, ptr};
 use jack_sys as j;
 use libc;
 
-use jack_enums::*;
-use primitive_types as pt;
-use port;
-use port::{Port, PortSpec, UnownedPort};
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use port::port_flags::PortFlags;
+use jack_enums::*;
 use jack_utils::collect_strs;
-
-/// The maximum length of the JACK client name string. Unlike the "C" JACK API, this does not take
-/// into account the final `NULL` character and instead corresponds directly to `.len()`. This value
-/// is constant.
-fn client_name_size() -> usize {
-    let s = unsafe { j::jack_client_name_size() - 1 };
-    s as usize
-}
-
-lazy_static! {
-    /// The maximum string length for port names.
-    pub static ref CLIENT_NAME_SIZE: usize = client_name_size();
-}
+use port::port_flags::PortFlags;
+use port::{Port, PortSpec, Unowned, UnownedPort};
+use primitive_types as pt;
 
 /// Internal cycle timing information.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -123,10 +109,52 @@ impl ProcessScope {
 
 
 /// A client to interact with a JACK server.
+///
+/// For asynchronous operation, see the `AsyncClient` struct.
+///
+/// # Example
+/// ```
+/// use jack::prelude as j;
+///
+/// let c_res = j::Client::new("rusty_client", j::client_options::NO_START_SERVER);
+/// match c_res {
+///     Ok((client, status)) => println!("Managed to open client {}, with status {:?}!", client.name(), status),
+///     Err(e) => println!("Failed to open client because of error: {:?}", e),
+/// };
+///
+/// ```
 #[derive(Debug)]
 pub struct Client(*mut j::jack_client_t);
 
 impl Client {
+    /// The maximum length of the JACK client name string. Unlike the "C" JACK
+    /// API, this does not take into account the final `NULL` character and
+    /// instead corresponds directly to `.len()`.
+
+    /// Opens a JACK client with the given name and options. If the client is
+    /// successfully opened, then `Ok(client)` is returned. If there is a
+    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
+    ///
+    /// Although the client may be successful in opening, there still may be
+    /// some errors minor errors when attempting to opening. To access these,
+    /// check the returned `ClientStatus`.
+    pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        sleep_on_test();
+        let mut status_bits = 0;
+        let client = unsafe {
+            let client_name = ffi::CString::new(client_name).unwrap();
+            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
+        };
+        sleep_on_test();
+        let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
+        if client.is_null() {
+            Err(JackErr::ClientError(status))
+        } else {
+            Ok((Client(client), status))
+        }
+    }
+
     /// The sample rate of the JACK system, as set by the user when jackd was started.
     pub fn sample_rate(&self) -> usize {
         let srate = unsafe { j::jack_get_sample_rate(self.as_ptr()) };
@@ -145,8 +173,8 @@ impl Client {
 
 
     /// Get the name of the current client. This may differ from the name requested by
-    /// `Client::open` as JACK will may rename a client if necessary (ie: name collision, name too
-    /// long). The name will only the be different than the one passed to `Client::open` if the
+    /// `Client::new` as JACK will may rename a client if necessary (ie: name collision, name too
+    /// long). The name will only the be different than the one passed to `Client::new` if the
     /// `ClientStatus` was `NAME_NOT_UNIQUE`.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe {
@@ -280,7 +308,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
+            Some(unsafe { Port::from_raw(Unowned {}, self.as_ptr(), pp) })
         }
     }
 
@@ -291,7 +319,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(port::Unowned {}, self.as_ptr(), pp) })
+            Some(unsafe { Port::from_raw(Unowned {}, self.as_ptr(), pp) })
         }
     }
 
@@ -485,38 +513,6 @@ impl Client {
     #[inline(always)]
     pub fn as_ptr(&self) -> *mut j::jack_client_t {
         self.0
-    }
-}
-
-impl Client {
-    /// The maximum length of the JACK client name string. Unlike the "C" JACK
-    /// API, this does not take into account the final `NULL` character and
-    /// instead corresponds directly to `.len()`.
-
-    /// Opens a JACK client with the given name and options. If the client is
-    /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
-    ///
-    /// Although the client may be successful in opening, there still may be
-    /// some errors minor errors when attempting to opening. To access these,
-    /// check the returned `ClientStatus`.
-    pub fn open(client_name: &str,
-                options: ClientOptions)
-                -> Result<(Self, ClientStatus), JackErr> {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        sleep_on_test();
-        let mut status_bits = 0;
-        let client = unsafe {
-            let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
-        };
-        sleep_on_test();
-        let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
-        if client.is_null() {
-            Err(JackErr::ClientError(status))
-        } else {
-            Ok((Client(client), status))
-        }
     }
 
     /// Create a `Client` from an ffi pointer.

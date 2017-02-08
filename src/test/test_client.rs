@@ -2,7 +2,7 @@ use prelude::*;
 use jack_utils::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
-    let ret = Client::open(name, client_options::NO_START_SERVER).unwrap();
+    let ret = Client::new(name, client_options::NO_START_SERVER).unwrap();
     ret
 }
 
@@ -23,9 +23,9 @@ fn client_fails_to_open_with_large_name() {
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");
-    Client::open(&name, client_options::NO_START_SERVER).unwrap();
+    Client::new(&name, client_options::NO_START_SERVER).unwrap();
     // fails on travis, switched to should_panic for a catch all
-    // assert_eq!(Client::open(&name, client_options::NO_START_SERVER).err(),
+    // assert_eq!(Client::new(&name, client_options::NO_START_SERVER).err(),
     //            Some(JackErr::ClientError(client_status::FAILURE | client_status::SERVER_ERROR)));
 }
 
@@ -39,7 +39,7 @@ fn client_can_be_named() {
 #[test]
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
-    let _ac = ActiveClient::new(c, DummyHandler).unwrap();
+    let _ac = AsyncClient::new(c, DummyHandler).unwrap();
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn client_can_set_buffer_size() {
 #[test]
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
-    let a = ActiveClient::new(c, DummyHandler).unwrap();
+    let a = AsyncClient::new(c, DummyHandler).unwrap();
     a.deactivate().unwrap();
 }
 

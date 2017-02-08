@@ -1,12 +1,11 @@
 //! Takes 2 audio inputs and outputs them to 2 audio outputs.
 extern crate jack;
 use jack::prelude as j;
-use jack::traits::*;
 use std::io;
 
 fn main() {
     // Create client
-    let (client, _status) = j::Client::open("rust_jack_simple", j::client_options::NO_START_SERVER)
+    let (client, _status) = j::Client::new("rust_jack_simple", j::client_options::NO_START_SERVER)
         .unwrap();
 
     // Register ports. They will be used in a callback that will be
@@ -15,7 +14,7 @@ fn main() {
     let in_b = client.register_port("rust_in_r", j::AudioInSpec::default()).unwrap();
     let mut out_a = client.register_port("rust_out_l", j::AudioOutSpec::default()).unwrap();
     let mut out_b = client.register_port("rust_out_r", j::AudioOutSpec::default()).unwrap();
-    let process_callback = move |_: &j::Client, ps: &j::ProcessScope| -> jack::JackControl {
+    let process_callback = move |_: &j::Client, ps: &j::ProcessScope| -> j::JackControl {
         let mut out_a_p = j::AudioOutPort::new(&mut out_a, ps);
         let mut out_b_p = j::AudioOutPort::new(&mut out_b, ps);
         let in_a_p = j::AudioInPort::new(&in_a, ps);
@@ -26,7 +25,7 @@ fn main() {
     };
     let process = j::ProcessHandler::new(process_callback);
     // Activate the client, which starts the processing.
-    let active_client = j::ActiveClient::new(client, process).unwrap();
+    let active_client = j::AsyncClient::new(client, process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");

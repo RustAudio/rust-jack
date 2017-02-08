@@ -3,10 +3,10 @@ use std::{ffi, mem};
 use jack_sys as j;
 use libc;
 
-use jack_enums::*;
-use client::client_status::ClientStatus;
 use client::ProcessScope;
 use client::base::Client;
+use client::client_status::ClientStatus;
+use jack_enums::*;
 use primitive_types as pt;
 
 /// Specifies callbacks for JACK.
@@ -337,7 +337,7 @@ pub unsafe fn register_callbacks<T: JackHandler>
     j::jack_set_sample_rate_callback(client, Some(sample_rate::<T>), data_ptr);
     j::jack_set_client_registration_callback(client, Some(client_registration::<T>), data_ptr);
     j::jack_set_port_registration_callback(client, Some(port_registration::<T>), data_ptr);
-    // doesn't compile for testing
+    // doesn't compile for testing since it is a weak export
     // j::jack_set_port_rename_callback(client, Some(port_rename::<T>), data_ptr);
     j::jack_set_port_connect_callback(client, Some(port_connect::<T>), data_ptr);
     j::jack_set_graph_order_callback(client, Some(graph_order::<T>), data_ptr);

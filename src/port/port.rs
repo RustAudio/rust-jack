@@ -51,6 +51,15 @@ impl<PS: PortSpec> Port<PS> {
         &self.spec
     }
 
+    /// Return a copy of port as an unowned port that can still be used for querying information.
+    pub fn clone_unowned(&self) -> Port<Unowned> {
+        Port {
+            spec: Unowned,
+            client_ptr: self.client_ptr(),
+            port_ptr: self.as_ptr(),
+        }
+    }
+
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr())).to_str().unwrap() }

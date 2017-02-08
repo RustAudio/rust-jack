@@ -3,12 +3,12 @@
 //! Note On and Off event, once every cycle, on the output port.
 extern crate jack;
 use std::io;
-use jack::prelude::{ActiveClient, Client, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
+use jack::prelude::{AsyncClient, Client, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
                     MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, client_options};
 
 fn main() {
     // open client
-    let (client, _status) = Client::open("rust_jack_show_midi", client_options::NO_START_SERVER)
+    let (client, _status) = Client::new("rust_jack_show_midi", client_options::NO_START_SERVER)
         .unwrap();
 
     // process logic
@@ -37,7 +37,7 @@ fn main() {
 
     // activate
     let process = ProcessHandler::new(cback);
-    let active_client = ActiveClient::new(client, process).unwrap();
+    let active_client = AsyncClient::new(client, process).unwrap();
 
     // wait
     println!("Press any key to quit");

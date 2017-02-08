@@ -10,8 +10,19 @@ use super::callbacks::{clear_callbacks, register_callbacks};
 
 pub use super::callbacks::{JackHandler, ProcessHandler};
 
-/// A JACK client that is currently active. Active clients may contain `JackHandler`s that are
-/// processing data in real-time.
+/// A JACK client that is processing data asynchronously, in real-time.
+///
+/// # Example
+/// ```
+/// use jack::prelude as j;
+/// 
+/// // Create a client and a handler
+/// let (client, _status) = j::Client::new("my_client", j::client_options::NO_START_SERVER).unwrap();
+/// let process_handler = j::ProcessHandler::new(move |_: &j::Client, _: &j::ProcessScope| j::JackControl::Continue);
+///
+/// // An active async client is created, `client` is consumed.
+/// let active_client = j::AsyncClient::new(client, process_handler).unwrap();
+/// ```
 #[derive(Debug)]
 pub struct AsyncClient<JH: JackHandler> {
     client: Client,
