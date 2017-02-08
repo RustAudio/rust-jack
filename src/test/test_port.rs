@@ -117,16 +117,16 @@ fn port_can_set_alias() {
     let (_c, mut p) = open_client_with_port("port_can_set_alias", "will_get_alias");
 
     // no alias
-    assert_eq!(p.aliases(), Vec::<String>::new());
+    assert_eq!(p.aliases(), [None, None]);
 
     // 1 alias
     p.set_alias("first_alias").unwrap();
-    assert_eq!(p.aliases(), vec!["first_alias".to_string()]);
+    assert_eq!(p.aliases(), [Some("first_alias".to_string()), None]);
 
     // 2 alias
     p.set_alias("second_alias").unwrap();
     assert_eq!(p.aliases(),
-               vec!["first_alias".to_string(), "second_alias".to_string()]);
+               [Some("first_alias".to_string()), Some("second_alias".to_string())]);
 }
 
 #[test]
@@ -137,11 +137,11 @@ fn port_can_unset_alias() {
     p.set_alias("first_alias").unwrap();
     p.set_alias("second_alias").unwrap();
     assert_eq!(p.aliases(),
-               vec!["first_alias".to_string(), "second_alias".to_string()]);
+               [Some("first_alias".to_string()), Some("second_alias".to_string())]);
 
     // unset alias
     p.unset_alias("first_alias").unwrap();
-    assert_eq!(p.aliases(), vec!["second_alias".to_string()]);
+    assert_eq!(p.aliases(), [Some("second_alias".to_string()), None]);
 }
 
 #[test]
