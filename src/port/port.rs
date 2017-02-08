@@ -131,7 +131,9 @@ impl<PS: PortSpec> Port<PS> {
             .map(|p| {
                 ffi::CString::new(p)
                     .ok()
-                    .expect("JACK provided non-null terminated string")
+                    .expect(&format!("JACK provided non-null terminated string, raw literal is \
+                                     {:?}",
+                                     p))
                     .to_string_lossy()
                     .into_owned()
             })
