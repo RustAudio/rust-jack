@@ -112,20 +112,31 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Get the alias names for `self`.
     ///
-    /// Will return a vector of strings of up to 2 elements.
-    pub fn aliases(&self) -> Vec<String> {
-        let mut a: Vec<i8> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
+    /// Will return up to 2 strings.
+    pub fn aliases(&self) -> [Option<String>; 2] {
+        // allocate memory for 2 port names
+        let mut a: Vec<u8> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
+
+        // retrieve aliases into the buffers
         unsafe {
-            let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
+            let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr() as *mut i8, b.as_mut_ptr() as *mut i8];
             j::jack_port_get_aliases(self.as_ptr(), ptrs.as_mut_ptr());
         };
-        [a, b]
-            .iter()
-            .map(|p| p.as_ptr())
-            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
-            .filter(|s| s.len() > 0)
-            .collect()
+
+        // collect the names as strings
+        let cstrs = [a, b];
+        let mut aliases = cstrs.iter()
+            .cloned()
+            .map(|p| {
+                ffi::CString::new(p)
+                    .ok()
+                    .expect("JACK provided non-null terminated string")
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .filter(|s| s.len() > 0);
+        [aliases.next(), aliases.next()]
     }
 
     /// Returns `true` if monitoring has been requested for `self`.
