@@ -83,7 +83,7 @@ impl<PS: PortSpec> Port<PS> {
         unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr())).to_str().unwrap() }
     }
 
-    /// Number of ports connected to/from
+    /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> usize {
         let n = unsafe { j::jack_port_connected(self.as_ptr()) };
         n as usize
@@ -248,9 +248,10 @@ impl<PS: PortSpec> Port<PS> {
         self.port_ptr
     }
 
-    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider an
-    /// adapter, `AudioInPort`, `AudioOutPort`, `MidiInPort`, `MidiOutPort`. For custom data,
-    /// consider implementing your own adapter.
+    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider
+    /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort` adapter. For more
+    /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
+    /// method.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
