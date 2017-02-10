@@ -51,6 +51,15 @@ impl<PS: PortSpec> Port<PS> {
         &self.spec
     }
 
+    /// Return a copy of port as an unowned port that can still be used for querying information.
+    pub fn clone_unowned(&self) -> Port<Unowned> {
+        Port {
+            spec: Unowned,
+            client_ptr: self.client_ptr(),
+            port_ptr: self.as_ptr(),
+        }
+    }
+
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr())).to_str().unwrap() }
@@ -74,7 +83,7 @@ impl<PS: PortSpec> Port<PS> {
         unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr())).to_str().unwrap() }
     }
 
-    /// Number of ports connected to/from
+    /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> usize {
         let n = unsafe { j::jack_port_connected(self.as_ptr()) };
         n as usize
@@ -103,7 +112,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Get the alias names for `self`.
     ///
-    /// Will return a vector of strings of up to 2 elements.
+    /// Will return up to 2 strings.
     pub fn aliases(&self) -> Vec<String> {
         let mut a: Vec<i8> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
@@ -239,9 +248,10 @@ impl<PS: PortSpec> Port<PS> {
         self.port_ptr
     }
 
-    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider an
-    /// adapter, `AudioInPort`, `AudioOutPort`, `MidiInPort`, `MidiOutPort`. For custom data,
-    /// consider implementing your own adapter.
+    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider
+    /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort` adapter. For more
+    /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
+    /// method.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)

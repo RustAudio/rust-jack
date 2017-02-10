@@ -2,7 +2,7 @@ use prelude::*;
 use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
-    Client::open(name, client_options::NO_START_SERVER).unwrap().0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 #[test]
@@ -13,7 +13,7 @@ fn port_audio_can_read_write() {
     let mut out_a = c.register_port("oa", AudioOutSpec::default()).unwrap();
     let mut out_b = c.register_port("ob", AudioOutSpec::default()).unwrap();
     let (signal_succeed, did_succeed) = channel();
-    let process_callback = move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process_callback = move |_: &Client, ps: &ProcessScope| -> JackControl {
         let exp_a = 0.31244352;
         let exp_b = -0.61212;
         let in_a = AudioInPort::new(&in_a, ps);
@@ -32,7 +32,7 @@ fn port_audio_can_read_write() {
         }
         JackControl::Continue
     };
-    let ac = c.activate(ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
     ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
         .unwrap();
     ac.connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")

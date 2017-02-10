@@ -2,13 +2,21 @@ use prelude::*;
 use jack_utils::*;
 
 fn open_test_client(name: &str) -> Client {
-    Client::open(name, client_options::NO_START_SERVER).unwrap().0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioInSpec>) {
     let c = open_test_client(client);
     let p = c.register_port(port, AudioInSpec::default()).unwrap();
     (c, p)
+}
+
+#[test]
+fn port_can_be_cast_to_unowned() {
+    let (_c, p) = open_client_with_port("port_cwpn", "the_port_name");
+    let p_alt: UnownedPort = p.clone_unowned();
+    assert_eq!(p.short_name(), p_alt.short_name());
+    assert_eq!(p.name(), p_alt.name());
 }
 
 #[test]
@@ -42,7 +50,7 @@ fn port_connected_count() {
     let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
     let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();
     let pd = c.register_port("pd", AudioOutSpec::default()).unwrap();
-    let c = c.activate(DummyHandler).unwrap();
+    let c = AsyncClient::new(c, DummyHandler).unwrap();
     c.connect_ports(&pb, &pa).unwrap();
     c.connect_ports(&pc, &pa).unwrap();
     assert_eq!(pa.connected_count(), 2);
@@ -58,7 +66,7 @@ fn port_knows_connections() {
     let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
     let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();
     let pd = c.register_port("pd", AudioOutSpec::default()).unwrap();
-    let c = c.activate(DummyHandler).unwrap();
+    let c = AsyncClient::new(c, DummyHandler).unwrap();
     c.connect_ports(&pb, &pa).unwrap();
     c.connect_ports(&pc, &pa).unwrap();
 
@@ -109,7 +117,7 @@ fn port_can_set_alias() {
     let (_c, mut p) = open_client_with_port("port_can_set_alias", "will_get_alias");
 
     // no alias
-    assert_eq!(p.aliases(), Vec::<String>::new());
+    assert!(p.aliases().is_empty());
 
     // 1 alias
     p.set_alias("first_alias").unwrap();

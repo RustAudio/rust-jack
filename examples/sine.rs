@@ -3,8 +3,8 @@ extern crate jack;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
-use jack::prelude::{AudioOutPort, AudioOutSpec, Client, JackClient, JackControl, ProcessHandler,
-                    ProcessScope, WeakClient, client_options};
+use jack::prelude::{AudioOutPort, AudioOutSpec, Client, JackControl, ProcessHandler, ProcessScope,
+                    AsyncClient, client_options};
 
 
 /// Attempt to read a frequency from standard in. Will block until there is user input. `None` is
@@ -20,8 +20,7 @@ fn read_freq() -> Option<f64> {
 
 fn main() {
     // 1. open a client
-    let (client, _status) = Client::open("rust_jack_sine", client_options::NO_START_SERVER)
-        .unwrap();
+    let (client, _status) = Client::new("rust_jack_sine", client_options::NO_START_SERVER).unwrap();
 
     // 2. register port
     let mut out_port = client.register_port("sine_out", AudioOutSpec::default()).unwrap();
@@ -32,7 +31,7 @@ fn main() {
     let frame_t = 1.0 / sample_rate as f64;
     let mut time = 0.0;
     let (tx, rx) = channel();
-    let process = ProcessHandler::new(move |_: &WeakClient, ps: &ProcessScope| -> JackControl {
+    let process = ProcessHandler::new(move |_: &Client, ps: &ProcessScope| -> JackControl {
         // Get output buffer
         let mut out_p = AudioOutPort::new(&mut out_port, ps);
         let out: &mut [f32] = &mut out_p;
@@ -56,7 +55,7 @@ fn main() {
     });
 
     // 4. activate the client
-    let active_client = client.activate(process).unwrap();
+    let active_client = AsyncClient::new(client, process).unwrap();
     // processing starts here
 
     // 5. wait or do some processing while your handler is running in real time.
