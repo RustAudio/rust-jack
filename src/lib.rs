@@ -3,8 +3,8 @@
 //! # Server
 //!
 //! JACK provides a high priority server to manipulate audio and midi across applications. The rust
-//! jack crate does not provide this functionality, so a server has to be set up with the `jackd`
-//! commandline tool, `qjackctl` the gui tool, or another method.
+//! jack crate does not provide server creation functionality, so a server has to be set up with the
+//! `jackd` commandline tool, `qjackctl` the gui tool, or another method.
 //!
 //! # Client
 //!
