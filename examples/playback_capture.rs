@@ -1,4 +1,5 @@
 //! Takes 2 audio inputs and outputs them to 2 audio outputs.
+//! All JACK notifications are also printed out.
 extern crate jack;
 use jack::prelude as j;
 use std::io;
@@ -24,8 +25,68 @@ fn main() {
         j::JackControl::Continue
     };
     let process = j::ClosureProcessHandler::new(process_callback);
+
+    let notifications = j::ClosureNotificationHandler {
+        thread_init_fn: move |_| {
+            println!("JACK: thread initialized");
+        },
+        shutdown_fn: move |_, _| {
+            println!("JACK: shut down");
+        },
+        freewheel_fn: move |_, is_on| {
+            println!("JACK: freewheel mode is {}",
+                     if is_on { "on" } else { "of" });
+        },
+        buffer_size_fn: move |_, sz| {
+            println!("JACK: buffer size changed to {}", sz);
+            j::JackControl::Continue
+        },
+        sample_rate_fn: move |_, sr| {
+            println!("JACK: sample rate changed to {}", sr);
+            j::JackControl::Continue
+        },
+        client_registration_fn: move |_, name, is_reg| {
+            println!("JACK: client {} has {}",
+                     name,
+                     if is_reg { "registered" } else { "unregistered" });
+        },
+        port_registration_fn: |_, id, is_reg| {
+            println!("JACK: port with id {} has been {}",
+                     id,
+                     if is_reg { "registered" } else { "unregistered" });
+        },
+        port_rename_fn: |_, id, old, new| {
+            println!("JACK: port with id {} has been renamed from {} to {}",
+                     id,
+                     old,
+                     new);
+            j::JackControl::Continue
+        },
+        ports_connected_fn: |_, pa, pb, are_connected| {
+            println!("JACK: ports with ids {} and {} have been {}",
+                     pa,
+                     pb,
+                     if are_connected {
+                         "connected"
+                     } else {
+                         "disconnected"
+                     });
+        },
+        graph_reorder_fn: |_| {
+            println!("JACK: graph reordered");
+            j::JackControl::Continue
+        },
+        xrun_fn: |_| {
+            println!("JACK: xrun occurred");
+            j::JackControl::Continue
+        },
+        latency_fn: |_, lt| {
+            println!("JACK: latency for {:?} has changed", lt);
+        },
+    };
+
     // Activate the client, which starts the processing.
-    let active_client = j::AsyncClient::new(client, (), process).unwrap();
+    let active_client = j::AsyncClient::new(client, notifications, process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");
