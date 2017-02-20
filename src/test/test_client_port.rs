@@ -2,7 +2,6 @@ use prelude::*;
 
 use std::sync::Mutex;
 use std::sync::mpsc;
-use std::time;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, client_options::NO_START_SERVER).unwrap().0
@@ -67,7 +66,7 @@ fn client_port_can_get_port_by_id() {
     let (client_name, port_name) = ("cp_can_get_port_by_id", "cp_registered_port_name");
 
     // Create handler
-    let (reg_tx, reg_rx) = mpsc::sync_channel(100);
+    let (reg_tx, reg_rx) = mpsc::sync_channel(200);
     let h = PortIdHandler { reg_tx: Mutex::new(reg_tx) };
 
     // Open and activate client
@@ -78,9 +77,10 @@ fn client_port_can_get_port_by_id() {
     let _pa = ac.register_port(port_name, AudioInSpec::default()).unwrap();
 
     // Get by id
-    let pa_unowned = ac.port_by_id(reg_rx.recv_timeout(time::Duration::from_secs(1)).unwrap())
-        .unwrap();
-    assert_eq!(pa_unowned.name(), format!("{}:{}", client_name, port_name));
+    let c = ac.deactivate().unwrap().0;
+    let registered_ports: Vec<String> =
+        reg_rx.iter().flat_map(|i| c.port_by_id(i)).map(|p| p.name().to_string()).collect();
+    assert!(registered_ports.contains(&format!("{}:{}", client_name, port_name)));
 }
 
 #[test]

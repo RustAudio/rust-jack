@@ -76,7 +76,7 @@ pub mod prelude {
     pub use primitive_types::{JackFrames, JackTime, JackPortId};
     pub use jack_enums::{JackErr, JackControl, LatencyType};
     pub use client::{AsyncClient, Client, CycleTimes, NotificationHandler, ProcessHandler,
-                     ClosureNotificationHandler, ClosureProcessHandler, ProcessScope};
+                     ClosureProcessHandler, ProcessScope};
     pub use client::CLIENT_NAME_SIZE;
     pub use client::{ClientOptions, ClientStatus, client_options, client_status};
     pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,

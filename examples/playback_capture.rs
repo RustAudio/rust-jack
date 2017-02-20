@@ -4,6 +4,93 @@ extern crate jack;
 use jack::prelude as j;
 use std::io;
 
+struct Notifications;
+
+impl j::NotificationHandler for Notifications {
+    fn thread_init(&self, _: &j::Client) {
+        println!("JACK: thread init");
+    }
+
+    fn shutdown(&mut self, status: j::ClientStatus, reason: &str) {
+        println!("JACK: shutdown with status {:?} because \"{}\"",
+                 status,
+                 reason);
+    }
+
+    fn freewheel(&mut self, _: &j::Client, is_enabled: bool) {
+        println!("JACK: freewheel mode is {}",
+                 if is_enabled { "on" } else { "of" });
+    }
+
+    fn buffer_size(&mut self, _: &j::Client, sz: j::JackFrames) -> j::JackControl {
+        println!("JACK: buffer size changed to {}", sz);
+        j::JackControl::Continue
+    }
+
+    fn sample_rate(&mut self, _: &j::Client, srate: j::JackFrames) -> j::JackControl {
+        println!("JACK: sample rate changed to {}", srate);
+        j::JackControl::Continue
+    }
+
+    fn client_registration(&mut self, _: &j::Client, name: &str, is_reg: bool) {
+        println!("JACK: {} client with name \"{}\"",
+                 if is_reg { "registered" } else { "unregistered" },
+                 name);
+    }
+
+    fn port_registration(&mut self, _: &j::Client, port_id: j::JackPortId, is_reg: bool) {
+        println!("JACK: {} port with id {}",
+                 if is_reg { "registered" } else { "unregistered" },
+                 port_id);
+    }
+
+    fn port_rename(&mut self,
+                   _: &j::Client,
+                   port_id: j::JackPortId,
+                   old_name: &str,
+                   new_name: &str)
+                   -> j::JackControl {
+        println!("JACK: port with id {} renamed from {} to {}",
+                 port_id,
+                 old_name,
+                 new_name);
+        j::JackControl::Continue
+    }
+
+    fn ports_connected(&mut self,
+                       _: &j::Client,
+                       port_id_a: j::JackPortId,
+                       port_id_b: j::JackPortId,
+                       are_connected: bool) {
+        println!("JACK: ports with id {} and {} are {}",
+                 port_id_a,
+                 port_id_b,
+                 if are_connected {
+                     "connected"
+                 } else {
+                     "disconnected"
+                 });
+    }
+
+    fn graph_reorder(&mut self, _: &j::Client) -> j::JackControl {
+        println!("JACK: graph reordered");
+        j::JackControl::Continue
+    }
+
+    fn xrun(&mut self, _: &j::Client) -> j::JackControl {
+        println!("JACK: xrun occurred");
+        j::JackControl::Continue
+    }
+
+    fn latency(&mut self, _: &j::Client, mode: j::LatencyType) {
+        println!("JACK: {} latency has changed",
+                 match mode {
+                     j::LatencyType::Capture => "capture",
+                     j::LatencyType::Playback => "playback",
+                 });
+    }
+}
+
 fn main() {
     // Create client
     let (client, _status) = j::Client::new("rust_jack_simple", j::client_options::NO_START_SERVER)
@@ -26,67 +113,8 @@ fn main() {
     };
     let process = j::ClosureProcessHandler::new(process_callback);
 
-    let notifications = j::ClosureNotificationHandler {
-        thread_init_fn: move |_| {
-            println!("JACK: thread initialized");
-        },
-        shutdown_fn: move |_, _| {
-            println!("JACK: shut down");
-        },
-        freewheel_fn: move |_, is_on| {
-            println!("JACK: freewheel mode is {}",
-                     if is_on { "on" } else { "of" });
-        },
-        buffer_size_fn: move |_, sz| {
-            println!("JACK: buffer size changed to {}", sz);
-            j::JackControl::Continue
-        },
-        sample_rate_fn: move |_, sr| {
-            println!("JACK: sample rate changed to {}", sr);
-            j::JackControl::Continue
-        },
-        client_registration_fn: move |_, name, is_reg| {
-            println!("JACK: client {} has {}",
-                     name,
-                     if is_reg { "registered" } else { "unregistered" });
-        },
-        port_registration_fn: |_, id, is_reg| {
-            println!("JACK: port with id {} has been {}",
-                     id,
-                     if is_reg { "registered" } else { "unregistered" });
-        },
-        port_rename_fn: |_, id, old, new| {
-            println!("JACK: port with id {} has been renamed from {} to {}",
-                     id,
-                     old,
-                     new);
-            j::JackControl::Continue
-        },
-        ports_connected_fn: |_, pa, pb, are_connected| {
-            println!("JACK: ports with ids {} and {} have been {}",
-                     pa,
-                     pb,
-                     if are_connected {
-                         "connected"
-                     } else {
-                         "disconnected"
-                     });
-        },
-        graph_reorder_fn: |_| {
-            println!("JACK: graph reordered");
-            j::JackControl::Continue
-        },
-        xrun_fn: |_| {
-            println!("JACK: xrun occurred");
-            j::JackControl::Continue
-        },
-        latency_fn: |_, lt| {
-            println!("JACK: latency for {:?} has changed", lt);
-        },
-    };
-
     // Activate the client, which starts the processing.
-    let active_client = j::AsyncClient::new(client, notifications, process).unwrap();
+    let active_client = j::AsyncClient::new(client, Notifications, process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");
