@@ -8,7 +8,7 @@ use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
 use jack_enums::*;
 use super::callbacks::{clear_callbacks, register_callbacks};
 
-pub use super::callbacks::{NotificationHandler, ProcessHandler, ClosureProcessHandler};
+pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
