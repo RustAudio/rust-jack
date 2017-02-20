@@ -3,8 +3,8 @@ extern crate jack;
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
-use jack::prelude::{AudioOutPort, AudioOutSpec, Client, JackControl, ProcessHandler, ProcessScope,
-                    AsyncClient, client_options};
+use jack::prelude::{AudioOutPort, AudioOutSpec, Client, JackControl, ClosureProcessHandler,
+                    ProcessScope, AsyncClient, client_options};
 
 
 /// Attempt to read a frequency from standard in. Will block until there is user input. `None` is
@@ -31,7 +31,7 @@ fn main() {
     let frame_t = 1.0 / sample_rate as f64;
     let mut time = 0.0;
     let (tx, rx) = channel();
-    let process = ProcessHandler::new(move |_: &Client, ps: &ProcessScope| -> JackControl {
+    let process = ClosureProcessHandler::new(move |_: &Client, ps: &ProcessScope| -> JackControl {
         // Get output buffer
         let mut out_p = AudioOutPort::new(&mut out_port, ps);
         let out: &mut [f32] = &mut out_p;

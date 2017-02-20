@@ -136,12 +136,12 @@ impl JackHandler for () {}
 
 /// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
-pub struct ProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> {
+pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> {
     pub process_fn: F,
 }
 
 impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
-    JackHandler for ProcessHandler<F> {
+    JackHandler for ClosureProcessHandler<F> {
     #[allow(mutable_transmutes)]
     fn process(&mut self, c: &Client, ps: &ProcessScope) -> JackControl {
         // Casting to mut is safe because no other callbacks will accessing the `process` field.
@@ -149,9 +149,9 @@ impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
     }
 }
 
-impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> ProcessHandler<F> {
-    pub fn new(f: F) -> ProcessHandler<F> {
-        ProcessHandler { process_fn: f }
+impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> ClosureProcessHandler<F> {
+    pub fn new(f: F) -> ClosureProcessHandler<F> {
+        ClosureProcessHandler { process_fn: f }
     }
 }
 

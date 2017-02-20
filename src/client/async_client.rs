@@ -8,7 +8,7 @@ use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
 use jack_enums::*;
 use super::callbacks::{clear_callbacks, register_callbacks};
 
-pub use super::callbacks::{JackHandler, ProcessHandler};
+pub use super::callbacks::{JackHandler, ClosureProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
@@ -18,7 +18,7 @@ pub use super::callbacks::{JackHandler, ProcessHandler};
 /// 
 /// // Create a client and a handler
 /// let (client, _status) = j::Client::new("my_client", j::client_options::NO_START_SERVER).unwrap();
-/// let process_handler = j::ProcessHandler::new(move |_: &j::Client, _: &j::ProcessScope| j::JackControl::Continue);
+/// let process_handler = j::ClosureProcessHandler::new(move |_: &j::Client, _: &j::ProcessScope| j::JackControl::Continue);
 ///
 /// // An active async client is created, `client` is consumed.
 /// let active_client = j::AsyncClient::new(client, process_handler).unwrap();

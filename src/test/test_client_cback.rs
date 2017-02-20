@@ -1,5 +1,5 @@
-use std::sync::Mutex;
 use std::{ptr, thread, time, mem};
+use std::sync::Mutex;
 
 use prelude::*;
 
@@ -8,13 +8,13 @@ pub struct Counter {
     pub process_return_val: JackControl,
     pub induce_xruns: bool,
     pub thread_init_count: Mutex<usize>,
-    pub frames_processed: Mutex<usize>,
-    pub buffer_size_change_history: Mutex<Vec<JackFrames>>,
-    pub registered_client_history: Mutex<Vec<String>>,
-    pub unregistered_client_history: Mutex<Vec<String>>,
-    pub port_register_history: Mutex<Vec<JackPortId>>,
-    pub port_unregister_history: Mutex<Vec<JackPortId>>,
-    pub xruns_count: Mutex<usize>,
+    pub frames_processed: usize,
+    pub buffer_size_change_history: Vec<JackFrames>,
+    pub registered_client_history: Vec<String>,
+    pub unregistered_client_history: Vec<String>,
+    pub port_register_history: Vec<JackPortId>,
+    pub port_unregister_history: Vec<JackPortId>,
+    pub xruns_count: usize,
 }
 
 impl JackHandler for Counter {
@@ -23,7 +23,7 @@ impl JackHandler for Counter {
     }
 
     fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
-        *self.frames_processed.lock().unwrap() += ps.n_frames() as usize;
+        self.frames_processed += ps.n_frames() as usize;
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
         }
@@ -31,26 +31,26 @@ impl JackHandler for Counter {
     }
 
     fn buffer_size(&mut self, _: &Client, size: JackFrames) -> JackControl {
-        self.buffer_size_change_history.lock().unwrap().push(size);
+        self.buffer_size_change_history.push(size);
         JackControl::Continue
     }
 
     fn client_registration(&mut self, _: &Client, name: &str, is_registered: bool) {
         match is_registered {
-            true => self.registered_client_history.lock().unwrap().push(name.to_string()),
-            false => self.unregistered_client_history.lock().unwrap().push(name.to_string()),
+            true => self.registered_client_history.push(name.to_string()),
+            false => self.unregistered_client_history.push(name.to_string()),
         }
     }
 
     fn port_registration(&mut self, _: &Client, pid: JackPortId, is_registered: bool) {
         match is_registered {
-            true => self.port_register_history.lock().unwrap().push(pid),
-            false => self.port_unregister_history.lock().unwrap().push(pid),
+            true => self.port_register_history.push(pid),
+            false => self.port_unregister_history.push(pid),
         }
     }
 
     fn xrun(&mut self, _: &Client) -> JackControl {
-        *self.xruns_count.lock().unwrap() += 1;
+        self.xruns_count += 1;
         JackControl::Continue
     }
 }
@@ -109,7 +109,7 @@ fn client_cback_calls_thread_init() {
 fn client_cback_calls_process() {
     let ac = active_test_client("client_cback_calls_process");
     let counter = ac.deactivate().unwrap().1;
-    assert!(*counter.frames_processed.lock().unwrap() > 0);
+    assert!(counter.frames_processed > 0);
 }
 
 #[test]
@@ -122,8 +122,7 @@ fn client_cback_calls_buffer_size() {
     ac.set_buffer_size(third).unwrap();
     ac.set_buffer_size(initial).unwrap();
     let counter = ac.deactivate().unwrap().1;
-    let history = counter.buffer_size_change_history.lock().unwrap();
-    let mut history_iter = history.iter().cloned();
+    let mut history_iter = counter.buffer_size_change_history.iter().cloned();
     assert_eq!(history_iter.find(|&s| s == initial), Some(initial));
     assert_eq!(history_iter.find(|&s| s == second), Some(second));
     assert_eq!(history_iter.find(|&s| s == third), Some(third));
@@ -136,12 +135,8 @@ fn client_cback_calls_after_client_registered() {
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.registered_client_history
-        .lock()
-        .unwrap()
         .contains(&"client_cback_cacr_other".to_string()));
     assert!(!counter.unregistered_client_history
-        .lock()
-        .unwrap()
         .contains(&"client_cback_cacr_other".to_string()));
 }
 
@@ -152,12 +147,8 @@ fn client_cback_calls_after_client_unregistered() {
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.registered_client_history
-        .lock()
-        .unwrap()
         .contains(&"client_cback_cacu_other".to_string()));
     assert!(counter.unregistered_client_history
-        .lock()
-        .unwrap()
         .contains(&"client_cback_cacu_other".to_string()));
 }
 
@@ -168,8 +159,7 @@ fn client_cback_reports_xruns() {
     counter.induce_xruns = true;
     let ac = AsyncClient::new(c, counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
-    assert!(*counter.xruns_count.lock().unwrap() > 0,
-            "No xruns encountered.");
+    assert!(counter.xruns_count > 0, "No xruns encountered.");
 }
 
 #[test]
@@ -178,10 +168,10 @@ fn client_cback_calls_port_registered() {
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
     let counter = ac.deactivate().unwrap().1;
-    assert_eq!(counter.port_register_history.lock().unwrap().len(),
+    assert_eq!(counter.port_register_history.len(),
                2,
                "Did not detect port registrations.");
-    assert!(counter.port_unregister_history.lock().unwrap().is_empty(),
+    assert!(counter.port_unregister_history.is_empty(),
             "Detected false port deregistrations.");
 }
 
@@ -193,8 +183,8 @@ fn client_cback_calls_port_unregistered() {
     _pa.unregister().unwrap();
     _pb.unregister().unwrap();
     let counter = ac.deactivate().unwrap().1;
-    assert!(counter.port_register_history.lock().unwrap().len() >= 2,
+    assert!(counter.port_register_history.len() >= 2,
             "Did not detect port registrations.");
-    assert!(counter.port_unregister_history.lock().unwrap().len() >= 2,
+    assert!(counter.port_unregister_history.len() >= 2,
             "Did not detect port deregistrations.");
 }

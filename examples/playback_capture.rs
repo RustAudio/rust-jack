@@ -23,7 +23,7 @@ fn main() {
         out_b_p.clone_from_slice(&in_b_p);
         j::JackControl::Continue
     };
-    let process = j::ProcessHandler::new(process_callback);
+    let process = j::ClosureProcessHandler::new(process_callback);
     // Activate the client, which starts the processing.
     let active_client = j::AsyncClient::new(client, process).unwrap();
 
