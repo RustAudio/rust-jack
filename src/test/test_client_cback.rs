@@ -22,7 +22,7 @@ impl JackHandler for Counter {
         *self.thread_init_count.lock().unwrap() += 1;
     }
 
-    fn process(&self, _: &Client, ps: &ProcessScope) -> JackControl {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
         *self.frames_processed.lock().unwrap() += ps.n_frames() as usize;
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
@@ -30,26 +30,26 @@ impl JackHandler for Counter {
         JackControl::Continue
     }
 
-    fn buffer_size(&self, _: &Client, size: JackFrames) -> JackControl {
+    fn buffer_size(&mut self, _: &Client, size: JackFrames) -> JackControl {
         self.buffer_size_change_history.lock().unwrap().push(size);
         JackControl::Continue
     }
 
-    fn client_registration(&self, _: &Client, name: &str, is_registered: bool) {
+    fn client_registration(&mut self, _: &Client, name: &str, is_registered: bool) {
         match is_registered {
             true => self.registered_client_history.lock().unwrap().push(name.to_string()),
             false => self.unregistered_client_history.lock().unwrap().push(name.to_string()),
         }
     }
 
-    fn port_registration(&self, _: &Client, pid: JackPortId, is_registered: bool) {
+    fn port_registration(&mut self, _: &Client, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.port_register_history.lock().unwrap().push(pid),
             false => self.port_unregister_history.lock().unwrap().push(pid),
         }
     }
 
-    fn xrun(&self, _: &Client) -> JackControl {
+    fn xrun(&mut self, _: &Client) -> JackControl {
         *self.xruns_count.lock().unwrap() += 1;
         JackControl::Continue
     }
@@ -65,15 +65,12 @@ fn active_test_client(name: &str) -> (AsyncClient<Counter>) {
     ac
 }
 
-pub struct DummyHandler;
-impl JackHandler for DummyHandler {}
-
 #[test]
 fn client_cback_has_proper_default_callbacks() {
     // defaults shouldn't care about these params
     let wc = unsafe { Client::from_raw(ptr::null_mut()) };
     let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut()) };
-    let h = DummyHandler;
+    let mut h = ();
 
     // check each callbacks
     assert_eq!(h.thread_init(&wc), ());

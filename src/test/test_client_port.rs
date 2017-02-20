@@ -1,5 +1,4 @@
 use prelude::*;
-use jack_utils::*;
 
 use std::sync::Mutex;
 use std::sync::mpsc;
@@ -55,7 +54,7 @@ pub struct PortIdHandler {
 }
 
 impl JackHandler for PortIdHandler {
-    fn port_registration(&self, _: &Client, pid: JackPortId, is_registered: bool) {
+    fn port_registration(&mut self, _: &Client, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
             _ => (),
@@ -115,7 +114,7 @@ fn client_port_can_connect_ports() {
     let out_p = client.register_port("outp", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect them
     client.connect_ports(&out_p, &in_p).unwrap();
@@ -130,7 +129,7 @@ fn client_port_can_connect_ports_by_name() {
     let _out_p = client.register_port("outp", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect them
     client.connect_ports_by_name("client_port_ccpbn:outp", "client_port_ccpbn:inp")
@@ -147,7 +146,7 @@ fn client_port_can_connect_unowned_ports() {
     let _out_p = client.register_port("outp", AudioOutSpec::default()).unwrap();
 
     // start client
-    let _client = AsyncClient::new(client, DummyHandler).unwrap();
+    let _client = AsyncClient::new(client, ()).unwrap();
 
     // connect them
     connector.connect_ports_by_name("client_port_ccup:outp", "client_port_ccup:inp")
@@ -165,7 +164,7 @@ fn client_port_cant_connect_inactive_client() {
     let out_p = other.register_port("outp", AudioOutSpec::default()).unwrap().name().to_string();
 
     // commented out to not start client
-    // let client = AsyncClient::new(client, DummyHandler).unwrap();
+    // let client = AsyncClient::new(client, ()).unwrap();
 
     // connect them
     assert_eq!(client.connect_ports_by_name(&in_p, &out_p).err(),
@@ -182,7 +181,7 @@ fn client_port_recognizes_already_connected_ports() {
     let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // attempt to connect the ports twice
     client.connect_ports(&out_p, &in_p).unwrap();
@@ -194,7 +193,7 @@ fn client_port_recognizes_already_connected_ports() {
 #[test]
 fn client_port_fails_to_connect_nonexistant_ports() {
     let client = open_test_client("client_port_ftcnp");
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
     assert_eq!(client.connect_ports_by_name("doesnt_exist", "also_no_exist"),
                Err(JackErr::PortConnectionError("doesnt_exist".to_string(),
                                                 "also_no_exist".to_string())));
@@ -209,7 +208,7 @@ fn client_port_can_disconnect_port_from_all() {
     let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect and disconnect
     client.connect_ports(&out_p, &in_p).unwrap();
@@ -225,7 +224,7 @@ fn client_port_can_disconnect_ports() {
     let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect and disconnect
     client.connect_ports(&out_p, &in_p).unwrap();
@@ -241,7 +240,7 @@ fn client_port_can_disconnect_ports_by_name() {
     let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect and disconnect
     client.connect_ports_by_name(out_p.name(), in_p.name()).unwrap();
@@ -258,7 +257,7 @@ fn client_port_can_disconnect_unowned_ports() {
     let out_p = client.register_port("connb", AudioOutSpec::default()).unwrap();
 
     // start client
-    let client = AsyncClient::new(client, DummyHandler).unwrap();
+    let client = AsyncClient::new(client, ()).unwrap();
 
     // connect and disconnect
     client.connect_ports_by_name(out_p.name(), in_p.name()).unwrap();
