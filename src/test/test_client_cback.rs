@@ -61,9 +61,9 @@ fn open_test_client(name: &str) -> Client {
     Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
-fn active_test_client(name: &str) -> (AsyncClient<Counter>) {
+fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
     let c = open_test_client(name);
-    let ac = AsyncClient::new(c, Counter::default()).unwrap();
+    let ac = AsyncClient::new(c, Counter::default(), Counter::default()).unwrap();
     ac
 }
 
@@ -110,7 +110,7 @@ fn client_cback_calls_thread_init() {
 #[test]
 fn client_cback_calls_process() {
     let ac = active_test_client("client_cback_calls_process");
-    let counter = ac.deactivate().unwrap().1;
+    let counter = ac.deactivate().unwrap().2;
     assert!(counter.frames_processed > 0);
 }
 
@@ -159,7 +159,7 @@ fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
     let mut counter = Counter::default();
     counter.induce_xruns = true;
-    let ac = AsyncClient::new(c, counter).unwrap();
+    let ac = AsyncClient::new(c, Counter::default(), counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.xruns_count > 0, "No xruns encountered.");
 }

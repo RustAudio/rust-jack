@@ -14,12 +14,22 @@ Nice Rust bindings for
 
 [Documentation for Master](https://wmedrano.github.io/rust-jack/jack/index.html)
 
+Check out the `examples` directory for usage.
+
+## Crates
+
+### Stable
 ```toml
 [dependencies]
 jack = "0.4.0"
 ```
 
-Check out the `examples` directory for usage.
+### Master
+```toml
+[dependencies]
+jack = { git = "https://github.com/wmedrano/rust-jack.git" }
+```
+
 
 ## Completeness
 

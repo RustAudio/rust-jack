@@ -37,7 +37,7 @@ fn main() {
 
     // activate
     let process = ClosureProcessHandler::new(cback);
-    let active_client = AsyncClient::new(client, process).unwrap();
+    let active_client = AsyncClient::new(client, (), process).unwrap();
 
     // wait
     println!("Press any key to quit");

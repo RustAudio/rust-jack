@@ -25,7 +25,7 @@ fn main() {
     };
     let process = j::ClosureProcessHandler::new(process_callback);
     // Activate the client, which starts the processing.
-    let active_client = j::AsyncClient::new(client, process).unwrap();
+    let active_client = j::AsyncClient::new(client, (), process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");

@@ -55,7 +55,7 @@ fn main() {
     });
 
     // 4. activate the client
-    let active_client = AsyncClient::new(client, process).unwrap();
+    let active_client = AsyncClient::new(client, (), process).unwrap();
     // processing starts here
 
     // 5. wait or do some processing while your handler is running in real time.
