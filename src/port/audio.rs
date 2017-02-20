@@ -85,7 +85,7 @@ unsafe impl PortSpec for AudioInSpec {
 /// ```
 /// let client = jack::client::Client::new("c", jack::client::client_options::NO_START_SERVER).unwrap().0;
 /// let mut out_port = client.register_port("p", jack::port::AudioOutSpec::default()).unwrap();
-/// let process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
+/// let _process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
 ///     let mut out_p = jack::port::AudioOutPort::new(&mut out_port, ps);
 ///     {
 ///         let out_b: &mut [f32] = &mut out_p; // can deref into &mut [f32]
@@ -139,9 +139,9 @@ impl<'a> DerefMut for AudioOutPort<'a> {
 /// let process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
 ///     let in_p = jack::port::AudioInPort::new(&in_port, ps);
 ///     {
-///         let in_b: &[f32] = &in_p; // can deref into &[f32]
+///         let _in_b: &[f32] = &in_p; // can deref into &[f32]
 ///     }
-///     let x = in_p[0];
+///     let _x = in_p[0];
 /// };
 /// ```
 pub struct AudioInPort<'a> {

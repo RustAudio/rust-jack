@@ -10,11 +10,6 @@ use jack_enums::*;
 use primitive_types as pt;
 
 /// Specifies callbacks for JACK.
-///
-/// All callbacks happen on the same thread (not concurrently), unless otherwise stated.
-///
-/// # TODO
-/// * convert C enum return values to Rust enums.
 pub trait NotificationHandler: Send {
     /// Called just once after the creation of the thread in which all other callbacks will be
     /// handled.
@@ -120,9 +115,6 @@ pub trait NotificationHandler: Send {
     fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
-impl NotificationHandler for () {}
-impl ProcessHandler for () {}
-
 pub trait ProcessHandler {
     /// Called whenever there is work to be done.
     ///
@@ -132,9 +124,7 @@ pub trait ProcessHandler {
     /// pthread_cond_wait, etc, etc.
     ///
     /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl {
-        JackControl::Continue
-    }
+    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl;
 }
 
 unsafe fn handler_and_ptr_from_void<'a, N, P>(ptr: *mut libc::c_void) -> &'a mut (N, P, Client)

@@ -62,8 +62,6 @@ impl NotificationHandler for PortIdHandler {
     }
 }
 
-impl ProcessHandler for PortIdHandler {}
-
 #[test]
 fn client_port_can_get_port_by_id() {
     let (client_name, port_name) = ("cp_can_get_port_by_id", "cp_registered_port_name");

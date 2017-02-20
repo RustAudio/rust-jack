@@ -5,6 +5,13 @@ use primitive_types as pt;
 use client::client_status::ClientStatus;
 use super::callbacks::{NotificationHandler, ProcessHandler};
 
+impl NotificationHandler for () {}
+impl ProcessHandler for () {
+    fn process(&mut self, _: &Client, _: &ProcessScope) -> JackControl {
+        JackControl::Continue
+    }
+}
+
 /// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
 pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> {
@@ -22,9 +29,7 @@ impl<F> ClosureProcessHandler<F>
 impl<F> ProcessHandler for ClosureProcessHandler<F>
     where F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl
 {
-    #[allow(mutable_transmutes)]
     fn process(&mut self, c: &Client, ps: &ProcessScope) -> JackControl {
-        // Casting to mut is safe because no other callbacks will accessing the `process` field.
         (self.process_fn)(c, ps)
     }
 }
