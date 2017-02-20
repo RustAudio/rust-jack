@@ -53,7 +53,7 @@ pub struct PortIdHandler {
     pub reg_tx: Mutex<mpsc::SyncSender<JackPortId>>,
 }
 
-impl JackHandler for PortIdHandler {
+impl NotificationHandler for PortIdHandler {
     fn port_registration(&mut self, _: &Client, pid: JackPortId, is_registered: bool) {
         match is_registered {
             true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
@@ -61,6 +61,8 @@ impl JackHandler for PortIdHandler {
         }
     }
 }
+
+impl ProcessHandler for PortIdHandler {}
 
 #[test]
 fn client_port_can_get_port_by_id() {

@@ -15,7 +15,7 @@ use primitive_types as pt;
 ///
 /// # TODO
 /// * convert C enum return values to Rust enums.
-pub trait JackHandler: Send {
+pub trait NotificationHandler: Send {
     /// Called just once after the creation of the thread in which all other callbacks will be
     /// handled.
     ///
@@ -27,18 +27,6 @@ pub trait JackHandler: Send {
     /// that it is executed from another thread. A typical funcion might set a flag or write to a
     /// pipe so that the rest of the application knows that the JACK client thread has shut down.
     fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
-
-    /// Called whenever there is work to be done.
-    ///
-    /// It needs to be suitable for real-time execution. That means that it cannot call functions
-    /// that might block for a long time. This includes all I/O functions (disk, TTY, network),
-    /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select, pthread_join,
-    /// pthread_cond_wait, etc, etc.
-    ///
-    /// Should return `0` on success, and non-zero on error.
-    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl {
-        JackControl::Continue
-    }
 
     /// Called whenever "freewheel" mode is entered or leaving.
     fn freewheel(&mut self, _: &Client, _is_freewheel_enabled: bool) {}
@@ -132,7 +120,23 @@ pub trait JackHandler: Send {
     fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
-impl JackHandler for () {}
+impl NotificationHandler for () {}
+impl ProcessHandler for () {}
+
+pub trait ProcessHandler {
+    /// Called whenever there is work to be done.
+    ///
+    /// It needs to be suitable for real-time execution. That means that it cannot call functions
+    /// that might block for a long time. This includes all I/O functions (disk, TTY, network),
+    /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select, pthread_join,
+    /// pthread_cond_wait, etc, etc.
+    ///
+    /// Should return `0` on success, and non-zero on error.
+    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl {
+        JackControl::Continue
+    }
+}
+
 
 /// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
@@ -140,8 +144,17 @@ pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScop
     pub process_fn: F,
 }
 
-impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
-    JackHandler for ClosureProcessHandler<F> {
+impl<F> ClosureProcessHandler<F>
+    where F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl
+{
+    pub fn new(f: F) -> ClosureProcessHandler<F> {
+        ClosureProcessHandler { process_fn: f }
+    }
+}
+
+impl<F> ProcessHandler for ClosureProcessHandler<F>
+    where F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl
+{
     #[allow(mutable_transmutes)]
     fn process(&mut self, c: &Client, ps: &ProcessScope) -> JackControl {
         // Casting to mut is safe because no other callbacks will accessing the `process` field.
@@ -149,27 +162,29 @@ impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl>
     }
 }
 
-impl<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> ClosureProcessHandler<F> {
-    pub fn new(f: F) -> ClosureProcessHandler<F> {
-        ClosureProcessHandler { process_fn: f }
-    }
+impl<F> NotificationHandler for ClosureProcessHandler<F>
+    where F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl
+{
 }
 
-unsafe fn handler_and_ptr_from_void<'a, T: JackHandler>(ptr: *mut libc::c_void)
-                                                        -> &'a mut (T, Client) {
+unsafe fn handler_and_ptr_from_void<'a, T>(ptr: *mut libc::c_void) -> &'a mut (T, Client) {
     assert!(!ptr.is_null());
     let obj_ptr: *mut (T, Client) = mem::transmute(ptr);
     &mut *obj_ptr
 }
 
-unsafe extern "C" fn thread_init_callback<T: JackHandler>(data: *mut libc::c_void) {
+unsafe extern "C" fn thread_init_callback<T>(data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.thread_init(&obj.1)
 }
 
-unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
-                                              reason: *const i8,
-                                              data: *mut libc::c_void) {
+unsafe extern "C" fn shutdown<T>(code: j::jack_status_t,
+                                 reason: *const i8,
+                                 data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, _) = handler_and_ptr_from_void(data);
     let cstr = ffi::CStr::from_ptr(reason);
     let reason_str = match cstr.to_str() {
@@ -180,15 +195,17 @@ unsafe extern "C" fn shutdown<T: JackHandler>(code: j::jack_status_t,
                    reason_str)
 }
 
-unsafe extern "C" fn process<T: JackHandler>(n_frames: pt::JackFrames,
-                                             data: *mut libc::c_void)
-                                             -> libc::c_int {
+unsafe extern "C" fn process<T>(n_frames: pt::JackFrames, data: *mut libc::c_void) -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let scope = ProcessScope::from_raw(n_frames, obj.1.as_ptr());
     obj.0.process(&obj.1, &scope).to_ffi()
 }
 
-unsafe extern "C" fn freewheel<T: JackHandler>(starting: libc::c_int, data: *mut libc::c_void) {
+unsafe extern "C" fn freewheel<T>(starting: libc::c_int, data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let is_starting = match starting {
         0 => false,
@@ -197,23 +214,29 @@ unsafe extern "C" fn freewheel<T: JackHandler>(starting: libc::c_int, data: *mut
     obj.0.freewheel(&obj.1, is_starting)
 }
 
-unsafe extern "C" fn buffer_size<T: JackHandler>(n_frames: pt::JackFrames,
-                                                 data: *mut libc::c_void)
-                                                 -> libc::c_int {
+unsafe extern "C" fn buffer_size<T>(n_frames: pt::JackFrames,
+                                    data: *mut libc::c_void)
+                                    -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.buffer_size(&obj.1, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn sample_rate<T: JackHandler>(n_frames: pt::JackFrames,
-                                                 data: *mut libc::c_void)
-                                                 -> libc::c_int {
+unsafe extern "C" fn sample_rate<T>(n_frames: pt::JackFrames,
+                                    data: *mut libc::c_void)
+                                    -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.sample_rate(&obj.1, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
-                                                         register: libc::c_int,
-                                                         data: *mut libc::c_void) {
+unsafe extern "C" fn client_registration<T>(name: *const i8,
+                                            register: libc::c_int,
+                                            data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
@@ -224,9 +247,11 @@ unsafe extern "C" fn client_registration<T: JackHandler>(name: *const i8,
 }
 
 
-unsafe extern "C" fn port_registration<T: JackHandler>(port_id: pt::JackPortId,
-                                                       register: libc::c_int,
-                                                       data: *mut libc::c_void) {
+unsafe extern "C" fn port_registration<T>(port_id: pt::JackPortId,
+                                          register: libc::c_int,
+                                          data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let register = match register {
         0 => false,
@@ -236,21 +261,25 @@ unsafe extern "C" fn port_registration<T: JackHandler>(port_id: pt::JackPortId,
 }
 
 #[allow(dead_code)] // TODO: remove once it can be registered
-unsafe extern "C" fn port_rename<T: JackHandler>(port_id: pt::JackPortId,
-                                                 old_name: *const i8,
-                                                 new_name: *const i8,
-                                                 data: *mut libc::c_void)
-                                                 -> libc::c_int {
+unsafe extern "C" fn port_rename<T>(port_id: pt::JackPortId,
+                                    old_name: *const i8,
+                                    new_name: *const i8,
+                                    data: *mut libc::c_void)
+                                    -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
     let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
     obj.0.port_rename(&obj.1, port_id, old_name, new_name).to_ffi()
 }
 
-unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: pt::JackPortId,
-                                                  port_id_b: pt::JackPortId,
-                                                  connect: libc::c_int,
-                                                  data: *mut libc::c_void) {
+unsafe extern "C" fn port_connect<T>(port_id_a: pt::JackPortId,
+                                     port_id_b: pt::JackPortId,
+                                     connect: libc::c_int,
+                                     data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let are_connected = match connect {
         0 => false,
@@ -259,18 +288,23 @@ unsafe extern "C" fn port_connect<T: JackHandler>(port_id_a: pt::JackPortId,
     obj.0.ports_connected(&obj.1, port_id_a, port_id_b, are_connected)
 }
 
-unsafe extern "C" fn graph_order<T: JackHandler>(data: *mut libc::c_void) -> libc::c_int {
+unsafe extern "C" fn graph_order<T>(data: *mut libc::c_void) -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.graph_reorder(&obj.1).to_ffi()
 }
 
-unsafe extern "C" fn xrun<T: JackHandler>(data: *mut libc::c_void) -> libc::c_int {
+unsafe extern "C" fn xrun<T>(data: *mut libc::c_void) -> libc::c_int
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     obj.0.xrun(&obj.1).to_ffi()
 }
 
-unsafe extern "C" fn latency<T: JackHandler>(mode: j::jack_latency_callback_mode_t,
-                                             data: *mut libc::c_void) {
+unsafe extern "C" fn latency<T>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
+    where T: NotificationHandler + ProcessHandler
+{
     let obj: &mut (T, Client) = handler_and_ptr_from_void(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
@@ -321,10 +355,11 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 ///
 /// * makes ffi calls
 /// * `handler` will not be automatically deallocated.
-pub unsafe fn register_callbacks<T: JackHandler>
-    (handler: T,
-     client: *mut j::jack_client_t)
-     -> Result<*mut (T, *mut j::jack_client_t), JackErr> {
+pub unsafe fn register_callbacks<T>(handler: T,
+                                    client: *mut j::jack_client_t)
+                                    -> Result<*mut (T, *mut j::jack_client_t), JackErr>
+    where T: NotificationHandler + ProcessHandler
+{
     let handler_ptr: *mut (T, *mut j::jack_client_t) = Box::into_raw(Box::new((handler, client)));
     let data_ptr = mem::transmute(handler_ptr);
     j::jack_set_thread_init_callback(client, Some(thread_init_callback::<T>), data_ptr);

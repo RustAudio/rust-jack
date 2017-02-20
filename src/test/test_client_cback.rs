@@ -17,17 +17,9 @@ pub struct Counter {
     pub xruns_count: usize,
 }
 
-impl JackHandler for Counter {
+impl NotificationHandler for Counter {
     fn thread_init(&self, _: &Client) {
         *self.thread_init_count.lock().unwrap() += 1;
-    }
-
-    fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
-        self.frames_processed += ps.n_frames() as usize;
-        if self.induce_xruns {
-            thread::sleep(time::Duration::from_millis(400));
-        }
-        JackControl::Continue
     }
 
     fn buffer_size(&mut self, _: &Client, size: JackFrames) -> JackControl {
@@ -51,6 +43,16 @@ impl JackHandler for Counter {
 
     fn xrun(&mut self, _: &Client) -> JackControl {
         self.xruns_count += 1;
+        JackControl::Continue
+    }
+}
+
+impl ProcessHandler for Counter {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
+        self.frames_processed += ps.n_frames() as usize;
+        if self.induce_xruns {
+            thread::sleep(time::Duration::from_millis(400));
+        }
         JackControl::Continue
     }
 }

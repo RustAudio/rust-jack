@@ -8,7 +8,7 @@ use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
 use jack_enums::*;
 use super::callbacks::{clear_callbacks, register_callbacks};
 
-pub use super::callbacks::{JackHandler, ClosureProcessHandler};
+pub use super::callbacks::{NotificationHandler, ProcessHandler, ClosureProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
@@ -24,21 +24,21 @@ pub use super::callbacks::{JackHandler, ClosureProcessHandler};
 /// let active_client = j::AsyncClient::new(client, process_handler).unwrap();
 /// ```
 #[derive(Debug)]
-pub struct AsyncClient<JH: JackHandler> {
+pub struct AsyncClient<N: NotificationHandler + ProcessHandler> {
     client: Client,
-    handler: *mut (JH, *mut j::jack_client_t),
+    handler: *mut (N, *mut j::jack_client_t),
 }
 
-impl<JH: JackHandler> AsyncClient<JH> {
-    /// Tell the JACK server that the program is ready to start processing
-    /// audio. JACK will call the methods specified by the `JackHandler` trait, from `handler`.
+impl<N: NotificationHandler + ProcessHandler> AsyncClient<N> {
+    /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
+    /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
     ///
     /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
     /// `Err(JackErr::ClientActivationError)` is returned.
     ///
     /// `handler` is consumed, but it is returned when `Client::deactivate` is
     /// called.
-    pub fn new(client: Client, handler: JH) -> Result<Self, JackErr> {
+    pub fn new(client: Client, handler: N) -> Result<Self, JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
@@ -77,7 +77,7 @@ impl<JH: JackHandler> AsyncClient<JH> {
     ///
     /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
     /// therefore unsafe to continue using.
-    pub fn deactivate(self) -> Result<(Client, JH), JackErr> {
+    pub fn deactivate(self) -> Result<(Client, N), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             // Collect contents, cleanup will be manual, instead of automatic as we don't want to
@@ -117,7 +117,7 @@ impl<JH: JackHandler> AsyncClient<JH> {
     }
 }
 
-impl<JH: JackHandler> Deref for AsyncClient<JH> {
+impl<N: NotificationHandler + ProcessHandler> Deref for AsyncClient<N> {
     type Target = Client;
 
     fn deref(&self) -> &Self::Target {
@@ -126,7 +126,7 @@ impl<JH: JackHandler> Deref for AsyncClient<JH> {
 }
 
 /// Closes the client.
-impl<JH: JackHandler> Drop for AsyncClient<JH> {
+impl<N: NotificationHandler + ProcessHandler> Drop for AsyncClient<N> {
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {

@@ -25,7 +25,7 @@ pub enum JackErr {
     UnknownError,
 }
 
-/// Used by `JackHandler::latency()`.
+/// Used by `NotificationHandler::latency()`.
 #[derive(Clone, Copy, Debug)]
 pub enum LatencyType {
     Capture,
