@@ -3,8 +3,8 @@
 //! # Server
 //!
 //! JACK provides a high priority server to manipulate audio and midi across applications. The rust
-//! jack crate does not provide this functionality, so a server has to be set up with the `jackd`
-//! commandline tool, `qjackctl` the gui tool, or another method.
+//! jack crate does not provide server creation functionality, so a server has to be set up with the
+//! `jackd` commandline tool, `qjackctl` the gui tool, or another method.
 //!
 //! # Client
 //!
@@ -15,9 +15,9 @@
 //! ports.
 //!
 //! To commence processing audio/midi and other information in real-time, rust jack provides the
-//! `client::AsyncClient::new`, which consumes a `Client` and an object that implements
-//! `JackHandler`, and returns a `AsyncClient` which is processing data in real-time with the
-//! provided `JackHandler` object.
+//! `client::AsyncClient::new`, which consumes a `Client` and objects that implement
+//! `NotificationHandler` and `ProcessHandler, and returns a `AsyncClient` which is processing data
+//! in real-time with the provided `NotificationHandler` object.
 //!
 //! # Port
 //!
@@ -67,7 +67,7 @@ pub fn get_time() -> primitive_types::JackTime {
 
 /// Contains every trait defined in the jack crate.
 pub mod traits {
-    pub use client::JackHandler;
+    pub use client::{ProcessHandler, NotificationHandler};
     pub use port::PortSpec;
 }
 
@@ -75,7 +75,8 @@ pub mod traits {
 pub mod prelude {
     pub use primitive_types::{JackFrames, JackTime, JackPortId};
     pub use jack_enums::{JackErr, JackControl, LatencyType};
-    pub use client::{AsyncClient, Client, CycleTimes, JackHandler, ProcessHandler, ProcessScope};
+    pub use client::{AsyncClient, Client, CycleTimes, NotificationHandler, ProcessHandler,
+                     ClosureProcessHandler, ProcessScope};
     pub use client::CLIENT_NAME_SIZE;
     pub use client::{ClientOptions, ClientStatus, client_options, client_status};
     pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,

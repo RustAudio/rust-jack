@@ -467,6 +467,7 @@ impl Client {
                                                    source_port: &Port<A>,
                                                    destination_port: &Port<B>)
                                                    -> Result<(), JackErr> {
+        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         self.connect_ports_by_name(source_port.name(), destination_port.name())
     }
 

@@ -1,20 +1,35 @@
 # Rust JACK
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://goo.gl/j4uiqg)
 
-[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
-[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack/)
+[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://goo.gl/ZCHble)
+[![docs.rs](https://docs.rs/jack/badge.svg)](https://goo.gl/spnykb)
 
-[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://travis-ci.org/wmedrano/rust-jack)
-[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/wmedrano/rust-jack?branch=master)
+[![Build Status](https://travis-ci.org/wmedrano/rust-jack.svg?branch=master)](https://goo.gl/KCqB7F)
+[![Coverage Status](https://coveralls.io/repos/github/wmedrano/rust-jack/badge.svg?branch=master)](https://goo.gl/KCqB7F)
 
 
 Nice Rust bindings for
-[JACK Audio Connection Kit](http://www.jackaudio.org/)
+[JACK Audio Connection Kit](https://goo.gl/jYMGO8)
 
-[Documentation for Master](https://wmedrano.github.io/rust-jack/jack/index.html)
+[Documentation for Master](https://goo.gl/xvXezZ)
 
-Check out the `examples` directory.
+Check out the `examples` directory for usage.
+
+## Crates
+
+### Stable
+```toml
+[dependencies]
+jack = "0.4.0"
+```
+
+### Master
+```toml
+[dependencies]
+jack = { git = "https://github.com/wmedrano/rust-jack.git" }
+```
+
 
 ## Completeness
 

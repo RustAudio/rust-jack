@@ -4,7 +4,7 @@
 extern crate jack;
 use std::io;
 use jack::prelude::{AsyncClient, Client, JackControl, MidiInPort, MidiInSpec, MidiOutPort,
-                    MidiOutSpec, ProcessHandler, ProcessScope, RawMidi, client_options};
+                    MidiOutSpec, ClosureProcessHandler, ProcessScope, RawMidi, client_options};
 
 fn main() {
     // open client
@@ -36,8 +36,8 @@ fn main() {
     };
 
     // activate
-    let process = ProcessHandler::new(cback);
-    let active_client = AsyncClient::new(client, process).unwrap();
+    let process = ClosureProcessHandler::new(cback);
+    let active_client = AsyncClient::new(client, (), process).unwrap();
 
     // wait
     println!("Press any key to quit");

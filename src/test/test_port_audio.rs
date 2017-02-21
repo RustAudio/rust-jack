@@ -32,7 +32,7 @@ fn port_audio_can_read_write() {
         }
         JackControl::Continue
     };
-    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
     ac.connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
         .unwrap();
     ac.connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")

@@ -27,10 +27,3 @@ pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
     j::jack_free(ptr as *mut ::libc::c_void);
     strs
 }
-
-#[cfg(test)]
-use client::JackHandler;
-#[cfg(test)]
-pub struct DummyHandler;
-#[cfg(test)]
-impl JackHandler for DummyHandler {}

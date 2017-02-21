@@ -1,5 +1,4 @@
 use prelude::*;
-use jack_utils::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     let ret = Client::new(name, client_options::NO_START_SERVER).unwrap();
@@ -39,7 +38,7 @@ fn client_can_be_named() {
 #[test]
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
-    let _ac = AsyncClient::new(c, DummyHandler).unwrap();
+    let _ac = AsyncClient::new(c, (), ()).unwrap();
 }
 
 #[test]
@@ -56,7 +55,7 @@ fn client_can_set_buffer_size() {
 #[test]
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
-    let a = AsyncClient::new(c, DummyHandler).unwrap();
+    let a = AsyncClient::new(c, (), ()).unwrap();
     a.deactivate().unwrap();
 }
 

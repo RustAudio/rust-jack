@@ -41,7 +41,7 @@ fn port_midi_can_read_write() {
     };
 
     // activate
-    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
 
     // connect ports to each other
     ac.connect_ports_by_name("port_midi_crw:oa", "port_midi_crw:ia")
@@ -74,7 +74,7 @@ fn port_midi_can_get_max_event_size() {
     };
 
     // activate
-    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
     assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
@@ -109,7 +109,7 @@ fn port_midi_cant_execeed_max_event_size() {
     };
 
     // activate
-    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
     assert_eq!(*PMCEMES_WRITE_RESULT.lock().unwrap(),
@@ -156,7 +156,7 @@ fn port_midi_has_good_iter() {
     };
 
     // run
-    let ac = AsyncClient::new(c, ProcessHandler::new(process_callback)).unwrap();
+    let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
     ac.connect_ports_by_name("port_midi_has_good_iter:op", "port_midi_has_good_iter:ip")
         .unwrap();
     thread::sleep(time::Duration::from_millis(200));
