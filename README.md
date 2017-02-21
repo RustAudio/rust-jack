@@ -21,7 +21,7 @@ Check out the `examples` directory for usage.
 ### Stable
 ```toml
 [dependencies]
-jack = "0.4.0"
+jack = "0.5.0"
 ```
 
 ### Master
