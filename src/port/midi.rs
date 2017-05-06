@@ -13,8 +13,9 @@ use primitive_types as pt;
 /// Contains 8bit raw midi information along with a timestamp relative to the process cycle.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RawMidi<'a> {
-    /// The amount of time, in frames, relative to the start of the process cycle
+    /// The amount of time passed, in frames, relative to the start of the process cycle
     pub time: pt::JackFrames,
+
     /// Midi data
     pub bytes: &'a [u8],
 }
@@ -28,13 +29,13 @@ impl<'a> Default for RawMidi<'a> {
     }
 }
 
-/// `MidiInSpec` implements the `PortSpec` trait, which defines an
-/// endpoint for JACK.
+/// `MidiInSpec` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case,
+/// it defines midi input.
 #[derive(Debug, Default)]
 pub struct MidiInSpec;
 
-/// `MidiOutSpec` implements the `PortSpec` trait, which defines an
-/// endpoint for JACK.
+/// `MidiOutSpec` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case,
+/// it defines a midi output.
 #[derive(Debug, Default)]
 pub struct MidiOutSpec;
 
@@ -68,7 +69,7 @@ unsafe impl PortSpec for MidiOutSpec {
     }
 }
 
-/// Safetly wrap a `Port<MidiInPort>`.
+/// Safetly and thinly wrap a `Port<MidiInPort>`.
 #[derive(Debug)]
 pub struct MidiInPort<'a> {
     _port: &'a Port<MidiInSpec>,
@@ -77,9 +78,8 @@ pub struct MidiInPort<'a> {
 }
 
 impl<'a> MidiInPort<'a> {
-    /// Wrap a `Port<MidiInSpec>` within a process scope of a client
-    /// that registered the port. Panics if the port does not belong
-    /// to the client that created the process.
+    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that registered the
+    /// port. Panics if the port does not belong to the client that created the process.
     pub fn new(port: &'a Port<MidiInSpec>, ps: &'a ProcessScope) -> Self {
         assert_eq!(port.client_ptr(), ps.client_ptr());
         let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
@@ -120,7 +120,7 @@ impl<'a> MidiInPort<'a> {
     }
 }
 
-/// Safetly wrap a `Port<MidiInPort>`.
+/// Safetly and thinly wrap a `Port<MidiInPort>`.
 #[derive(Debug)]
 pub struct MidiOutPort<'a> {
     _port: &'a mut Port<MidiOutSpec>,
@@ -128,9 +128,8 @@ pub struct MidiOutPort<'a> {
 }
 
 impl<'a> MidiOutPort<'a> {
-    /// Wrap a `Port<MidiInSpec>` within a process scope of a client
-    /// that registered the port. Panics if the port does not belong
-    /// to the client that created the process.
+    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that registered the
+    /// port. Panics if the port does not belong to the client that created the process.
     ///
     /// The data in the port is cleared.
     pub fn new(port: &'a mut Port<MidiOutSpec>, ps: &'a ProcessScope) -> Self {
@@ -146,7 +145,7 @@ impl<'a> MidiOutPort<'a> {
     /// Write an event into an event port buffer.
     ///
     /// Clients must write normalised MIDI data to the port - no running status and no (1-byte)
-    /// realtime messages intersperesed with other messagse (realtime messages are fine when they
+    /// realtime messages interspersed with other messagse (realtime messages are fine when they
     /// occur on their own, like other messages).
     pub fn write(&mut self, message: &RawMidi) -> Result<(), JackErr> {
         let ev = j::jack_midi_event_t {

@@ -118,7 +118,8 @@ impl ProcessScope {
 ///
 /// let c_res = j::Client::new("rusty_client", j::client_options::NO_START_SERVER);
 /// match c_res {
-///     Ok((client, status)) => println!("Managed to open client {}, with status {:?}!", client.name(), status),
+///     Ok((client, status)) => println!("Managed to open client {}, with status {:?}!",
+///                                      client.name(), status),
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
 ///
@@ -161,14 +162,14 @@ impl Client {
         srate as usize
     }
 
-    /// The current CPU load estimated by JACK.
+    /// The current CPU load estimated by JACK. It is on a scale of `0.0` to `100.0`.
     ///
     /// This is a running average of the time it takes to execute a full process cycle for all
     /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
-    pub fn cpu_load(&self) -> libc::c_float {
+    pub fn cpu_load(&self) -> f32 {
         let load = unsafe { j::jack_cpu_load(self.as_ptr()) };
-        load
+        load as f32
     }
 
 
@@ -266,9 +267,11 @@ impl Client {
         }
     }
 
-    /// Create a new port for the client. This is an object used for moving data
-    /// of any type in or out of the client. Ports may be connected in various
-    /// ways.
+    /// Create a new port for the client. This is an object used for moving data of any type in or
+    /// out of the client. Ports may be connected in various ways.
+    ///
+    /// The `port_spec` specifies the IO direction and data type. Oftentimes, the built-in types
+    /// (`AudioInSpec`, `AudioOutSpec`, `MidiInSpec`, `MidiOutSpec`) can be used.
     ///
     /// Each port has a short name. The port's full name contains the name of
     /// the client concatenated with a colon (:) followed by its short

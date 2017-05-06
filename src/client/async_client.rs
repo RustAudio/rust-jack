@@ -12,15 +12,23 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
+/// To create input or output (either sound or midi), a `Port` can be used within the `process`
+/// callback. See `Client::register_port` on creating ports. Also, see `Port` for documentation on
+/// the API for port.
+///
 /// # Example
 /// ```
 /// use jack::prelude as j;
-/// 
+///
 /// // Create a client and a handler
-/// let (client, _status) = j::Client::new("my_client", j::client_options::NO_START_SERVER).unwrap();
-/// let process_handler = j::ClosureProcessHandler::new(move |_: &j::Client, _: &j::ProcessScope| {
-///     j::JackControl::Continue
-/// });
+/// let (client, _status) =
+///     j::Client::new("my_client", j::client_options::NO_START_SERVER)
+///         .unwrap();
+/// let process_handler = j::ClosureProcessHandler::new(
+///     move |_: &j::Client, _: &j::ProcessScope| {
+///         j::JackControl::Continue
+///     }
+/// );
 ///
 /// // An active async client is created, `client` is consumed.
 /// let active_client = j::AsyncClient::new(client, (), process_handler).unwrap();
@@ -31,20 +39,27 @@ pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     handler: *mut (N, P, *mut j::jack_client_t),
 }
 
-impl<N, P> AsyncClient<N, P> where N: NotificationHandler, P: ProcessHandler{
+impl<N, P> AsyncClient<N, P>
+    where N: NotificationHandler,
+          P: ProcessHandler
+{
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
     ///
     /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
     /// `Err(JackErr::ClientActivationError)` is returned.
     ///
-    /// `handler` is consumed, but it is returned when `Client::deactivate` is
-    /// called.
-    pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, JackErr> {
+    /// `notification_handler` and `process_handler` are consumed, but they are returned when
+    /// `Client::deactivate` is called.
+    pub fn new(client: Client,
+               notification_handler: N,
+               process_handler: P)
+               -> Result<Self, JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
-            let handler_ptr = try!(register_callbacks(notification_handler, process_handler, client.as_ptr()));
+            let handler_ptr =
+                try!(register_callbacks(notification_handler, process_handler, client.as_ptr()));
             sleep_on_test();
             if handler_ptr.is_null() {
                 Err(JackErr::CallbackRegistrationError)
@@ -107,7 +122,9 @@ impl<N, P> AsyncClient<N, P> where N: NotificationHandler, P: ProcessHandler{
 }
 
 impl<N, P> Deref for AsyncClient<N, P>
-where N: NotificationHandler, P: ProcessHandler{
+    where N: NotificationHandler,
+          P: ProcessHandler
+{
     type Target = Client;
 
     fn deref(&self) -> &Self::Target {
@@ -117,7 +134,9 @@ where N: NotificationHandler, P: ProcessHandler{
 
 /// Closes the client.
 impl<N, P> Drop for AsyncClient<N, P>
-    where N: NotificationHandler, P: ProcessHandler {
+    where N: NotificationHandler,
+          P: ProcessHandler
+{
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
