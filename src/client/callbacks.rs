@@ -123,7 +123,7 @@ pub trait ProcessHandler {
     /// malloc, free, printf, pthread_mutex_lock, sleep, wait, poll, select, pthread_join,
     /// pthread_cond_wait, etc, etc.
     ///
-    /// Should return `0` on success, and non-zero on error.
+    /// Should return `JackControl::Continue` on success, and `JackControl::Quit` on error.
     fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl;
 }
 

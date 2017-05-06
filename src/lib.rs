@@ -15,9 +15,9 @@
 //! ports.
 //!
 //! To commence processing audio/midi and other information in real-time, rust jack provides the
-//! `client::AsyncClient::new`, which consumes a `Client` and objects that implement
-//! `NotificationHandler` and `ProcessHandler, and returns a `AsyncClient` which is processing data
-//! in real-time with the provided `NotificationHandler` object.
+//! `client::AsyncClient::new`, which consumes a `Client` an object that implements
+//! `NotificationHandler` and an object that implements `ProcessHandler` and returns a
+//! `AsyncClient`. `AsyncClient` processes the data in real-time with the provided handlers.
 //!
 //! # Port
 //!

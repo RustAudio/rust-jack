@@ -33,6 +33,10 @@ pub unsafe trait PortSpec: Default + Sized {
 /// An endpoint to interact with JACK data streams, for audio, midi,
 /// etc...
 ///
+/// The `Port` struct contains mostly metadata and exposes data as raw pointers. For a better data
+/// consumption/production API, see the `AudioInPort`, `AudioOutPort`, `MidiInPort`, and
+/// `MidiOutPort`.
+///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
 #[derive(Debug)]
@@ -258,8 +262,8 @@ impl<PS: PortSpec> Port<PS> {
     }
 }
 
-/// `PortSpec` for a port that holds no readable or write-able stream data from JACK, though it can
-/// be used for obtaining information about external ports.
+/// `PortSpec` for a port that holds has no readable or writeable data from JACK on the created
+/// client. It can be used for obtaining information about external ports.
 #[derive(Debug, Default)]
 pub struct Unowned;
 
