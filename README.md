@@ -27,7 +27,7 @@ jack = "0.5.0"
 ### Master
 ```toml
 [dependencies]
-jack = { git = "https://github.com/wmedrano/rust-jack.git" }
+jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 ```
 
 

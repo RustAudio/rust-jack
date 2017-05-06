@@ -19,7 +19,7 @@ bitflags! {
 
         /// Load internal client from optional `load_name`, otherwise use the `client_name`.
         ///
-        /// TODO: wmedrano
+        /// TODO(wmedrano): Implement `load_name` functionality
         const LOAD_NAME       = j::JackLoadName,
 
         /// Pass optional `load_init` to `jack_initialize()` entry
