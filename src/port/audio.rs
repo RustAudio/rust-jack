@@ -79,7 +79,7 @@ unsafe impl PortSpec for AudioInSpec {
     }
 }
 
-/// Safetly and thinly wrap a `Port<AudioOutSpec>`. Derefs into a `&mut[f32]`.
+/// Safely and thinly wrap a `Port<AudioOutSpec>`. Derefs into a `&mut[f32]`.
 ///
 /// # Example
 /// ```
@@ -130,7 +130,7 @@ impl<'a> DerefMut for AudioOutPort<'a> {
 }
 
 
-/// Safetly and thinly wrap a `Port<AudioInSpec>`. Derefs into a `&[f32]`.
+/// Safely and thinly wrap a `Port<AudioInSpec>`. Derefs into a `&[f32]`.
 ///
 /// # Example
 /// ```

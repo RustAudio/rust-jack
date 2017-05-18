@@ -69,7 +69,7 @@ unsafe impl PortSpec for MidiOutSpec {
     }
 }
 
-/// Safetly and thinly wrap a `Port<MidiInPort>`.
+/// Safely and thinly wrap a `Port<MidiInPort>`.
 #[derive(Debug)]
 pub struct MidiInPort<'a> {
     _port: &'a Port<MidiInSpec>,
@@ -120,7 +120,7 @@ impl<'a> MidiInPort<'a> {
     }
 }
 
-/// Safetly and thinly wrap a `Port<MidiInPort>`.
+/// Safely and thinly wrap a `Port<MidiInPort>`.
 #[derive(Debug)]
 pub struct MidiOutPort<'a> {
     _port: &'a mut Port<MidiOutSpec>,
