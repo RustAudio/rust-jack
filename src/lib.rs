@@ -45,6 +45,9 @@ extern crate libc;
 /// Create and manage client connections to a JACK server.
 pub mod client;
 
+/// Create and manage JACK ring buffers.
+pub mod ringbuffer;
+
 /// Control error and info logging from JACK.
 pub mod logging;
 
@@ -79,6 +82,7 @@ pub mod prelude {
                      ClosureProcessHandler, ProcessScope};
     pub use client::CLIENT_NAME_SIZE;
     pub use client::{ClientOptions, ClientStatus, client_options, client_status};
+    pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
     pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,
                    MidiIter, MidiOutPort, MidiOutSpec, Port, RawMidi, Unowned, UnownedPort};
     pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};

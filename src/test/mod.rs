@@ -16,6 +16,9 @@ mod test_client_cback;
 // port.rs
 mod test_port;
 
+// ringbuffer/mod.rs
+mod test_ringbuffer;
+
 // port_impls/audio.rs
 mod test_port_audio;
 
