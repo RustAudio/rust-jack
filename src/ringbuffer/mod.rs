@@ -52,8 +52,11 @@ impl RingBuffer {
         unsafe { (RingBufferReader::new(handle.clone()), RingBufferWriter::new(handle)) }
     }
 
-    // Re-create the ring buffer object from reader and writer. useful if you need to call reset.
-    // Not needed for deallocation, disposing of both reader and writer will deallocate buffer resources automatically.
+    /// Re-create the ring buffer object from reader and writer. useful if you need to call reset.
+    /// The reader and the writer pair must have been created from the same RingBuffer object.
+    /// Not needed for deallocation, disposing of both reader and writer will deallocate buffer resources automatically.
+    ///
+    /// panics if the reader and the writer were created from different RingBuffer objects.
     pub fn from_reader_writer(r: RingBufferReader, w: RingBufferWriter) -> Self {
         let mut handle_r = r.into_handle();
         let handle_w = w.into_handle();
@@ -83,7 +86,7 @@ impl Drop for RingBuffer {
     }
 }
 
-/// Read end of the ring buffer. Can only be used from one thread (can be a different from the write thread).
+/// Read end of the ring buffer. Can only be used from one thread (can be different from the write thread).
 pub struct RingBufferReader {
     ringbuffer_handle: std::sync::Arc<RingBuffer>,
 }
@@ -111,8 +114,10 @@ impl RingBufferReader {
 
 
     /// Fill a data structure with a description of the current readable data held in the ringbuffer.
-    /// This description is returned in a two slices. Two slices are needed because the data to be read may be split across the end of the ringbuffer.
-    /// The first slice represents the bytes ready to be read. if the second slice is not empty, it is the continuation of the data that ended in the first slices. For convienence, consider using peek_iter instead.
+    /// This description is returned in a two slices. Two slices are needed because the data to be read may be split 
+    /// across the end of the ringbuffer. The first slice represents the bytes ready to be read. if the second slice 
+    // is not empty, it is the continuation of the data that ended in the first slices. For convienence, consider using
+    // peek_iter instead.
     pub fn get_vector<'a>(&'a self) -> (&'a [u8], &'a [u8]) {
         let mut vec = [j::jack_ringbuffer_data_t::default(), j::jack_ringbuffer_data_t::default()];
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
