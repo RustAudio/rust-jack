@@ -8,7 +8,8 @@ use jack_sys as j;
 ///
 /// # Example
 /// ```
-/// let ringbuf = RingBuffer::new(1024).unwrap();
+/// use jack::prelude as j;
+/// let ringbuf = j::RingBuffer::new(1024).unwrap();
 /// let (mut reader, mut writer) = ringbuf.into_reader_writer();
 ///
 /// let buf = [0u8, 1, 2, 3];
