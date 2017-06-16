@@ -1,4 +1,3 @@
-use std::marker::Sized;
 use std::{ffi, iter};
 
 use libc;
@@ -18,7 +17,7 @@ lazy_static! {
 
 /// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
 /// midi output, etc...
-pub unsafe trait PortSpec: Default + Sized {
+pub unsafe trait PortSpec {
     /// String used by JACK upon port creation to identify the port
     /// type.
     fn jack_port_type(&self) -> &'static str;
