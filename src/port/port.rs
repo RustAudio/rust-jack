@@ -18,10 +18,10 @@ lazy_static! {
 
 /// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
 /// midi output, etc...
-pub unsafe trait PortSpec: Default + Sized {
+pub unsafe trait PortSpec: Sized {
     /// String used by JACK upon port creation to identify the port
     /// type.
-    fn jack_port_type(&self) -> &'static str;
+    fn jack_port_type(&self) -> &str;
 
     /// Flags used by jack upon port creation.
     fn jack_flags(&self) -> PortFlags;
@@ -273,7 +273,7 @@ pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortSpec for Unowned {
     /// Panics on call since the `Unowned` spec can't be used to create ports.
-    fn jack_port_type(&self) -> &'static str {
+    fn jack_port_type(&self) -> &str {
         unreachable!()
     }
 
