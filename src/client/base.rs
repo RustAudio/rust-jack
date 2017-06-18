@@ -58,33 +58,37 @@ impl ProcessScope {
     /// otherwise).
     ///
     /// `Err(JackErr::TimeError)` is returned on failure.
-    ///
-    /// TODO
-    /// - implement, weakly exported in JACK, so it is not defined to always be available.
+    /// `Err(JackErr::UnknownError)` if the function does not exist.
     pub fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
-        unimplemented!();
-        // let mut current_frames: pt::JackFrames = 0;
-        // let mut current_usecs: pt::JackTime = 0;
-        // let mut next_usecs: pt::JackTime = 0;
-        // let mut period_usecs: libc::c_float = 0.0;
-        // let res = unsafe {
-        //     j::jack_get_cycle_times(self.client_ptr(),
-        //                             &mut current_frames,
-        //                             &mut current_usecs,
-        //                             &mut next_usecs,
-        //                             &mut period_usecs)
-        // };
-        // match res {
-        //     0 => {
-        //         Ok(CycleTimes {
-        //             current_frames: current_frames,
-        //             current_usecs: current_usecs,
-        //             next_usecs: next_usecs,
-        //             period_usecs: period_usecs,
-        //         })
-        //     }
-        //     _ => Err(JackErr::TimeError),
-        // }
+        let mut current_frames: pt::JackFrames = 0;
+        let mut current_usecs: pt::JackTime = 0;
+        let mut next_usecs: pt::JackTime = 0;
+        let mut period_usecs: libc::c_float = 0.0;
+
+        let jack_get_cycle_times = {
+            match *j::jack_get_cycle_times {
+                Some(f) => f,
+                None => {return Err(JackErr::UnknownError)}
+            }
+        };
+        let res = unsafe {
+            (jack_get_cycle_times)(self.client_ptr(),
+                                    &mut current_frames,
+                                    &mut current_usecs,
+                                    &mut next_usecs,
+                                    &mut period_usecs)
+        };
+        match res {
+            0 => {
+                Ok(CycleTimes {
+                    current_frames: current_frames,
+                    current_usecs: current_usecs,
+                    next_usecs: next_usecs,
+                    period_usecs: period_usecs,
+                })
+            }
+            _ => Err(JackErr::TimeError),
+        }
     }
 
     /// Expose the `client_ptr` for low level purposes.

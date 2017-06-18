@@ -8,3 +8,5 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 libc = "0.2"
+libloading = "0.4.0"
+lazy_static = "0.2.8"

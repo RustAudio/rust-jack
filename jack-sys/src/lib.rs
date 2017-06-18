@@ -1,6 +1,9 @@
 #![allow(non_camel_case_types, non_upper_case_globals)]
 
 extern crate libc;
+#[macro_use]
+extern crate lazy_static;
+extern crate libloading;
 
 /// JACK port type for 8 bit raw midi
 pub static RAW_MIDI_TYPE: &'static str = "8 bit raw midi";
@@ -681,12 +684,8 @@ extern "C" {
     pub fn jack_frame_time(arg1: *const jack_client_t) -> jack_nframes_t;
     pub fn jack_last_frame_time(client: *const jack_client_t)
      -> jack_nframes_t;
-    pub fn jack_get_cycle_times(client: *const jack_client_t,
-                                current_frames: *mut jack_nframes_t,
-                                current_usecs: *mut jack_time_t,
-                                next_usecs: *mut jack_time_t,
-                                period_usecs: *mut ::libc::c_float)
-     -> ::libc::c_int;
+    
+    
     pub fn jack_frames_to_time(client: *const jack_client_t,
                                arg1: jack_nframes_t) -> jack_time_t;
     pub fn jack_time_to_frames(client: *const jack_client_t,
@@ -955,4 +954,36 @@ extern "C" {
                                          cnt: ::libc::size_t) -> ();
     pub fn jack_ringbuffer_write_space(rb: *const jack_ringbuffer_t)
      -> ::libc::size_t;
+}
+
+// Load optional functions:
+
+#[cfg(windows)]
+const jack_lib : &str = "libjack.dll";
+
+#[cfg(unix)]
+const jack_lib : &str = "libjack.so";
+
+    
+type jack_get_cycle_times_t = unsafe extern "C" fn(client: *const jack_client_t,
+                                current_frames: *mut jack_nframes_t,
+                                current_usecs: *mut jack_time_t,
+                                next_usecs: *mut jack_time_t,
+                                period_usecs: *mut ::libc::c_float) -> ::libc::c_int;
+
+lazy_static! {
+pub static ref jack_get_cycle_times : Option<jack_get_cycle_times_t> = {
+        if let Ok(lib) = libloading::Library::new(jack_lib) {
+            unsafe {
+                if let Ok(sym) = lib.get::<jack_get_cycle_times_t>(b"jack_get_cycle_times\0") {
+                    let sym = sym.into_raw();
+                    Some(*sym.deref() as jack_get_cycle_times_t)
+                } else {
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    };
 }
