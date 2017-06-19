@@ -22,6 +22,7 @@ pub enum JackErr {
     PortRegistrationError(String),
     SetBufferSizeError,
     TimeError,
+    WeakFunctionNotFound,
     UnknownError,
 }
 
