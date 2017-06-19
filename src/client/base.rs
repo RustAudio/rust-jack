@@ -58,7 +58,7 @@ impl ProcessScope {
     /// otherwise).
     ///
     /// `Err(JackErr::TimeError)` is returned on failure.
-    /// `Err(JackErr::UnknownError)` if the function does not exist.
+    /// `Err(JackErr::WeakFunctionNotFound)` if the function does not exist.
     pub fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
         let mut current_frames: pt::JackFrames = 0;
         let mut current_usecs: pt::JackTime = 0;
@@ -68,7 +68,7 @@ impl ProcessScope {
         let jack_get_cycle_times = {
             match *j::jack_get_cycle_times {
                 Some(f) => f,
-                None => {return Err(JackErr::UnknownError)}
+                None => {return Err(JackErr::WeakFunctionNotFound)}
             }
         };
         let res = unsafe {
