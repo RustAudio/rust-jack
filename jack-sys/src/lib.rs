@@ -959,10 +959,10 @@ extern "C" {
 // Load optional functions:
 
 #[cfg(windows)]
-const jack_lib : &str = "libjack.dll";
+const jack_lib : &'static str = "libjack.dll";
 
 #[cfg(unix)]
-const jack_lib : &str = "libjack.so";
+const jack_lib : &'static str = "libjack.so";
 
     
 type jack_get_cycle_times_t = unsafe extern "C" fn(client: *const jack_client_t,
