@@ -19,7 +19,7 @@ impl j::NotificationHandler for Notifications {
 
     fn freewheel(&mut self, _: &j::Client, is_enabled: bool) {
         println!("JACK: freewheel mode is {}",
-                 if is_enabled { "on" } else { "of" });
+                 if is_enabled { "on" } else { "off" });
     }
 
     fn buffer_size(&mut self, _: &j::Client, sz: j::JackFrames) -> j::JackControl {
