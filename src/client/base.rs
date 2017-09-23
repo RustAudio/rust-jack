@@ -131,6 +131,8 @@ impl ProcessScope {
 #[derive(Debug)]
 pub struct Client(*mut j::jack_client_t);
 
+unsafe impl Send for Client {}
+
 impl Client {
     /// The maximum length of the JACK client name string. Unlike the "C" JACK
     /// API, this does not take into account the final `NULL` character and
