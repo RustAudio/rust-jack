@@ -115,7 +115,7 @@ pub trait NotificationHandler: Send {
     fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
-pub trait ProcessHandler {
+pub trait ProcessHandler : Send {
     /// Called whenever there is work to be done.
     ///
     /// It needs to be suitable for real-time execution. That means that it cannot call functions
