@@ -39,6 +39,10 @@ pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     handler: *mut (N, P, *mut j::jack_client_t),
 }
 
+unsafe impl<N, P> Send for AsyncClient<N, P>
+    where N: NotificationHandler,
+          P: ProcessHandler { }
+
 impl<N, P> AsyncClient<N, P>
     where N: NotificationHandler,
           P: ProcessHandler
