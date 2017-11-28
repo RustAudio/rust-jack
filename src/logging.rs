@@ -1,3 +1,4 @@
+use libc;
 use std::ffi;
 use std::io::{Write, stderr};
 use std::sync::{Mutex, ONCE_INIT, Once};
@@ -9,7 +10,7 @@ lazy_static! {
     static ref ERROR_FN: Mutex<Option<fn(&str)>> = Mutex::new(None);
 }
 
-unsafe extern "C" fn error_wrapper(msg: *const i8) {
+unsafe extern "C" fn error_wrapper(msg: *const libc::c_char) {
     let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or("rust failed to interpret error message");
     let f = ERROR_FN.lock().unwrap();
     match *f {
@@ -18,7 +19,7 @@ unsafe extern "C" fn error_wrapper(msg: *const i8) {
     }
 }
 
-unsafe extern "C" fn info_wrapper(msg: *const i8) {
+unsafe extern "C" fn info_wrapper(msg: *const libc::c_char) {
     let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or("rust failed to interpret info message");
     let f = INFO_FN.lock().unwrap();
     match *f {

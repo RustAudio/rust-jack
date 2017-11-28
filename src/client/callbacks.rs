@@ -145,7 +145,7 @@ unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
 }
 
 unsafe extern "C" fn shutdown<N, P>(code: j::jack_status_t,
-                                    reason: *const i8,
+                                    reason: *const libc::c_char,
                                     data: *mut libc::c_void)
     where N: NotificationHandler,
           P: ProcessHandler
@@ -201,7 +201,7 @@ unsafe extern "C" fn sample_rate<N, P>(n_frames: pt::JackFrames,
     obj.0.sample_rate(&obj.2, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn client_registration<N, P>(name: *const i8,
+unsafe extern "C" fn client_registration<N, P>(name: *const libc::c_char,
                                                register: libc::c_int,
                                                data: *mut libc::c_void)
     where N: NotificationHandler,
@@ -233,8 +233,8 @@ unsafe extern "C" fn port_registration<N, P>(port_id: pt::JackPortId,
 
 #[allow(dead_code)] // TODO: remove once it can be registered
 unsafe extern "C" fn port_rename<N, P>(port_id: pt::JackPortId,
-                                       old_name: *const i8,
-                                       new_name: *const i8,
+                                       old_name: *const libc::c_char,
+                                       new_name: *const libc::c_char,
                                        data: *mut libc::c_void)
                                        -> libc::c_int
     where N: NotificationHandler,
