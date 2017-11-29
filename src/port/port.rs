@@ -118,10 +118,10 @@ impl<PS: PortSpec> Port<PS> {
     ///
     /// Will return up to 2 strings.
     pub fn aliases(&self) -> Vec<String> {
-        let mut a: Vec<i8> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
+        let mut a: Vec<libc::c_char> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
         unsafe {
-            let mut ptrs: [*mut i8; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
+            let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
             j::jack_port_get_aliases(self.as_ptr(), ptrs.as_mut_ptr());
         };
         [a, b]

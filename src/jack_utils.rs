@@ -1,3 +1,4 @@
+use libc;
 use std::ffi;
 use jack_sys as j;
 
@@ -5,7 +6,7 @@ use jack_sys as j;
 /// and frees the memory pointed to by `ptr`. The end of the array is marked by
 /// the value of the c-string being the null pointer. `ptr` may be `null`, in
 /// which case nothing (deallocating) is done and an empty vector is returned.
-pub unsafe fn collect_strs(ptr: *const *const i8) -> Vec<String> {
+pub unsafe fn collect_strs(ptr: *const *const libc::c_char) -> Vec<String> {
     if ptr.is_null() {
         return Vec::new();
     };
