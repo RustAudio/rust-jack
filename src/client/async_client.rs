@@ -1,4 +1,3 @@
-use std::mem;
 use std::ops::Deref;
 
 use jack_sys as j;
@@ -35,17 +34,21 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// ```
 #[derive(Debug)]
 pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
-    client: Client,
-    handler: *mut (N, P, *mut j::jack_client_t),
+    client: Option<Client>,
+    handler: Option<*mut (N, P, *mut j::jack_client_t)>,
 }
 
 unsafe impl<N, P> Send for AsyncClient<N, P>
-    where N: NotificationHandler,
-          P: ProcessHandler { }
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
+{
+}
 
 impl<N, P> AsyncClient<N, P>
-    where N: NotificationHandler,
-          P: ProcessHandler
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
 {
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
@@ -55,15 +58,19 @@ impl<N, P> AsyncClient<N, P>
     ///
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
-    pub fn new(client: Client,
-               notification_handler: N,
-               process_handler: P)
-               -> Result<Self, JackErr> {
+    pub fn new(
+        client: Client,
+        notification_handler: N,
+        process_handler: P,
+    ) -> Result<Self, JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
-            let handler_ptr =
-                try!(register_callbacks(notification_handler, process_handler, client.as_ptr()));
+            let handler_ptr = try!(register_callbacks(
+                notification_handler,
+                process_handler,
+                client.as_ptr(),
+            ));
             sleep_on_test();
             if handler_ptr.is_null() {
                 Err(JackErr::CallbackRegistrationError)
@@ -75,8 +82,8 @@ impl<N, P> AsyncClient<N, P>
                 match res {
                     0 => {
                         Ok(AsyncClient {
-                            client: client,
-                            handler: handler_ptr,
+                            client: Some(client),
+                            handler: Some(handler_ptr),
                         })
                     }
 
@@ -98,61 +105,65 @@ impl<N, P> AsyncClient<N, P>
     ///
     /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
     /// therefore unsafe to continue using.
-    pub fn deactivate(self) -> Result<(Client, N, P), JackErr> {
+    pub fn deactivate(mut self) -> Result<(Client, N, P), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
-            // Collect contents, cleanup will be manual, instead of automatic as we don't want to
-            // drop our inner client, since it may still be open.
-            let (client_ptr, handler_ptr) = (self.client.as_ptr(), self.handler);
-            mem::forget(self); // we're deactivating now, so no need to do it on drop
+            let inner_client = self.client.take().unwrap();
 
             // deactivate
             sleep_on_test();
-            if j::jack_deactivate(client_ptr) != 0 {
+            if j::jack_deactivate(inner_client.as_ptr()) != 0 {
                 return Err(JackErr::ClientDeactivationError);
             }
 
             // clear the callbacks
             sleep_on_test();
-            try!(clear_callbacks(client_ptr));
+            try!(clear_callbacks(inner_client.as_ptr()));
 
             // done, take ownership of pointer
-            let handler_box = Box::from_raw(handler_ptr);
+            let handler_box = Box::from_raw(self.handler.take().unwrap());
             let handler_tuple = *handler_box;
             let (n_handler, p_handler, _client_ptr) = handler_tuple;
-            Ok((Client::from_raw(client_ptr), n_handler, p_handler))
+            Ok((inner_client, n_handler, p_handler))
         }
     }
 }
 
 impl<N, P> Deref for AsyncClient<N, P>
-    where N: NotificationHandler,
-          P: ProcessHandler
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
 {
     type Target = Client;
 
     fn deref(&self) -> &Self::Target {
-        &self.client
+        self.client.as_ref().unwrap()
     }
 }
 
 /// Closes the client.
 impl<N, P> Drop for AsyncClient<N, P>
-    where N: NotificationHandler,
-          P: ProcessHandler
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
 {
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             // Deactivate the handler
             sleep_on_test();
-            j::jack_deactivate(self.client.as_ptr()); // result doesn't matter
+            if self.client.is_some() {
+                j::jack_deactivate(self.as_ptr()); // result doesn't matter
+            }
             sleep_on_test();
 
             // Drop the handler
-            drop(Box::from_raw(self.handler));
+            if self.handler.is_some() {
+                drop(Box::from_raw(self.handler.unwrap()));
+            }
 
             // The client will close itself on drop
+            // self.client.unwrap().drop()
         }
     }
 }

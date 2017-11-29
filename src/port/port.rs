@@ -1,5 +1,5 @@
 use std::marker::Sized;
-use std::{ffi, iter};
+use std::{ffi, fmt, iter};
 
 use libc;
 
@@ -39,7 +39,6 @@ pub unsafe trait PortSpec: Sized {
 ///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
-#[derive(Debug)]
 pub struct Port<PS: PortSpec> {
     spec: PS,
     client_ptr: *mut j::jack_client_t,
@@ -66,12 +65,20 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr())).to_str().unwrap() }
+        unsafe {
+            ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr()))
+                .to_str()
+                .unwrap()
+        }
     }
 
     /// Returns the short name of the port, it excludes the "client_name:" prefix.
     pub fn short_name<'a>(&'a self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_short_name(self.as_ptr())).to_str().unwrap() }
+        unsafe {
+            ffi::CStr::from_ptr(j::jack_port_short_name(self.as_ptr()))
+                .to_str()
+                .unwrap()
+        }
     }
 
     /// The flags for the port. These are set when the port is registered with
@@ -84,7 +91,11 @@ impl<PS: PortSpec> Port<PS> {
     /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
-        unsafe { ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr())).to_str().unwrap() }
+        unsafe {
+            ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr()))
+                .to_str()
+                .unwrap()
+        }
     }
 
     /// Number of ports connected to/from `&self`.
@@ -127,7 +138,9 @@ impl<PS: PortSpec> Port<PS> {
         [a, b]
             .iter()
             .map(|p| p.as_ptr())
-            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
+            .map(|p| unsafe {
+                ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
+            })
             .filter(|s| s.len() > 0)
             .collect()
     }
@@ -225,10 +238,11 @@ impl<PS: PortSpec> Port<PS> {
     /// Create a Port from raw JACK pointers.
     ///
     /// This is mostly for use within the jack crate itself.
-    pub unsafe fn from_raw(spec: PS,
-                           client_ptr: *mut j::jack_client_t,
-                           port_ptr: *mut j::jack_port_t)
-                           -> Self {
+    pub unsafe fn from_raw(
+        spec: PS,
+        client_ptr: *mut j::jack_client_t,
+        port_ptr: *mut j::jack_port_t,
+    ) -> Self {
         Port {
             spec: spec,
             port_ptr: port_ptr,
@@ -285,5 +299,36 @@ unsafe impl PortSpec for Unowned {
     /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_buffer_size(&self) -> libc::c_ulong {
         unreachable!()
+    }
+}
+
+#[derive(Debug)]
+struct DebugInfo {
+    name: String,
+    connections: usize,
+    spec: String,
+    aliases: Vec<String>,
+}
+
+impl DebugInfo {
+    fn new<PS: PortSpec>(p: &Port<PS>) -> DebugInfo {
+        let s = p.spec();
+        DebugInfo {
+            name: p.name().into(),
+            connections: p.connected_count(),
+            spec: format!(
+                "{{ type: {}, flags: {:?}, buffer_size: {} }}",
+                s.jack_port_type(),
+                s.jack_flags(),
+                s.jack_buffer_size()
+            ),
+            aliases: p.aliases(),
+        }
+    }
+}
+
+impl<PS: PortSpec> fmt::Debug for Port<PS> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{:?}", DebugInfo::new(self))
     }
 }
