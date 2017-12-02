@@ -1,19 +1,21 @@
-use std::ops::Deref;
 use std::fmt;
+use std::ops::Deref;
 
 use jack_sys as j;
 
+use super::callbacks::{clear_callbacks, register_callbacks};
 use client::base::Client;
 use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
 use jack_enums::*;
-use super::callbacks::{clear_callbacks, register_callbacks};
 
 pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
-/// To create input or output (either sound or midi), a `Port` can be used within the `process`
-/// callback. See `Client::register_port` on creating ports. Also, see `Port` for documentation on
+/// To create input or output (either sound or midi), a `Port` can be used
+/// within the `process`
+/// callback. See `Client::register_port` on creating ports. Also, see `Port`
+/// for documentation on
 /// the API for port.
 ///
 /// # Example
@@ -31,7 +33,8 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// );
 ///
 /// // An active async client is created, `client` is consumed.
-/// let active_client = j::AsyncClient::new(client, (), process_handler).unwrap();
+/// let active_client = j::AsyncClient::new(client, (),
+/// process_handler).unwrap();
 /// ```
 pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     client: Option<Client>,
@@ -50,13 +53,16 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
-    /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
+    /// Tell the JACK server that the program is ready to start processing
+    /// audio. JACK will call the
+    /// methods specified by the `NotificationHandler` and `ProcessHandler`
+    /// objects.
     ///
     /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
     /// `Err(JackErr::ClientActivationError)` is returned.
     ///
-    /// `notification_handler` and `process_handler` are consumed, but they are returned when
+    /// `notification_handler` and `process_handler` are consumed, but they are
+    /// returned when
     /// `Client::deactivate` is called.
     pub fn new(
         client: Client,
@@ -97,13 +103,16 @@ where
     }
 
 
-    /// Tell the JACK server to remove this client from the process graph. Also, disconnect all
+    /// Tell the JACK server to remove this client from the process graph.
+    /// Also, disconnect all
     /// ports belonging to it since inactive clients have no port connections.
     ///
-    /// The `handler` that was used for `Client::activate` is returned on success. Its state may
+    /// The `handler` that was used for `Client::activate` is returned on
+    /// success. Its state may
     /// have changed due to JACK calling its methods.
     ///
-    /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
+    /// In the case of error, the `Client` is destroyed because its state is
+    /// unknown, and it is
     /// therefore unsafe to continue using.
     pub fn deactivate(mut self) -> Result<(Client, N, P), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();

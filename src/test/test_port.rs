@@ -1,7 +1,9 @@
 use prelude::*;
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, client_options::NO_START_SERVER).unwrap().0
+    Client::new(name, client_options::NO_START_SERVER)
+        .unwrap()
+        .0
 }
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioInSpec>) {
@@ -124,8 +126,10 @@ fn port_can_set_alias() {
 
     // 2 alias
     p.set_alias("second_alias").unwrap();
-    assert_eq!(p.aliases(),
-               vec!["first_alias".to_string(), "second_alias".to_string()]);
+    assert_eq!(
+        p.aliases(),
+        vec!["first_alias".to_string(), "second_alias".to_string()]
+    );
 }
 
 #[test]
@@ -135,8 +139,10 @@ fn port_can_unset_alias() {
     // set aliases
     p.set_alias("first_alias").unwrap();
     p.set_alias("second_alias").unwrap();
-    assert_eq!(p.aliases(),
-               vec!["first_alias".to_string(), "second_alias".to_string()]);
+    assert_eq!(
+        p.aliases(),
+        vec!["first_alias".to_string(), "second_alias".to_string()]
+    );
 
     // unset alias
     p.unset_alias("first_alias").unwrap();
