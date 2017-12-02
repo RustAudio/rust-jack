@@ -1,6 +1,6 @@
+use jack_sys as j;
 use libc;
 use std::ffi;
-use jack_sys as j;
 
 /// Collects strings from an array of c-strings into a Rust vector of strings
 /// and frees the memory pointed to by `ptr`. The end of the array is marked by
@@ -20,9 +20,7 @@ pub unsafe fn collect_strs(ptr: *const *const libc::c_char) -> Vec<String> {
     let mut strs = Vec::with_capacity(len as usize);
     for i in 0..len {
         let cstr_ptr = *ptr.offset(i);
-        let s = ffi::CStr::from_ptr(cstr_ptr)
-            .to_string_lossy()
-            .into_owned();
+        let s = ffi::CStr::from_ptr(cstr_ptr).to_string_lossy().into_owned();
         strs.push(s);
     }
     j::jack_free(ptr as *mut ::libc::c_void);
