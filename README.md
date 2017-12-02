@@ -6,7 +6,7 @@
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
 [![Build Status](https://travis-ci.org/RustAudio/rust-jack.svg?branch=master)](https://travis-ci.org/RustAudio/rust-jack)
-[![Coverage Status](https://coveralls.io/repos/github/RustAudio/rust-jack/badge.svg?branch=master)](https://coveralls.io/github/RustAudio/rust-jack)
+[![Coverage Status](https://coveralls.io/repos/github/RustAudio/rust-jack/badge.svg?branch=master&version=0.5.6)](https://coveralls.io/github/RustAudio/rust-jack)
 
 
 Nice Rust bindings for
