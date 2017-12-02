@@ -1,4 +1,4 @@
-use std::{mem, ptr, thread, time};
+use std::{ptr, thread, time, mem};
 use std::sync::Mutex;
 
 use prelude::*;
@@ -58,9 +58,7 @@ impl ProcessHandler for Counter {
 }
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, client_options::NO_START_SERVER)
-        .unwrap()
-        .0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
@@ -88,10 +86,8 @@ fn client_cback_has_proper_default_callbacks() {
     assert_eq!(h.client_registration(&wc, "mock", false), ());
     assert_eq!(h.port_registration(&wc, 0, true), ());
     assert_eq!(h.port_registration(&wc, 0, false), ());
-    assert_eq!(
-        h.port_rename(&wc, 0, "old_mock", "new_mock"),
-        JackControl::Continue
-    );
+    assert_eq!(h.port_rename(&wc, 0, "old_mock", "new_mock"),
+               JackControl::Continue);
     assert_eq!(h.ports_connected(&wc, 0, 1, true), ());
     assert_eq!(h.ports_connected(&wc, 2, 3, false), ());
     assert_eq!(h.graph_reorder(&wc), JackControl::Continue);
@@ -140,13 +136,10 @@ fn client_cback_calls_after_client_registered() {
     let ac = active_test_client("client_cback_cacr");
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
-    assert!(counter.registered_client_history.contains(
-        &"client_cback_cacr_other".to_string(),
-    ));
-    assert!(!counter.unregistered_client_history.contains(
-        &"client_cback_cacr_other"
-            .to_string(),
-    ));
+    assert!(counter.registered_client_history
+        .contains(&"client_cback_cacr_other".to_string()));
+    assert!(!counter.unregistered_client_history
+        .contains(&"client_cback_cacr_other".to_string()));
 }
 
 #[test]
@@ -155,12 +148,10 @@ fn client_cback_calls_after_client_unregistered() {
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
-    assert!(counter.registered_client_history.contains(
-        &"client_cback_cacu_other".to_string(),
-    ));
-    assert!(counter.unregistered_client_history.contains(
-        &"client_cback_cacu_other".to_string(),
-    ));
+    assert!(counter.registered_client_history
+        .contains(&"client_cback_cacu_other".to_string()));
+    assert!(counter.unregistered_client_history
+        .contains(&"client_cback_cacu_other".to_string()));
 }
 
 #[test]
@@ -179,15 +170,11 @@ fn client_cback_calls_port_registered() {
     let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
     let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
     let counter = ac.deactivate().unwrap().1;
-    assert_eq!(
-        counter.port_register_history.len(),
-        2,
-        "Did not detect port registrations."
-    );
-    assert!(
-        counter.port_unregister_history.is_empty(),
-        "Detected false port deregistrations."
-    );
+    assert_eq!(counter.port_register_history.len(),
+               2,
+               "Did not detect port registrations.");
+    assert!(counter.port_unregister_history.is_empty(),
+            "Detected false port deregistrations.");
 }
 
 #[test]
@@ -198,12 +185,8 @@ fn client_cback_calls_port_unregistered() {
     _pa.unregister().unwrap();
     _pb.unregister().unwrap();
     let counter = ac.deactivate().unwrap().1;
-    assert!(
-        counter.port_register_history.len() >= 2,
-        "Did not detect port registrations."
-    );
-    assert!(
-        counter.port_unregister_history.len() >= 2,
-        "Did not detect port deregistrations."
-    );
+    assert!(counter.port_register_history.len() >= 2,
+            "Did not detect port registrations.");
+    assert!(counter.port_unregister_history.len() >= 2,
+            "Did not detect port deregistrations.");
 }

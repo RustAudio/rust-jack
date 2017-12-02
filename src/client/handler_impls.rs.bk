@@ -1,8 +1,7 @@
-
-use super::callbacks::{NotificationHandler, ProcessHandler};
-use client::ProcessScope;
 use client::base::Client;
+use client::ProcessScope;
 use jack_enums::JackControl;
+use super::callbacks::{NotificationHandler, ProcessHandler};
 
 impl NotificationHandler for () {}
 impl ProcessHandler for () {
@@ -11,8 +10,7 @@ impl ProcessHandler for () {
     }
 }
 
-/// Wrap a closure that can handle the `process` callback. This is called every
-/// time data from ports
+/// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
 pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl> {
     pub process_fn: F,

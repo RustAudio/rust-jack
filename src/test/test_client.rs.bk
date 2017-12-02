@@ -25,8 +25,7 @@ fn client_fails_to_open_with_large_name() {
     Client::new(&name, client_options::NO_START_SERVER).unwrap();
     // fails on travis, switched to should_panic for a catch all
     // assert_eq!(Client::new(&name, client_options::NO_START_SERVER).err(),
-    // Some(JackErr::ClientError(client_status::FAILURE |
-    // client_status::SERVER_ERROR)));
+    //            Some(JackErr::ClientError(client_status::FAILURE | client_status::SERVER_ERROR)));
 }
 
 #[test]

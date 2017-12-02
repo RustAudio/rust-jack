@@ -5,11 +5,11 @@ use libc;
 
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
-use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
+use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use jack_enums::*;
 use jack_utils::collect_strs;
-use port::{Port, PortSpec, Unowned, UnownedPort};
 use port::port_flags::PortFlags;
+use port::{Port, PortSpec, Unowned, UnownedPort};
 use primitive_types as pt;
 
 /// A client to interact with a JACK server.
@@ -20,11 +20,9 @@ use primitive_types as pt;
 /// ```
 /// use jack::prelude as j;
 ///
-/// let c_res = j::Client::new("rusty_client",
-/// j::client_options::NO_START_SERVER);
+/// let c_res = j::Client::new("rusty_client", j::client_options::NO_START_SERVER);
 /// match c_res {
-/// Ok((client, status)) => println!("Managed to open client {}, with
-/// status {:?}!",
+///     Ok((client, status)) => println!("Managed to open client {}, with status {:?}!",
 ///                                      client.name(), status),
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
@@ -63,20 +61,16 @@ impl Client {
         }
     }
 
-    /// The sample rate of the JACK system, as set by the user when jackd was
-    /// started.
+    /// The sample rate of the JACK system, as set by the user when jackd was started.
     pub fn sample_rate(&self) -> usize {
         let srate = unsafe { j::jack_get_sample_rate(self.as_ptr()) };
         srate as usize
     }
 
-    /// The current CPU load estimated by JACK. It is on a scale of `0.0` to
-    /// `100.0`.
+    /// The current CPU load estimated by JACK. It is on a scale of `0.0` to `100.0`.
     ///
-    /// This is a running average of the time it takes to execute a full
-    /// process cycle for all
-    /// clients as a percentage of the real time available per cycle determined
-    /// by the buffer size
+    /// This is a running average of the time it takes to execute a full process cycle for all
+    /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
     pub fn cpu_load(&self) -> f32 {
         let load = unsafe { j::jack_cpu_load(self.as_ptr()) };
@@ -84,12 +78,9 @@ impl Client {
     }
 
 
-    /// Get the name of the current client. This may differ from the name
-    /// requested by
-    /// `Client::new` as JACK will may rename a client if necessary (ie: name
-    /// collision, name too
-    /// long). The name will only the be different than the one passed to
-    /// `Client::new` if the
+    /// Get the name of the current client. This may differ from the name requested by
+    /// `Client::new` as JACK will may rename a client if necessary (ie: name collision, name too
+    /// long). The name will only the be different than the one passed to `Client::new` if the
     /// `ClientStatus` was `NAME_NOT_UNIQUE`.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe {
@@ -99,18 +90,15 @@ impl Client {
         }
     }
 
-    /// The current maximum size that will every be passed to the process
-    /// callback.
+    /// The current maximum size that will every be passed to the process callback.
     pub fn buffer_size(&self) -> pt::JackFrames {
         unsafe { j::jack_get_buffer_size(self.as_ptr()) }
     }
 
     /// Change the buffer size passed to the process callback.
     ///
-    /// This operation stops the JACK engine process cycle, then calls all
-    /// registered buffer size
-    /// callback functions before restarting the process cycle. This will cause
-    /// a gap in the audio
+    /// This operation stops the JACK engine process cycle, then calls all registered buffer size
+    /// callback functions before restarting the process cycle. This will cause a gap in the audio
     /// flow, so it should only be done at appropriate stopping points.
     pub fn set_buffer_size(&self, n_frames: pt::JackFrames) -> Result<(), JackErr> {
         let res = unsafe { j::jack_set_buffer_size(self.as_ptr(), n_frames) };
@@ -132,8 +120,7 @@ impl Client {
     // // pub fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
     //     unsafe {
     //         let uuid = ffi::CString::new(uuid).unwrap();
-    // let name_ptr = j::jack_get_client_name_by_uuid(self.as_ptr(),
-    // uuid.as_ptr());
+    //         let name_ptr = j::jack_get_client_name_by_uuid(self.as_ptr(), uuid.as_ptr());
     //         if name_ptr.is_null() {
     //             None
     //         } else {
@@ -149,8 +136,7 @@ impl Client {
     // pub fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
     //     unsafe {
     //         let name = ffi::CString::new(name).unwrap();
-    // let uuid_ptr = j::jack_get_client_name_by_uuid(self.as_ptr(),
-    // name.as_ptr());
+    //         let uuid_ptr = j::jack_get_client_name_by_uuid(self.as_ptr(), name.as_ptr());
     //         if uuid_ptr.is_null() {
     //             None
     //         } else {
@@ -165,12 +151,9 @@ impl Client {
     /// name. If `None` or zero lengthed, no selection based on name will be
     /// carried out.
     ///
-    /// `type_name_pattern` - A regular expression used to select ports by
-    /// type. If `None` or zero
-    /// lengthed, no selection based on type will be carried out. The port type
-    /// is the same one
-    /// returned by `PortSpec::jack_port_type()`. For example, `AudioInSpec`
-    /// and `AudioOutSpec` are
+    /// `type_name_pattern` - A regular expression used to select ports by type. If `None` or zero
+    /// lengthed, no selection based on type will be carried out. The port type is the same one
+    /// returned by `PortSpec::jack_port_type()`. For example, `AudioInSpec` and `AudioOutSpec` are
     /// both of type `"32 bit float mono audio"`.
     ///
     /// `flags` - A value used to select ports by their flags. Use
@@ -190,14 +173,11 @@ impl Client {
         }
     }
 
-    /// Create a new port for the client. This is an object used for moving
-    /// data of any type in or
+    /// Create a new port for the client. This is an object used for moving data of any type in or
     /// out of the client. Ports may be connected in various ways.
     ///
-    /// The `port_spec` specifies the IO direction and data type. Oftentimes,
-    /// the built-in types
-    /// (`AudioInSpec`, `AudioOutSpec`, `MidiInSpec`, `MidiOutSpec`) can be
-    /// used.
+    /// The `port_spec` specifies the IO direction and data type. Oftentimes, the built-in types
+    /// (`AudioInSpec`, `AudioOutSpec`, `MidiInSpec`, `MidiOutSpec`) can be used.
     ///
     /// Each port has a short name. The port's full name contains the name of
     /// the client concatenated with a colon (:) followed by its short
@@ -255,19 +235,15 @@ impl Client {
         }
     }
 
-    /// The estimated time in frames that has passed since the JACK server
-    /// began the current process
+    /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> pt::JackFrames {
         unsafe { j::jack_frames_since_cycle_start(self.as_ptr()) }
     }
 
-    /// The estimated current time in frames. This function is intended for use
-    /// in other threads
-    /// (not the process callback). The return value can be compared with the
-    /// value of
-    /// `last_frame_time` to relate time in other threads to JACK time. To
-    /// obtain better time
+    /// The estimated current time in frames. This function is intended for use in other threads
+    /// (not the process callback). The return value can be compared with the value of
+    /// `last_frame_time` to relate time in other threads to JACK time. To obtain better time
     /// information from within the process callback, see `ProcessScope`.
     ///
     /// # TODO
@@ -358,8 +334,7 @@ impl Client {
     /// When a connection exists, data written to the source port will be
     /// available to be read at the destination port.
     ///
-    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is
-    /// returned.
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
     ///
     /// # Preconditions
     /// 1. The port types must be identical
@@ -403,8 +378,7 @@ impl Client {
     /// When a connection exists, data written to the source port will be
     /// available to be read at the destination port.
     ///
-    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is
-    /// returned.
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
     ///
     /// # Preconditions
     /// 1. The port types must be identical
@@ -498,8 +472,7 @@ impl fmt::Debug for Client {
     }
 }
 
-/// `ProcessScope` provides information on the client and frame time
-/// information within a process
+/// `ProcessScope` provides information on the client and frame time information within a process
 /// callback.
 #[derive(Debug)]
 pub struct ProcessScope {
@@ -516,31 +489,23 @@ impl ProcessScope {
         self.n_frames
     }
 
-    /// The precise time at the start of the current process cycle. This
-    /// function may only be used
-    /// from the process callback, and can be used to interpret timestamps
-    /// generated by
-    /// `self.frame_time()` in other threads, with respect to the current
-    /// process cycle.
+    /// The precise time at the start of the current process cycle. This function may only be used
+    /// from the process callback, and can be used to interpret timestamps generated by
+    /// `self.frame_time()` in other threads, with respect to the current process cycle.
     pub fn last_frame_time(&self) -> pt::JackFrames {
         unsafe { j::jack_last_frame_time(self.client_ptr()) }
     }
 
-    /// The estimated time in frames that has passed since the JACK server
-    /// began the current process
+    /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> pt::JackFrames {
         unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
     }
 
-    /// Provides the internal cycle timing information as used by most of the
-    /// other time related
-    /// functions. This allows the caller to map between frame counts and
-    /// microseconds with full
-    /// precision (i.e. without rounding frame times to integers), and also
-    /// provides e.g. the
-    /// microseconds time of the start of the current cycle directly (it has to
-    /// be computed
+    /// Provides the internal cycle timing information as used by most of the other time related
+    /// functions. This allows the caller to map between frame counts and microseconds with full
+    /// precision (i.e. without rounding frame times to integers), and also provides e.g. the
+    /// microseconds time of the start of the current cycle directly (it has to be computed
     /// otherwise).
     ///
     /// `Err(JackErr::TimeError)` is returned on failure.
@@ -587,8 +552,7 @@ impl ProcessScope {
         self.client_ptr
     }
 
-    /// Create a `ProcessScope` for the client with the given pointer and the
-    /// specified amount of
+    /// Create a `ProcessScope` for the client with the given pointer and the specified amount of
     /// frames.
     ///
     /// This is mostly for use within the jack crate itself.

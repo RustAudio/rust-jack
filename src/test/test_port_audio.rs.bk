@@ -2,9 +2,7 @@ use prelude::*;
 use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, client_options::NO_START_SERVER)
-        .unwrap()
-        .0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 #[test]
@@ -39,9 +37,7 @@ fn port_audio_can_read_write() {
         .unwrap();
     ac.connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
         .unwrap();
-    assert!(
-        did_succeed.iter().any(|b| b),
-        "input port does not have expected data"
-    );
+    assert!(did_succeed.iter().any(|b| b),
+            "input port does not have expected data");
     ac.deactivate().unwrap();
 }

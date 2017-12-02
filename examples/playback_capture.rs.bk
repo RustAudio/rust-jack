@@ -12,18 +12,14 @@ impl j::NotificationHandler for Notifications {
     }
 
     fn shutdown(&mut self, status: j::ClientStatus, reason: &str) {
-        println!(
-            "JACK: shutdown with status {:?} because \"{}\"",
-            status,
-            reason
-        );
+        println!("JACK: shutdown with status {:?} because \"{}\"",
+                 status,
+                 reason);
     }
 
     fn freewheel(&mut self, _: &j::Client, is_enabled: bool) {
-        println!(
-            "JACK: freewheel mode is {}",
-            if is_enabled { "on" } else { "off" }
-        );
+        println!("JACK: freewheel mode is {}",
+                 if is_enabled { "on" } else { "off" });
     }
 
     fn buffer_size(&mut self, _: &j::Client, sz: j::JackFrames) -> j::JackControl {
@@ -37,54 +33,43 @@ impl j::NotificationHandler for Notifications {
     }
 
     fn client_registration(&mut self, _: &j::Client, name: &str, is_reg: bool) {
-        println!(
-            "JACK: {} client with name \"{}\"",
-            if is_reg { "registered" } else { "unregistered" },
-            name
-        );
+        println!("JACK: {} client with name \"{}\"",
+                 if is_reg { "registered" } else { "unregistered" },
+                 name);
     }
 
     fn port_registration(&mut self, _: &j::Client, port_id: j::JackPortId, is_reg: bool) {
-        println!(
-            "JACK: {} port with id {}",
-            if is_reg { "registered" } else { "unregistered" },
-            port_id
-        );
+        println!("JACK: {} port with id {}",
+                 if is_reg { "registered" } else { "unregistered" },
+                 port_id);
     }
 
-    fn port_rename(
-        &mut self,
-        _: &j::Client,
-        port_id: j::JackPortId,
-        old_name: &str,
-        new_name: &str,
-    ) -> j::JackControl {
-        println!(
-            "JACK: port with id {} renamed from {} to {}",
-            port_id,
-            old_name,
-            new_name
-        );
+    fn port_rename(&mut self,
+                   _: &j::Client,
+                   port_id: j::JackPortId,
+                   old_name: &str,
+                   new_name: &str)
+                   -> j::JackControl {
+        println!("JACK: port with id {} renamed from {} to {}",
+                 port_id,
+                 old_name,
+                 new_name);
         j::JackControl::Continue
     }
 
-    fn ports_connected(
-        &mut self,
-        _: &j::Client,
-        port_id_a: j::JackPortId,
-        port_id_b: j::JackPortId,
-        are_connected: bool,
-    ) {
-        println!(
-            "JACK: ports with id {} and {} are {}",
-            port_id_a,
-            port_id_b,
-            if are_connected {
-                "connected"
-            } else {
-                "disconnected"
-            }
-        );
+    fn ports_connected(&mut self,
+                       _: &j::Client,
+                       port_id_a: j::JackPortId,
+                       port_id_b: j::JackPortId,
+                       are_connected: bool) {
+        println!("JACK: ports with id {} and {} are {}",
+                 port_id_a,
+                 port_id_b,
+                 if are_connected {
+                     "connected"
+                 } else {
+                     "disconnected"
+                 });
     }
 
     fn graph_reorder(&mut self, _: &j::Client) -> j::JackControl {
@@ -98,13 +83,11 @@ impl j::NotificationHandler for Notifications {
     }
 
     fn latency(&mut self, _: &j::Client, mode: j::LatencyType) {
-        println!(
-            "JACK: {} latency has changed",
-            match mode {
-                j::LatencyType::Capture => "capture",
-                j::LatencyType::Playback => "playback",
-            }
-        );
+        println!("JACK: {} latency has changed",
+                 match mode {
+                     j::LatencyType::Capture => "capture",
+                     j::LatencyType::Playback => "playback",
+                 });
     }
 }
 
@@ -115,18 +98,10 @@ fn main() {
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.
-    let in_a = client
-        .register_port("rust_in_l", j::AudioInSpec::default())
-        .unwrap();
-    let in_b = client
-        .register_port("rust_in_r", j::AudioInSpec::default())
-        .unwrap();
-    let mut out_a = client
-        .register_port("rust_out_l", j::AudioOutSpec::default())
-        .unwrap();
-    let mut out_b = client
-        .register_port("rust_out_r", j::AudioOutSpec::default())
-        .unwrap();
+    let in_a = client.register_port("rust_in_l", j::AudioInSpec::default()).unwrap();
+    let in_b = client.register_port("rust_in_r", j::AudioInSpec::default()).unwrap();
+    let mut out_a = client.register_port("rust_out_l", j::AudioOutSpec::default()).unwrap();
+    let mut out_b = client.register_port("rust_out_r", j::AudioOutSpec::default()).unwrap();
     let process_callback = move |_: &j::Client, ps: &j::ProcessScope| -> j::JackControl {
         let mut out_a_p = j::AudioOutPort::new(&mut out_a, ps);
         let mut out_b_p = j::AudioOutPort::new(&mut out_b, ps);

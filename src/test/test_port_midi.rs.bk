@@ -1,13 +1,11 @@
 use prelude::*;
+use std::sync::mpsc::channel;
+use std::sync::Mutex;
 use std::{thread, time};
 use std::iter::Iterator;
-use std::sync::Mutex;
-use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, client_options::NO_START_SERVER)
-        .unwrap()
-        .0
+    Client::new(name, client_options::NO_START_SERVER).unwrap().0
 }
 
 #[test]
@@ -53,10 +51,8 @@ fn port_midi_can_read_write() {
 
     // check correctness
     thread::sleep(time::Duration::from_millis(400));
-    assert!(
-        did_succeed.iter().any(|b| b),
-        "input port does not have expected data"
-    );
+    assert!(did_succeed.iter().any(|b| b),
+            "input port does not have expected data");
     ac.deactivate().unwrap();
 }
 
@@ -116,10 +112,8 @@ fn port_midi_cant_execeed_max_event_size() {
     let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
 
     // check correctness
-    assert_eq!(
-        *PMCEMES_WRITE_RESULT.lock().unwrap(),
-        Err(JackErr::NotEnoughSpace)
-    );
+    assert_eq!(*PMCEMES_WRITE_RESULT.lock().unwrap(),
+               Err(JackErr::NotEnoughSpace));
     ac.deactivate().unwrap();
 }
 
