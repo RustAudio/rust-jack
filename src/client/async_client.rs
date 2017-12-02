@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::fmt;
 
 use jack_sys as j;
 
@@ -32,7 +33,6 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// // An active async client is created, `client` is consumed.
 /// let active_client = j::AsyncClient::new(client, (), process_handler).unwrap();
 /// ```
-#[derive(Debug)]
 pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     client: Option<Client>,
     handler: Option<*mut (N, P, *mut j::jack_client_t)>,
@@ -165,5 +165,16 @@ where
             // The client will close itself once it goes out of scope.
             // self.client.unwrap().drop()
         }
+    }
+}
+
+impl<N, P> fmt::Debug for AsyncClient<N, P>
+where
+    N: NotificationHandler,
+    P: ProcessHandler,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let c: &Client = &self;
+        write!(f, "AsyncClient{:?}", &self)
     }
 }
