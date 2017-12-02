@@ -1,4 +1,3 @@
-
 use super::callbacks::{NotificationHandler, ProcessHandler};
 use client::ProcessScope;
 use client::base::Client;
