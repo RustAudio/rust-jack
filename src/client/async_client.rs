@@ -175,6 +175,6 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let c: &Client = &self;
-        write!(f, "AsyncClient{:?}", &self)
+        write!(f, "AsyncClient({:?})", c)
     }
 }
