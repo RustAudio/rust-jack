@@ -17,7 +17,8 @@ pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScop
 }
 
 impl<F> ClosureProcessHandler<F>
-    where F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl
+where
+    F: 'static + Send + FnMut(&Client, &ProcessScope) -> JackControl,
 {
     pub fn new(f: F) -> ClosureProcessHandler<F> {
         ClosureProcessHandler { process_fn: f }

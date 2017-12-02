@@ -162,7 +162,7 @@ where
                 drop(Box::from_raw(self.handler.unwrap()));
             }
 
-            // The client will close itself on drop
+            // The client will close itself once it goes out of scope.
             // self.client.unwrap().drop()
         }
     }
