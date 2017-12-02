@@ -18,9 +18,10 @@ before_install:
 before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
+  - cargo install cargo-travis -f
 after_success:
   - travis-cargo --only stable doc-upload
-  - travis-cargo coveralls --no-sudo --verify
+  - cargo coveralls
 script:
   - travis-cargo test
   - travis-cargo doc -- -j 1
