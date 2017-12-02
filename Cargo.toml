@@ -1,6 +1,6 @@
 [package]
 name = "jack"
-version = "0.5.5"
+version = "0.5.6"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi using safe JACK bindings."
 documentation = "https://RustAudio.github.io/rust-jack/jack/index.html"

@@ -6,13 +6,13 @@ env:
 addons:
   apt:
     packages:
+      - binutils-dev
       - jackd
+      - libcurl4-openssl-dev
+      - libdw-dev
+      - libelf-dev
       - libjack-dev
       - libjack0
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
 before_install:
   - jackd -r -ddummy -r44100 -p1024 &
 before_script:
