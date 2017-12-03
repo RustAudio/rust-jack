@@ -309,12 +309,12 @@ pub type UnownedPort = Port<Unowned>;
 unsafe impl PortSpec for Unowned {
     /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_port_type(&self) -> &str {
-        unreachable!()
+        ""
     }
 
     /// Panics on call since the `Unowned` spec can't be used to create ports.
     fn jack_flags(&self) -> PortFlags {
-        unreachable!()
+        PortFlags::empty()
     }
 
     /// Panics on call since the `Unowned` spec can't be used to create ports.
@@ -324,24 +324,22 @@ unsafe impl PortSpec for Unowned {
 }
 
 #[derive(Debug)]
-struct DebugInfo {
+struct PortInfo {
     name: String,
     connections: usize,
     port_type: String,
     port_flags: PortFlags,
-    buffer_size: u64,
     aliases: Vec<String>,
 }
 
-impl DebugInfo {
-    fn new<PS: PortSpec>(p: &Port<PS>) -> DebugInfo {
+impl PortInfo {
+    fn new<PS: PortSpec>(p: &Port<PS>) -> PortInfo {
         let s = p.spec();
-        DebugInfo {
+        PortInfo {
             name: p.name().into(),
             connections: p.connected_count(),
             port_type: s.jack_port_type().to_string(),
             port_flags: s.jack_flags(),
-            buffer_size: s.jack_buffer_size(),
             aliases: p.aliases(),
         }
     }
@@ -349,6 +347,6 @@ impl DebugInfo {
 
 impl<PS: PortSpec> fmt::Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", DebugInfo::new(self))
+        write!(f, "{:?}", PortInfo::new(self))
     }
 }

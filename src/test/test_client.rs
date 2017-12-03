@@ -54,6 +54,15 @@ fn client_can_set_buffer_size() {
 }
 
 #[test]
+fn client_detects_bad_buffer_size() {
+    let (c, _) = open_test_client("client_detects_bad_buffer_size");
+    let initial_size = c.buffer_size();
+    assert_eq!(c.set_buffer_size(0), Err(JackErr::SetBufferSizeError));
+    c.set_buffer_size(initial_size).unwrap();
+    assert_eq!(c.buffer_size(), initial_size);
+}
+
+#[test]
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
     let a = AsyncClient::new(c, (), ()).unwrap();
@@ -74,17 +83,37 @@ fn client_knows_sample_rate() {
     assert_eq!(c.sample_rate(), 44100);
 }
 
-// TODO - improve test
 #[test]
 fn client_knows_cpu_load() {
     let (c, _) = open_test_client("client_knows_cpu_load");
     let _load = c.cpu_load();
 }
 
-// TODO - improve test
 #[test]
 fn client_can_estimate_frame_times() {
-    let (c, _) = open_test_client("client_knows_cpu_load");
-    c.frames_to_time(44100);
-    c.time_to_frames(1000000);
+    let (c, _) = open_test_client("client_knows_frame_times");
+    let current_frame_time = c.frame_time();
+    let time = c.frames_to_time(44100);
+    let frames = c.time_to_frames(1000000);
+    assert!(current_frame_time > 0);
+    assert!(time > 0);
+    assert!(frames > 0);
+}
+
+#[test]
+fn client_debug_printing() {
+    let (c, _) = open_test_client("client_has_debug_string");
+    let got = format!("{:?}", c);
+    let parts = [
+        ("name", "\"client_has_debug_string\""),
+        ("sample_rate", "44100"),
+        ("buffer_size", "1024"),
+        ("cpu_usage", ""),
+        ("ports", "["),
+        ("frame_time", ""),
+    ];
+    for &(k, v) in parts.iter() {
+        let p = format!("{}: {}", k, v);
+        assert!(got.contains(&p), "Expected {} to contain {}.", got, p);
+    }
 }

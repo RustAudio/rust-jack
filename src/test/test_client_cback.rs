@@ -15,6 +15,8 @@ pub struct Counter {
     pub port_register_history: Vec<JackPortId>,
     pub port_unregister_history: Vec<JackPortId>,
     pub xruns_count: usize,
+    pub last_frame_time: JackFrames,
+    pub frames_since_cycle_start: JackFrames,
 }
 
 impl NotificationHandler for Counter {
@@ -50,6 +52,9 @@ impl NotificationHandler for Counter {
 impl ProcessHandler for Counter {
     fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
         self.frames_processed += ps.n_frames() as usize;
+        self.last_frame_time = ps.last_frame_time();
+        self.frames_since_cycle_start = ps.frames_since_cycle_start();
+        let _cycle_times = ps.cycle_times();
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
         }
@@ -116,6 +121,8 @@ fn client_cback_calls_process() {
     let ac = active_test_client("client_cback_calls_process");
     let counter = ac.deactivate().unwrap().2;
     assert!(counter.frames_processed > 0);
+    assert!(counter.last_frame_time > 0);
+    assert!(counter.frames_since_cycle_start > 0);
 }
 
 #[test]

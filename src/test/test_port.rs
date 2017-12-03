@@ -150,19 +150,35 @@ fn port_can_unset_alias() {
 }
 
 #[test]
-#[should_panic]
 fn port_unowned_no_port_type() {
-    Unowned::default().jack_port_type();
+    assert_eq!("", Unowned::default().jack_port_type());
 }
 
 #[test]
-#[should_panic]
 fn port_unowned_no_port_flags() {
-    Unowned::default().jack_flags();
+    assert_eq!(PortFlags::empty(), Unowned::default().jack_flags());
 }
 
 #[test]
 #[should_panic]
 fn port_unowned_no_port_size() {
     Unowned::default().jack_buffer_size();
+}
+
+#[test]
+fn port_debug_printing() {
+    let (_c, mut p) = open_client_with_port("port_has_debug_string", "debug_info");
+    p.set_alias("this_port_alias").unwrap();
+    let got = format!("{:?}", p);
+    let parts = [
+        ("name", "\"port_has_debug_string:debug_info\""),
+        ("connections", "0"),
+        ("port_type", "\"32 bit float mono audio\""),
+        ("port_flags", "IS_INPUT"),
+        ("aliases", "[\"this_port_alias\"]"),
+    ];
+    for &(k, v) in parts.iter() {
+        let p = format!("{}: {}", k, v);
+        assert!(got.contains(&p), "Expected {} to contain \"{}\".", got, p);
+    }
 }

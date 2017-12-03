@@ -164,8 +164,8 @@ where
             if self.client.is_some() {
                 j::jack_deactivate(self.as_ptr()); // result doesn't matter
             }
-            sleep_on_test();
 
+            sleep_on_test();
             // Drop the handler
             if self.handler.is_some() {
                 drop(Box::from_raw(self.handler.unwrap()));
