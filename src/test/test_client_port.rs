@@ -91,9 +91,15 @@ fn client_port_can_get_port_by_id() {
         .flat_map(|i| c.port_by_id(i))
         .map(|p| p.name().to_string())
         .collect();
-    assert!(registered_ports.contains(
-        &format!("{}:{}", client_name, port_name),
-    ));
+    let port_name = format!("{}:{}", client_name, port_name);
+    assert!(registered_ports.contains(&port_name));
+
+    // Port that doesn't exist
+    let nonexistant_port = c.port_by_id(1000000000);
+    assert!(
+        nonexistant_port.is_none(),
+        format!("Expected None but got: {:?}", nonexistant_port)
+    );
 }
 
 #[test]

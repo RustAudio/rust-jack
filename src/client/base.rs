@@ -494,7 +494,7 @@ impl Drop for Client {
 
 impl fmt::Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", DebugInfo::new(self))
+        write!(f, "{:?}", ClientInfo::new(self))
     }
 }
 
@@ -610,7 +610,7 @@ pub struct CycleTimes {
 }
 
 #[derive(Debug)]
-struct DebugInfo {
+struct ClientInfo {
     name: String,
     sample_rate: usize,
     buffer_size: u32,
@@ -619,9 +619,9 @@ struct DebugInfo {
     frame_time: pt::JackFrames,
 }
 
-impl DebugInfo {
-    fn new(c: &Client) -> DebugInfo {
-        DebugInfo {
+impl ClientInfo {
+    fn new(c: &Client) -> ClientInfo {
+        ClientInfo {
             name: c.name().into(),
             sample_rate: c.sample_rate(),
             buffer_size: c.buffer_size(),
