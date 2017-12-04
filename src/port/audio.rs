@@ -6,7 +6,7 @@ use libc;
 
 use client::ProcessScope;
 use port::{Port, PortSpec};
-use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::port_flags::PortFlags;
 
 /// `AudioInSpec` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -17,7 +17,7 @@ use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 /// # Example
 /// ```
 /// let client = jack::client::Client::new("rusty_client",
-/// jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// jack::client::ClientOptions::NO_START_SERVER).unwrap().0;
 /// let spec = jack::port::AudioInSpec::default();
 /// let audio_in_port = client.register_port("in", spec).unwrap();
 /// ```
@@ -33,7 +33,7 @@ pub struct AudioInSpec;
 /// # Example
 /// ```
 /// let client = jack::client::Client::new("rusty_client",
-/// jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// jack::client::ClientOptions::NO_START_SERVER).unwrap().0;
 /// let spec = jack::port::AudioInSpec::default();
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
@@ -47,7 +47,7 @@ unsafe impl<'a> PortSpec for AudioOutSpec {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_OUTPUT
+        PortFlags::IS_OUTPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -72,7 +72,7 @@ unsafe impl PortSpec for AudioInSpec {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_INPUT
+        PortFlags::IS_INPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -86,7 +86,7 @@ unsafe impl PortSpec for AudioInSpec {
 /// # Example
 /// ```
 /// let client = jack::client::Client::new("c",
-/// jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// jack::client::ClientOptions::NO_START_SERVER).unwrap().0;
 /// let mut out_port = client.register_port("p",
 /// jack::port::AudioOutSpec::default()).unwrap();
 /// let _process = move |_: &jack::client::Client, ps:
@@ -142,7 +142,7 @@ impl<'a> DerefMut for AudioOutPort<'a> {
 /// # Example
 /// ```
 /// let client = jack::client::Client::new("c",
-/// jack::client::client_options::NO_START_SERVER).unwrap().0;
+/// jack::client::ClientOptions::NO_START_SERVER).unwrap().0;
 /// let in_port = client.register_port("p",
 /// jack::port::AudioInSpec::default()).unwrap();
 /// let process = move |_: &jack::client::Client, ps:

@@ -1,8 +1,8 @@
 //! Sine wave generator with frequency configuration exposed through standard
 //! input.
 extern crate jack;
-use jack::prelude::{AsyncClient, AudioOutPort, AudioOutSpec, Client, ClosureProcessHandler,
-                    JackControl, ProcessScope, client_options};
+use jack::prelude::{AsyncClient, AudioOutPort, AudioOutSpec, Client, ClientOptions,
+                    ClosureProcessHandler, JackControl, ProcessScope};
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
@@ -23,7 +23,7 @@ fn read_freq() -> Option<f64> {
 
 fn main() {
     // 1. open a client
-    let (client, _status) = Client::new("rust_jack_sine", client_options::NO_START_SERVER).unwrap();
+    let (client, _status) = Client::new("rust_jack_sine", ClientOptions::NO_START_SERVER).unwrap();
 
     // 2. register port
     let mut out_port = client

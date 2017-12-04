@@ -110,7 +110,7 @@ impl j::NotificationHandler for Notifications {
 
 fn main() {
     // Create client
-    let (client, _status) = j::Client::new("rust_jack_simple", j::client_options::NO_START_SERVER)
+    let (client, _status) = j::Client::new("rust_jack_simple", j::ClientOptions::NO_START_SERVER)
         .unwrap();
 
     // Register ports. They will be used in a callback that will be

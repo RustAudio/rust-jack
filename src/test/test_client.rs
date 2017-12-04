@@ -1,7 +1,7 @@
 use prelude::*;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
-    let ret = Client::new(name, client_options::NO_START_SERVER).unwrap();
+    let ret = Client::new(name, ClientOptions::NO_START_SERVER).unwrap();
     ret
 }
 
@@ -22,9 +22,9 @@ fn client_fails_to_open_with_large_name() {
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");
-    Client::new(&name, client_options::NO_START_SERVER).unwrap();
+    Client::new(&name, ClientOptions::NO_START_SERVER).unwrap();
     // fails on travis, switched to should_panic for a catch all
-    // assert_eq!(Client::new(&name, client_options::NO_START_SERVER).err(),
+    // assert_eq!(Client::new(&name, ClientOptions::NO_START_SERVER).err(),
     // Some(JackErr::ClientError(client_status::FAILURE |
     // client_status::SERVER_ERROR)));
 }

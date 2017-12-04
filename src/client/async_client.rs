@@ -24,7 +24,7 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 ///
 /// // Create a client and a handler
 /// let (client, _status) =
-///     j::Client::new("my_client", j::client_options::NO_START_SERVER)
+///     j::Client::new("my_client", j::ClientOptions::NO_START_SERVER)
 ///         .unwrap();
 /// let process_handler = j::ClosureProcessHandler::new(
 ///     move |_: &j::Client, _: &j::ProcessScope| {
