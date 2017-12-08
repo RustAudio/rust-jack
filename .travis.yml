@@ -20,6 +20,9 @@ before_script:
   - export PATH=#HOME/.local:$PATH
   - cargo install cargo-travis -f
 after_success:
+  - cargo fmt -- --write-mode=diff
+  - cargo build
+  - cargo test
   - travis-cargo --only stable doc-upload
   - cargo coveralls
 script:
