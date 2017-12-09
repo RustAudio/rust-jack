@@ -19,12 +19,15 @@ before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
   - cargo install cargo-travis -f
+  - cargo install rustfmt
 after_success:
   - travis-cargo --only stable doc-upload
   - cargo coveralls
 script:
-  - travis-cargo test
-  - travis-cargo doc -- -j 1
+  - cargo fmt -- --write-mode=diff
+  - cargo build
+  - cargo test
+  - cargo doc
 cache:
   bundler: true
   directories:
