@@ -7,7 +7,7 @@ use libc;
 use client::ProcessScope;
 use jack_enums::JackErr;
 use port::{Port, PortSpec};
-use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
+use port::port_flags::PortFlags;
 use primitive_types as pt;
 
 /// Contains 8bit raw midi information along with a timestamp relative to the
@@ -49,7 +49,7 @@ unsafe impl PortSpec for MidiInSpec {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_INPUT
+        PortFlags::IS_INPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -64,7 +64,7 @@ unsafe impl PortSpec for MidiOutSpec {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_OUTPUT
+        PortFlags::IS_OUTPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {

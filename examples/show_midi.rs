@@ -2,13 +2,13 @@
 //! out all values sent to it through the input port. It also sends a
 //! Note On and Off event, once every cycle, on the output port.
 extern crate jack;
-use jack::prelude::{AsyncClient, Client, ClosureProcessHandler, JackControl, MidiInPort,
-                    MidiInSpec, MidiOutPort, MidiOutSpec, ProcessScope, RawMidi, client_options};
+use jack::prelude::{AsyncClient, Client, ClientOptions, ClosureProcessHandler, JackControl,
+                    MidiInPort, MidiInSpec, MidiOutPort, MidiOutSpec, ProcessScope, RawMidi};
 use std::io;
 
 fn main() {
     // open client
-    let (client, _status) = Client::new("rust_jack_show_midi", client_options::NO_START_SERVER)
+    let (client, _status) = Client::new("rust_jack_show_midi", ClientOptions::NO_START_SERVER)
         .unwrap();
 
     // process logic

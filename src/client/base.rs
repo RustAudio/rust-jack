@@ -21,7 +21,7 @@ use primitive_types as pt;
 /// use jack::prelude as j;
 ///
 /// let c_res = j::Client::new("rusty_client",
-/// j::client_options::NO_START_SERVER);
+/// j::ClientOptions::NO_START_SERVER);
 /// match c_res {
 /// Ok((client, status)) => println!("Managed to open client {}, with
 /// status {:?}!",

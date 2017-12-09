@@ -5,9 +5,7 @@ use std::sync::Mutex;
 use std::sync::mpsc::channel;
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, client_options::NO_START_SERVER)
-        .unwrap()
-        .0
+    Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
 
 #[test]

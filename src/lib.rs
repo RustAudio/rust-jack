@@ -94,7 +94,7 @@ pub mod traits {
 pub mod prelude {
     pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, NotificationHandler,
                      ProcessHandler, ProcessScope};
-    pub use client::{ClientOptions, ClientStatus, client_options, client_status};
+    pub use client::{ClientOptions, ClientStatus, client_status};
     pub use client::CLIENT_NAME_SIZE;
     pub use jack_enums::{JackControl, JackErr, LatencyType};
     pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
