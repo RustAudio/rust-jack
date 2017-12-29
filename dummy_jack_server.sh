@@ -1,4 +1,4 @@
 #!/bin/sh
 # Start the dummy JACK server
 
-jackd -r -ddummy -r44100 -p1024
+exec jackd -r -ddummy -r44100 -p1024
