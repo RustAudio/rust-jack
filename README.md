@@ -6,7 +6,7 @@
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
 [![Build Status](https://travis-ci.org/RustAudio/rust-jack.svg?branch=master)](https://travis-ci.org/RustAudio/rust-jack)
-[![Coverage Status](https://coveralls.io/repos/github/RustAudio/rust-jack/badge.svg?branch=master&cache_less=2)](https://coveralls.io/github/RustAudio/rust-jack)
+[![Coverage Status](https://coveralls.io/repos/github/RustAudio/rust-jack/badge.svg?branch=master&cache_less=3)](https://coveralls.io/github/RustAudio/rust-jack)
 
 
 Nice Rust bindings for
@@ -21,7 +21,7 @@ Check out the `examples` directory for usage.
 ### Stable
 ```toml
 [dependencies]
-jack = "0.5.6"
+jack = "0.5.7"
 ```
 
 ### Master
