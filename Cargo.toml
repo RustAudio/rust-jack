@@ -11,6 +11,6 @@ keywords = ["jack", "realtime", "audio", "midi"]
 
 [dependencies]
 bitflags = "0.7.0"
-jack-sys = "0.1.5"
+jack-sys = { path="./jack-sys" }
 lazy_static = "1.0"
 libc = "0.2"
