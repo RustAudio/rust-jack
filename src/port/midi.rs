@@ -200,10 +200,16 @@ impl<'a> MidiIter<'a> {
         self.port.nth(self.index)
     }
 
-    /// Return the next element only if it occurs strictly before frame.
-    pub fn next_if_before(&mut self, frame: pt::JackFrames) -> Option<RawMidi<'a>> {
-        let is_ready = self.peek().map(|m| m.time < frame).unwrap_or(false);
-        if is_ready { self.next() } else { None }
+    /// Return the next element only if the message passes the predicate.
+    pub fn next_if<P>(&mut self, predicate: P) -> Option<RawMidi<'a>>
+    where
+        P: FnOnce(RawMidi) -> bool,
+    {
+        if self.peek().map(predicate).unwrap_or(false) {
+            self.next()
+        } else {
+            None
+        }
     }
 }
 

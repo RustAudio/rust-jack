@@ -256,7 +256,7 @@ fn port_midi_iter() {
 }
 
 #[test]
-fn port_midi_iter_next_if_before() {
+fn port_midi_iter_next_if() {
     let c = open_test_client("pmi_nib");
     let stream = vec![
         OwnedRawMidi {
@@ -279,7 +279,7 @@ fn port_midi_iter_next_if_before() {
     let collect = |midi_in: MidiInPort| {
         let mut collected = Vec::with_capacity(midi_in.len());
         let mut iter = midi_in.iter();
-        while let Some(m) = iter.next_if_before(11) {
+        while let Some(m) = iter.next_if(|m| m.time < 11) {
             collected.push(OwnedRawMidi::new(&m));
         }
         collected
