@@ -1,5 +1,4 @@
 use std::{mem, slice};
-use std::cell::Cell;
 
 use jack_sys as j;
 use libc;
@@ -74,11 +73,10 @@ unsafe impl PortSpec for MidiOutSpec {
 }
 
 /// Safely and thinly wrap a `Port<MidiInPort>`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MidiInPort<'a> {
     _port: &'a Port<MidiInSpec>,
     buffer_ptr: *mut ::libc::c_void,
-    message: Cell<RawMidi<'a>>,
 }
 
 impl<'a> MidiInPort<'a> {
@@ -92,7 +90,6 @@ impl<'a> MidiInPort<'a> {
         MidiInPort {
             _port: port,
             buffer_ptr: buffer_ptr,
-            message: Cell::new(RawMidi::default()),
         }
     }
 
@@ -103,11 +100,10 @@ impl<'a> MidiInPort<'a> {
             return None;
         }
         let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
-        self.message.set(RawMidi {
+        Some(RawMidi {
             time: ev.time,
             bytes: bytes_slice,
-        });
-        Some(self.message.get())
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -192,24 +188,43 @@ impl<'a> MidiOutPort<'a> {
 }
 
 /// Iterate through Midi Messages within a `MidiInPort`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MidiIter<'a> {
     port: &'a MidiInPort<'a>,
     index: usize,
+}
+
+impl<'a> MidiIter<'a> {
+    /// Return the next element without advancing the iterator.
+    pub fn peek(&self) -> Option<RawMidi<'a>> {
+        self.port.nth(self.index)
+    }
+
+    /// Return the next element only if the message passes the predicate.
+    pub fn next_if<P>(&mut self, predicate: P) -> Option<RawMidi<'a>>
+    where
+        P: FnOnce(RawMidi) -> bool,
+    {
+        if self.peek().map(predicate).unwrap_or(false) {
+            self.next()
+        } else {
+            None
+        }
+    }
 }
 
 impl<'a> Iterator for MidiIter<'a> {
     type Item = RawMidi<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ret = self.port.nth(self.index);
+        let ret = self.peek();
         self.index += 1;
         ret
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let elements_left = self.port.len() - self.index;
-        (elements_left, Some(elements_left))
+        let count = self.port.len() - self.index;
+        (count, Some(count))
     }
 
     fn count(self) -> usize {
