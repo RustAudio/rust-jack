@@ -23,10 +23,10 @@ after_success:
   - travis-cargo --only stable doc-upload
   - cargo coveralls
 script:
-  - cargo fmt -- --write-mode=diff
   - cargo build
   - cargo test
   - cargo doc
+  - cargo fmt -- --write-mode=diff
 cache:
   bundler: true
   directories:
