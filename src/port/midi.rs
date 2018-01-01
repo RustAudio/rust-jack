@@ -33,13 +33,13 @@ impl<'a> Default for RawMidi<'a> {
 /// `MidiInSpec` implements the `PortSpec` trait, which defines an endpoint for
 /// JACK. In this case,
 /// it defines midi input.
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct MidiInSpec;
 
 /// `MidiOutSpec` implements the `PortSpec` trait, which defines an endpoint
 /// for JACK. In this case,
 /// it defines a midi output.
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct MidiOutSpec;
 
 unsafe impl PortSpec for MidiInSpec {

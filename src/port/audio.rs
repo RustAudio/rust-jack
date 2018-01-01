@@ -21,7 +21,7 @@ use port::port_flags::{IS_INPUT, IS_OUTPUT, PortFlags};
 /// let spec = jack::port::AudioInSpec::default();
 /// let audio_in_port = client.register_port("in", spec).unwrap();
 /// ```
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct AudioInSpec;
 
 /// `AudioOutSpec` implements the `PortSpec` trait, which defines an
@@ -37,7 +37,7 @@ pub struct AudioInSpec;
 /// let spec = jack::port::AudioInSpec::default();
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
-#[derive(Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct AudioOutSpec;
 
 
