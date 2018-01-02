@@ -69,21 +69,21 @@ impl<PS: PortSpec> Port<PS> {
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.
-    pub fn name<'a>(&'a self) -> &'a str {
+    pub fn name<'a>(&'a self) -> String {
         unsafe {
             ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr()))
-                .to_str()
-                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }
     }
 
     /// Returns the short name of the port, it excludes the "client_name:"
     /// prefix.
-    pub fn short_name<'a>(&'a self) -> &'a str {
+    pub fn short_name<'a>(&'a self) -> String {
         unsafe {
             ffi::CStr::from_ptr(j::jack_port_short_name(self.as_ptr()))
-                .to_str()
-                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }
     }
 
@@ -97,11 +97,11 @@ impl<PS: PortSpec> Port<PS> {
     /// The port type. JACK's built in types include `"32 bit float mono
     /// audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
-    pub fn port_type<'a>(&self) -> &'a str {
+    pub fn port_type<'a>(&self) -> String {
         unsafe {
             ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr()))
-                .to_str()
-                .unwrap()
+                .to_string_lossy()
+                .to_string()
         }
     }
 
