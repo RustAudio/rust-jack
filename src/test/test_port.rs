@@ -72,24 +72,24 @@ fn port_knows_connections() {
     c.connect_ports(&pc, &pa).unwrap();
 
     // pa
-    assert!(pa.is_connected_to(pb.name()));
-    assert!(pa.is_connected_to(pc.name()));
-    assert!(!pa.is_connected_to(pd.name()));
+    assert!(pa.is_connected_to(&pb.name()));
+    assert!(pa.is_connected_to(&pc.name()));
+    assert!(!pa.is_connected_to(&pd.name()));
 
     // pb
-    assert!(pb.is_connected_to(pa.name()));
-    assert!(!pb.is_connected_to(pc.name()));
-    assert!(!pb.is_connected_to(pd.name()));
+    assert!(pb.is_connected_to(&pa.name()));
+    assert!(!pb.is_connected_to(&pc.name()));
+    assert!(!pb.is_connected_to(&pd.name()));
 
     // pc
-    assert!(pc.is_connected_to(pa.name()));
-    assert!(!pc.is_connected_to(pb.name()));
-    assert!(!pc.is_connected_to(pd.name()));
+    assert!(pc.is_connected_to(&pa.name()));
+    assert!(!pc.is_connected_to(&pb.name()));
+    assert!(!pc.is_connected_to(&pd.name()));
 
     // pd
-    assert!(!pd.is_connected_to(pa.name()));
-    assert!(!pd.is_connected_to(pb.name()));
-    assert!(!pd.is_connected_to(pc.name()));
+    assert!(!pd.is_connected_to(&pa.name()));
+    assert!(!pd.is_connected_to(&pb.name()));
+    assert!(!pd.is_connected_to(&pc.name()));
 }
 
 #[test]

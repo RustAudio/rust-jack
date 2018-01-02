@@ -417,7 +417,7 @@ impl Client {
         destination_port: &Port<B>,
     ) -> Result<(), JackErr> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        self.connect_ports_by_name(source_port.name(), destination_port.name())
+        self.connect_ports_by_name(&source_port.name(), &destination_port.name())
     }
 
     /// Remove a connection between two ports.
@@ -426,7 +426,7 @@ impl Client {
         source: &Port<A>,
         destination: &Port<B>,
     ) -> Result<(), JackErr> {
-        self.disconnect_ports_by_name(source.name(), destination.name())
+        self.disconnect_ports_by_name(&source.name(), &destination.name())
     }
 
     /// Remove a connection between two ports.

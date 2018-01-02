@@ -50,46 +50,36 @@ Missing categories include, JACK threading, synchronous processing, transport an
 
 ## Testing
 
-Testing is a little awkward to setup since it relies on a JACK server.
+Testing requires setting up a test JACK server.
 
 ### Setting Up JACK Dummy Server
 
 ```bash
+$ # Start a test jack server instance with buffer size 1024 and a sample rate of 44.1kHz.
+$ # Make sure to set RUST_TEST_THREADS=1 when running cargo test.
 $ ./dummy_jack_server.sh
 ```
-
-which runs the command
-
-```bash
-$ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
-```
-
-Testing expects there to be an available JACK server running at a sample rate of
-44.1kHz and a buffer size of 1024 samples.
 
 ### Running the tests
 
 ```bash
+$ export RUST_TEST_THREADS=1
 $ cargo test
 ```
 
 If you want test coverage as well, try `cargo kcov`.
 
 ```bash
+$ export RUST_TEST_THREADS=1
 $ cargo install cargo-kcov
 $ cargo kcov
 ```
 
 #### Possible Issues
 
-If the tests are failing, a possible gotcha may be timing issues.
-
-1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value used by `sleep_on_test` in `client/common.rs`.
-
-Another case is that libjack may be broken on your setup.  Try switching between
-libjack and libjack2 (they have the same API and libjack2 isn't necessarily
-newer than libjack), or using a different version.
+1. Rust runs tests in parallel, but the tests affect the global jack state so set the environment variable `RUST_TEST_THREADS` to 1.
+2. Instability caused by interacting with JACK too quickly. Increase the value used by `sleep_on_test` in `client/common.rs`.
+3. libjack may be broken on your setup.  Try switching between libjack and libjack2 (they have the same API and libjack2 isn't necessarily newer than libjack), or using a different version.
 
 
 ## "C" & Rust API differences

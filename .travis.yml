@@ -13,8 +13,6 @@ addons:
       - libelf-dev
       - libjack-dev
       - libjack0
-before_install:
-  - jackd -r -ddummy -r44100 -p1024 &
 before_script:
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
@@ -23,6 +21,7 @@ after_success:
   - travis-cargo --only stable doc-upload
   - cargo coveralls
 script:
+  - sh dummy_jack_server.sh &
   - cargo build
   - cargo test
   - cargo doc

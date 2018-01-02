@@ -71,6 +71,7 @@ fn open_test_client(name: &str) -> Client {
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
     let c = open_test_client(name);
     let ac = AsyncClient::new(c, Counter::default(), Counter::default()).unwrap();
+    thread::sleep(time::Duration::from_millis(200));
     ac
 }
 
