@@ -13,8 +13,7 @@ use std;
 ///
 /// # Example
 /// ```
-/// use jack::prelude as j;
-/// let ringbuf = j::RingBuffer::new(1024).unwrap();
+/// let ringbuf = jack::RingBuffer::new(1024).unwrap();
 /// let (mut reader, mut writer) = ringbuf.into_reader_writer();
 ///
 /// let buf = [0u8, 1, 2, 3];
@@ -30,7 +29,6 @@ pub struct RingBuffer(*mut j::jack_ringbuffer_t);
 impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, ()> {
-
         let insize = size as libc::size_t;
         let handle = unsafe { j::jack_ringbuffer_create(insize) };
 
@@ -92,7 +90,6 @@ impl RingBuffer {
     }
 }
 
-
 impl Drop for RingBuffer {
     fn drop(&mut self) {
         if !self.0.is_null() {
@@ -120,16 +117,16 @@ pub struct RingBufferWriter {
 unsafe impl Send for RingBufferWriter {}
 // impl !Sync for RingBufferWriter{ }
 
-
 impl RingBufferReader {
     unsafe fn new(handle: std::sync::Arc<RingBuffer>) -> Self {
-        RingBufferReader { ringbuffer_handle: handle }
+        RingBufferReader {
+            ringbuffer_handle: handle,
+        }
     }
 
     fn into_handle(self) -> std::sync::Arc<RingBuffer> {
         self.ringbuffer_handle
     }
-
 
     /// Fill a data structure with a description of the current readable data
     /// held in the
@@ -149,7 +146,6 @@ impl RingBufferReader {
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
         unsafe { j::jack_ringbuffer_get_read_vector(self.ringbuffer_handle.0, vecstart) };
-
 
         let view1 = vec[0];
         let view2 = vec[1];
@@ -211,7 +207,6 @@ impl RingBufferReader {
         unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle.0, incnt) };
     }
 
-
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
         unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle.0) as usize }
@@ -221,7 +216,6 @@ impl RingBufferReader {
     pub fn peek_iter<'a>(
         &'a self,
     ) -> std::iter::Chain<std::slice::Iter<'a, u8>, std::slice::Iter<'a, u8>> {
-
         let (view1, view2) = self.get_vector();
 
         view1.iter().chain(view2.iter())
@@ -236,7 +230,9 @@ impl std::io::Read for RingBufferReader {
 
 impl RingBufferWriter {
     unsafe fn new(handle: std::sync::Arc<RingBuffer>) -> Self {
-        RingBufferWriter { ringbuffer_handle: handle }
+        RingBufferWriter {
+            ringbuffer_handle: handle,
+        }
     }
 
     fn into_handle(self) -> std::sync::Arc<RingBuffer> {
@@ -263,7 +259,6 @@ impl RingBufferWriter {
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
         unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle.0, incnt) };
-
     }
 
     /// Return the number of bytes available for writing.
@@ -285,7 +280,6 @@ impl RingBufferWriter {
 
         unsafe { j::jack_ringbuffer_get_write_vector(self.ringbuffer_handle.0, vecstart) };
 
-
         let view1 = vec[0];
         let view2 = vec[1];
 
@@ -300,7 +294,6 @@ impl RingBufferWriter {
             buf2 = buf1;
         }
 
-
         let view1 = unsafe { std::slice::from_raw_parts_mut(buf1, len1) };
         let view2 = unsafe { std::slice::from_raw_parts_mut(buf2, len2) };
         (view1, view2)
@@ -310,7 +303,6 @@ impl RingBufferWriter {
     pub fn peek_iter<'a>(
         &'a mut self,
     ) -> std::iter::Chain<std::slice::IterMut<'a, u8>, std::slice::IterMut<'a, u8>> {
-
         let (view1, view2) = self.get_vector();
 
         view1.iter_mut().chain(view2.iter_mut())
@@ -324,5 +316,115 @@ impl std::io::Write for RingBufferWriter {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn ringbuffer_can_create() {
+        let ringbuf = RingBuffer::new(1024);
+        ringbuf.unwrap();
+    }
+
+    #[test]
+    fn ringbuffer_can_space() {
+        const SIZE: usize = 1024;
+        let ringbuf = RingBuffer::new(SIZE).unwrap();
+        let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+        assert_eq!(writer.space(), SIZE - 1);
+        assert_eq!(reader.space(), 0);
+
+        const ADVANCE: usize = 5;
+
+        writer.advance(ADVANCE);
+
+        assert_eq!(writer.space(), SIZE - 1 - ADVANCE);
+        assert_eq!(reader.space(), ADVANCE);
+
+        reader.advance(ADVANCE);
+        assert_eq!(writer.space(), SIZE - 1);
+        assert_eq!(reader.space(), 0);
+    }
+
+    #[test]
+    fn ringbuffer_write_read() {
+        let ringbuf = RingBuffer::new(1024).unwrap();
+        let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+        let buf = [0u8, 1, 2, 3];
+        let num = writer.write_buffer(&buf);
+        assert_eq!(num, buf.len());
+
+        let mut outbuf = [0u8; 8];
+        let num = reader.read_buffer(&mut outbuf);
+        assert_eq!(num, buf.len());
+
+        assert_eq!(outbuf[..num], buf[..]);
+    }
+
+    #[test]
+    fn ringbuffer_peek_write() {
+        let ringbuf = RingBuffer::new(1024).unwrap();
+        let (reader, mut writer) = ringbuf.into_reader_writer();
+
+        let buf = [0u8, 1, 2, 3];
+        writer.write_buffer(&buf);
+
+        let data: Vec<u8> = reader.peek_iter().map(|x| *x).collect();
+
+        assert_eq!(data.len(), buf.len());
+        assert_eq!(data[..], buf[..]);
+    }
+
+    #[test]
+    fn ringbuffer_write_read_split() {
+        const BUFSIZE: usize = 10;
+        let ringbuf = RingBuffer::new(BUFSIZE).unwrap();
+        let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+        let buf = [0u8, 1, 2, 3];
+
+        let advancedsize = BUFSIZE / (buf.len() / 2);
+        writer.advance(advancedsize);
+        reader.advance(advancedsize);
+        {
+            let (_, v2) = writer.get_vector();
+            assert_ne!(v2.len(), 0);
+        }
+
+        writer.write_buffer(&buf);
+
+        {
+            let (v1, _) = reader.get_vector();
+            assert_ne!(v1.len(), 0);
+        }
+
+        let data: Vec<u8> = reader.peek_iter().map(|x| *x).collect();
+
+        assert_eq!(data.len(), buf.len());
+        assert_eq!(data[..], buf[..]);
+    }
+
+    #[test]
+    fn ringbuffer_peek_read() {
+        let ringbuf = RingBuffer::new(1024).unwrap();
+        let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+        let buf = [0u8, 1, 2, 3];
+        for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
+            *item = *bufitem;
+        }
+
+        writer.advance(buf.len());
+
+        let mut outbuf = [0u8; 8];
+        let num = reader.read_buffer(&mut outbuf);
+        assert_eq!(num, buf.len());
+
+        assert_eq!(outbuf[..num], buf[..]);
     }
 }

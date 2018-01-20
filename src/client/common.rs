@@ -1,6 +1,5 @@
-use std::sync::Mutex;
-
 use jack_sys as j;
+use std::sync::Mutex;
 
 /// The maximum length of the JACK client name string. Unlike the "C" JACK API,
 /// this does not take

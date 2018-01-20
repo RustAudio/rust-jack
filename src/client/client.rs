@@ -1,11 +1,11 @@
-use std::{ffi, fmt, ptr};
-
 use jack_sys as j;
 use libc;
+use std::{ffi, fmt, ptr};
 
+use client::async_client::{AsyncClient, NotificationHandler, ProcessHandler};
 use client::client_options::ClientOptions;
 use client::client_status::ClientStatus;
-use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
+use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use jack_enums::*;
 use jack_utils::collect_strs;
 use port::{Port, PortSpec, Unowned, UnownedPort};
@@ -18,17 +18,16 @@ use primitive_types as pt;
 ///
 /// # Example
 /// ```
-/// use jack::prelude as j;
-///
-/// let c_res = j::Client::new("rusty_client",
-/// j::client_options::NO_START_SERVER);
+/// let c_res = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER);
 /// match c_res {
-/// Ok((client, status)) => println!("Managed to open client {}, with
+///     Ok((client, status)) => println!(
+///         "Managed to open client {}, with
 /// status {:?}!",
-///                                      client.name(), status),
+///         client.name(),
+///         status
+///     ),
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
-///
 /// ```
 pub struct Client(*mut j::jack_client_t);
 
@@ -41,12 +40,12 @@ impl Client {
 
     /// Opens a JACK client with the given name and options. If the client is
     /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(JackErr::ClientError(status))` will be returned.
+    /// failure, then `Err(Error::ClientError(status))` will be returned.
     ///
     /// Although the client may be successful in opening, there still may be
     /// some errors minor errors when attempting to opening. To access these,
     /// check the returned `ClientStatus`.
-    pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), JackErr> {
+    pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         sleep_on_test();
         let mut status_bits = 0;
@@ -57,10 +56,22 @@ impl Client {
         sleep_on_test();
         let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
         if client.is_null() {
-            Err(JackErr::ClientError(status))
+            Err(Error::ClientError(status))
         } else {
             Ok((Client(client), status))
         }
+    }
+
+    pub fn activate_async<N, P>(
+        self,
+        notification_handler: N,
+        process_handler: P,
+    ) -> Result<AsyncClient<N, P>, Error>
+    where
+        N: NotificationHandler,
+        P: ProcessHandler,
+    {
+        AsyncClient::new(self, notification_handler, process_handler)
     }
 
     /// The sample rate of the JACK system, as set by the user when jackd was
@@ -83,7 +94,6 @@ impl Client {
         load as f32
     }
 
-
     /// Get the name of the current client. This may differ from the name
     /// requested by
     /// `Client::new` as JACK will may rename a client if necessary (ie: name
@@ -101,7 +111,7 @@ impl Client {
 
     /// The current maximum size that will every be passed to the process
     /// callback.
-    pub fn buffer_size(&self) -> pt::JackFrames {
+    pub fn buffer_size(&self) -> pt::Frames {
         unsafe { j::jack_get_buffer_size(self.as_ptr()) }
     }
 
@@ -112,11 +122,11 @@ impl Client {
     /// callback functions before restarting the process cycle. This will cause
     /// a gap in the audio
     /// flow, so it should only be done at appropriate stopping points.
-    pub fn set_buffer_size(&self, n_frames: pt::JackFrames) -> Result<(), JackErr> {
+    pub fn set_buffer_size(&self, n_frames: pt::Frames) -> Result<(), Error> {
         let res = unsafe { j::jack_set_buffer_size(self.as_ptr(), n_frames) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::SetBufferSizeError),
+            _ => Err(Error::SetBufferSizeError),
         }
     }
     // TODO implement
@@ -211,7 +221,7 @@ impl Client {
         &self,
         port_name: &str,
         port_spec: PS,
-    ) -> Result<Port<PS>, JackErr> {
+    ) -> Result<Port<PS>, Error> {
         let port_name_c = ffi::CString::new(port_name).unwrap();
         let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
         let port_flags = port_spec.jack_flags().bits();
@@ -226,16 +236,14 @@ impl Client {
             )
         };
         if pp.is_null() {
-            Err(JackErr::PortRegistrationError(port_name.to_string()))
+            Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
             Ok(unsafe { Port::from_raw(port_spec, self.as_ptr(), pp) })
         }
     }
 
-
-
     // Get a `Port` by its port id.
-    pub fn port_by_id(&self, port_id: pt::JackPortId) -> Option<UnownedPort> {
+    pub fn port_by_id(&self, port_id: pt::PortId) -> Option<UnownedPort> {
         let pp = unsafe { j::jack_port_by_id(self.as_ptr(), port_id) };
         if pp.is_null() {
             None
@@ -258,7 +266,7 @@ impl Client {
     /// The estimated time in frames that has passed since the JACK server
     /// began the current process
     /// cycle.
-    pub fn frames_since_cycle_start(&self) -> pt::JackFrames {
+    pub fn frames_since_cycle_start(&self) -> pt::Frames {
         unsafe { j::jack_frames_since_cycle_start(self.as_ptr()) }
     }
 
@@ -272,7 +280,7 @@ impl Client {
     ///
     /// # TODO
     /// - test
-    pub fn frame_time(&self) -> pt::JackFrames {
+    pub fn frame_time(&self) -> pt::Frames {
         unsafe { j::jack_frame_time(self.as_ptr()) }
     }
 
@@ -280,7 +288,7 @@ impl Client {
     ///
     /// # TODO
     /// - Improve test
-    pub fn frames_to_time(&self, n_frames: pt::JackFrames) -> pt::JackTime {
+    pub fn frames_to_time(&self, n_frames: pt::Frames) -> pt::Time {
         unsafe { j::jack_frames_to_time(self.as_ptr(), n_frames) }
     }
 
@@ -288,7 +296,7 @@ impl Client {
     ///
     /// # TODO
     /// - Improve test
-    pub fn time_to_frames(&self, t: pt::JackTime) -> pt::JackFrames {
+    pub fn time_to_frames(&self, t: pt::Time) -> pt::Frames {
         unsafe { j::jack_time_to_frames(self.as_ptr(), t) }
     }
 
@@ -302,7 +310,7 @@ impl Client {
 
     /// Toggle input monitoring for the port with name `port_name`.
     ///
-    /// `Err(JackErr::PortMonitorError)` is returned on failure.
+    /// `Err(Error::PortMonitorError)` is returned on failure.
     ///
     /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
     /// happens.
@@ -310,7 +318,7 @@ impl Client {
         &self,
         port_name: &str,
         enable_monitor: bool,
-    ) -> Result<(), JackErr> {
+    ) -> Result<(), Error> {
         let port_name_cstr = ffi::CString::new(port_name).unwrap();
         let res = unsafe {
             j::jack_port_request_monitor_by_name(
@@ -321,10 +329,9 @@ impl Client {
         };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
+            _ => Err(Error::PortMonitorError),
         }
     }
-
 
     // TODO implement
     // /// Start/Stop JACK's "freewheel" mode.
@@ -340,18 +347,16 @@ impl Client {
     // /// called from the thread that originally called `self.activate()`. This
     // /// restriction does not apply to other systems (e.g. Linux Kernel 2.6 or OS
     // /// X).
-    // pub pub fn set_freewheel(&self, enable: bool) -> Result<(), JackErr> {
+    // pub pub fn set_freewheel(&self, enable: bool) -> Result<(), Error> {
     //     let onoff = match enable {
     //         true => 0,
     //         false => 1,
     //     };
     //     match unsafe { j::jack_set_freewheel(self.as_ptr(), onoff) } {
     //         0 => Ok(()),
-    //         _ => Err(JackErr::FreewheelError),
+    //         _ => Err(Error::FreewheelError),
     //     }
     // }
-
-
 
     /// Establish a connection between two ports by their full name.
     ///
@@ -370,7 +375,7 @@ impl Client {
         &self,
         source_port: &str,
         destination_port: &str,
-    ) -> Result<(), JackErr> {
+    ) -> Result<(), Error> {
         let source_cstr = ffi::CString::new(source_port).unwrap();
         let destination_cstr = ffi::CString::new(destination_port).unwrap();
 
@@ -383,18 +388,14 @@ impl Client {
         };
         match res {
             0 => Ok(()),
-            ::libc::EEXIST => {
-                Err(JackErr::PortAlreadyConnected(
-                    source_port.to_string(),
-                    destination_port.to_string(),
-                ))
-            }
-            _ => {
-                Err(JackErr::PortConnectionError(
-                    source_port.to_string(),
-                    destination_port.to_string(),
-                ))
-            }
+            ::libc::EEXIST => Err(Error::PortAlreadyConnected(
+                source_port.to_string(),
+                destination_port.to_string(),
+            )),
+            _ => Err(Error::PortConnectionError(
+                source_port.to_string(),
+                destination_port.to_string(),
+            )),
         }
     }
 
@@ -415,7 +416,7 @@ impl Client {
         &self,
         source_port: &Port<A>,
         destination_port: &Port<B>,
-    ) -> Result<(), JackErr> {
+    ) -> Result<(), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         self.connect_ports_by_name(source_port.name(), destination_port.name())
     }
@@ -425,7 +426,7 @@ impl Client {
         &self,
         source: &Port<A>,
         destination: &Port<B>,
-    ) -> Result<(), JackErr> {
+    ) -> Result<(), Error> {
         self.disconnect_ports_by_name(source.name(), destination.name())
     }
 
@@ -434,7 +435,7 @@ impl Client {
         &self,
         source_port: &str,
         destination_port: &str,
-    ) -> Result<(), JackErr> {
+    ) -> Result<(), Error> {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
         let res = unsafe {
@@ -446,7 +447,7 @@ impl Client {
         };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortDisconnectionError),
+            _ => Err(Error::PortDisconnectionError),
         }
     }
 
@@ -483,7 +484,7 @@ impl Drop for Client {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
 
         debug_assert!(!self.as_ptr().is_null()); // Rep invariant
-        // Close the client
+                                                 // Close the client
         sleep_on_test();
         let res = unsafe { j::jack_client_close(self.as_ptr()) }; // close the client
         sleep_on_test();
@@ -506,13 +507,13 @@ pub struct ProcessScope {
     client_ptr: *mut j::jack_client_t,
 
     // Used to allow safe access to IO port buffers
-    n_frames: pt::JackFrames,
+    n_frames: pt::Frames,
 }
 
 impl ProcessScope {
     /// The number of frames in the current process cycle.
     #[inline(always)]
-    pub fn n_frames(&self) -> pt::JackFrames {
+    pub fn n_frames(&self) -> pt::Frames {
         self.n_frames
     }
 
@@ -522,14 +523,14 @@ impl ProcessScope {
     /// generated by
     /// `self.frame_time()` in other threads, with respect to the current
     /// process cycle.
-    pub fn last_frame_time(&self) -> pt::JackFrames {
+    pub fn last_frame_time(&self) -> pt::Frames {
         unsafe { j::jack_last_frame_time(self.client_ptr()) }
     }
 
     /// The estimated time in frames that has passed since the JACK server
     /// began the current process
     /// cycle.
-    pub fn frames_since_cycle_start(&self) -> pt::JackFrames {
+    pub fn frames_since_cycle_start(&self) -> pt::Frames {
         unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
     }
 
@@ -543,18 +544,18 @@ impl ProcessScope {
     /// be computed
     /// otherwise).
     ///
-    /// `Err(JackErr::TimeError)` is returned on failure.
-    /// `Err(JackErr::WeakFunctionNotFound)` if the function does not exist.
-    pub fn cycle_times(&self) -> Result<CycleTimes, JackErr> {
-        let mut current_frames: pt::JackFrames = 0;
-        let mut current_usecs: pt::JackTime = 0;
-        let mut next_usecs: pt::JackTime = 0;
+    /// `Err(Error::TimeError)` is returned on failure.
+    /// `Err(Error::WeakFunctionNotFound)` if the function does not exist.
+    pub fn cycle_times(&self) -> Result<CycleTimes, Error> {
+        let mut current_frames: pt::Frames = 0;
+        let mut current_usecs: pt::Time = 0;
+        let mut next_usecs: pt::Time = 0;
         let mut period_usecs: libc::c_float = 0.0;
 
         let jack_get_cycle_times = {
             match *j::jack_get_cycle_times {
                 Some(f) => f,
-                None => return Err(JackErr::WeakFunctionNotFound),
+                None => return Err(Error::WeakFunctionNotFound),
             }
         };
         let res = unsafe {
@@ -567,15 +568,13 @@ impl ProcessScope {
             )
         };
         match res {
-            0 => {
-                Ok(CycleTimes {
-                    current_frames: current_frames,
-                    current_usecs: current_usecs,
-                    next_usecs: next_usecs,
-                    period_usecs: period_usecs,
-                })
-            }
-            _ => Err(JackErr::TimeError),
+            0 => Ok(CycleTimes {
+                current_frames: current_frames,
+                current_usecs: current_usecs,
+                next_usecs: next_usecs,
+                period_usecs: period_usecs,
+            }),
+            _ => Err(Error::TimeError),
         }
     }
 
@@ -592,7 +591,7 @@ impl ProcessScope {
     /// frames.
     ///
     /// This is mostly for use within the jack crate itself.
-    pub unsafe fn from_raw(n_frames: pt::JackFrames, client_ptr: *mut j::jack_client_t) -> Self {
+    pub unsafe fn from_raw(n_frames: pt::Frames, client_ptr: *mut j::jack_client_t) -> Self {
         ProcessScope {
             n_frames: n_frames,
             client_ptr: client_ptr,
@@ -603,9 +602,9 @@ impl ProcessScope {
 /// Internal cycle timing information.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CycleTimes {
-    pub current_frames: pt::JackFrames,
-    pub current_usecs: pt::JackTime,
-    pub next_usecs: pt::JackTime,
+    pub current_frames: pt::Frames,
+    pub current_usecs: pt::Time,
+    pub next_usecs: pt::Time,
     pub period_usecs: libc::c_float,
 }
 
@@ -616,7 +615,7 @@ struct ClientInfo {
     buffer_size: u32,
     cpu_usage: String,
     ports: Vec<String>,
-    frame_time: pt::JackFrames,
+    frame_time: pt::Frames,
 }
 
 impl ClientInfo {

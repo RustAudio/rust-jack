@@ -1,12 +1,9 @@
 //! Sine wave generator with frequency configuration exposed through standard
 //! input.
 extern crate jack;
-use jack::prelude::{AsyncClient, AudioOutPort, AudioOutSpec, Client, ClosureProcessHandler,
-                    JackControl, ProcessScope, client_options};
 use std::io;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
-
 
 /// Attempt to read a frequency from standard in. Will block until there is
 /// user input. `None` is
@@ -23,11 +20,12 @@ fn read_freq() -> Option<f64> {
 
 fn main() {
     // 1. open a client
-    let (client, _status) = Client::new("rust_jack_sine", client_options::NO_START_SERVER).unwrap();
+    let (client, _status) =
+        jack::Client::new("rust_jack_sine", jack::client_options::NO_START_SERVER).unwrap();
 
     // 2. register port
     let mut out_port = client
-        .register_port("sine_out", AudioOutSpec::default())
+        .register_port("sine_out", jack::AudioOutSpec::default())
         .unwrap();
 
     // 3. define process callback handler
@@ -36,31 +34,33 @@ fn main() {
     let frame_t = 1.0 / sample_rate as f64;
     let mut time = 0.0;
     let (tx, rx) = channel();
-    let process = ClosureProcessHandler::new(move |_: &Client, ps: &ProcessScope| -> JackControl {
-        // Get output buffer
-        let mut out_p = AudioOutPort::new(&mut out_port, ps);
-        let out: &mut [f32] = &mut out_p;
+    let process = jack::ClosureProcessHandler::new(
+        move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+            // Get output buffer
+            let mut out_p = jack::AudioOutPort::new(&mut out_port, ps);
+            let out: &mut [f32] = &mut out_p;
 
-        // Check frequency requests
-        while let Ok(f) = rx.try_recv() {
-            time = 0.0;
-            frequency = f;
-        }
+            // Check frequency requests
+            while let Ok(f) = rx.try_recv() {
+                time = 0.0;
+                frequency = f;
+            }
 
-        // Write output
-        for v in out.iter_mut() {
-            let x = frequency * time * 2.0 * std::f64::consts::PI;
-            let y = x.sin();
-            *v = y as f32;
-            time += frame_t;
-        }
+            // Write output
+            for v in out.iter_mut() {
+                let x = frequency * time * 2.0 * std::f64::consts::PI;
+                let y = x.sin();
+                *v = y as f32;
+                time += frame_t;
+            }
 
-        // Continue as normal
-        JackControl::Continue
-    });
+            // Continue as normal
+            jack::Control::Continue
+        },
+    );
 
     // 4. activate the client
-    let active_client = AsyncClient::new(client, (), process).unwrap();
+    let active_client = jack::AsyncClient::new(client, (), process).unwrap();
     // processing starts here
 
     // 5. wait or do some processing while your handler is running in real time.

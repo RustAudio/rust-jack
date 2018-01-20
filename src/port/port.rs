@@ -3,7 +3,7 @@ use std::marker::Sized;
 
 use libc;
 
-use jack_enums::JackErr;
+use jack_enums::Error;
 use jack_sys as j;
 use port::port_flags::PortFlags;
 use primitive_types as pt;
@@ -125,11 +125,11 @@ impl<PS: PortSpec> Port<PS> {
     }
 
     /// Remove connections to/from port `self`.
-    pub fn disconnect(&self) -> Result<(), JackErr> {
+    pub fn disconnect(&self) -> Result<(), Error> {
         let res = unsafe { j::jack_port_disconnect(self.client_ptr(), self.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortDisconnectionError),
+            _ => Err(Error::PortDisconnectionError),
         }
     }
 
@@ -146,9 +146,7 @@ impl<PS: PortSpec> Port<PS> {
         [a, b]
             .iter()
             .map(|p| p.as_ptr())
-            .map(|p| unsafe {
-                ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
-            })
+            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
             .filter(|s| s.len() > 0)
             .collect()
     }
@@ -164,7 +162,7 @@ impl<PS: PortSpec> Port<PS> {
     /// Turn input monitoring for the port on or off.
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
-    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
+    pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -172,7 +170,7 @@ impl<PS: PortSpec> Port<PS> {
         let res = unsafe { j::jack_port_request_monitor(self.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
+            _ => Err(Error::PortMonitorError),
         }
     }
 
@@ -181,7 +179,7 @@ impl<PS: PortSpec> Port<PS> {
     /// off, and turns it off if only one request has been made to turn it on.
     /// Otherwise it does
     /// nothing.
-    pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), JackErr> {
+    pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -189,19 +187,19 @@ impl<PS: PortSpec> Port<PS> {
         let res = unsafe { j::jack_port_ensure_monitor(self.as_ptr(), onoff) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortMonitorError),
+            _ => Err(Error::PortMonitorError),
         }
     }
 
     /// Set's the short name of the port. If the full name is longer than
     /// `PORT_NAME_SIZE`, then it
     /// will be truncated.
-    pub fn set_name(&mut self, short_name: &str) -> Result<(), JackErr> {
+    pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
         let short_name = ffi::CString::new(short_name).unwrap();
         let res = unsafe { j::jack_port_set_name(self.as_ptr(), short_name.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortNamingError),
+            _ => Err(Error::PortNamingError),
         }
     }
 
@@ -218,12 +216,12 @@ impl<PS: PortSpec> Port<PS> {
     /// Ports can have up to two aliases - if both are already set, this
     /// function will return an
     /// error.
-    pub fn set_alias(&mut self, alias: &str) -> Result<(), JackErr> {
+    pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_set_alias(self.as_ptr(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortAliasError),
+            _ => Err(Error::PortAliasError),
         }
     }
 
@@ -231,23 +229,23 @@ impl<PS: PortSpec> Port<PS> {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate
     /// name for `self`.
-    pub fn unset_alias(&mut self, alias: &str) -> Result<(), JackErr> {
+    pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_unset_alias(self.as_ptr(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortAliasError),
+            _ => Err(Error::PortAliasError),
         }
     }
 
     /// Remove the port from the client, disconnecting any existing
     /// connections.  The port must have
     /// been created with the provided client.
-    pub fn unregister(self) -> Result<(), JackErr> {
+    pub fn unregister(self) -> Result<(), Error> {
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.as_ptr()) };
         match res {
             0 => Ok(()),
-            _ => Err(JackErr::PortDisconnectionError),
+            _ => Err(Error::PortDisconnectionError),
         }
     }
 
@@ -290,7 +288,7 @@ impl<PS: PortSpec> Port<PS> {
     /// the `Port::buffer`
     /// method.
     #[inline(always)]
-    pub unsafe fn buffer(&self, n_frames: pt::JackFrames) -> *mut libc::c_void {
+    pub unsafe fn buffer(&self, n_frames: pt::Frames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }
 }

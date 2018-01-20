@@ -1,11 +1,9 @@
-use std::fmt;
-use std::ops::Deref;
-
 use jack_sys as j;
+use std::fmt;
 
 use super::callbacks::{clear_callbacks, register_callbacks};
-use client::base::Client;
-use client::common::{CREATE_OR_DESTROY_CLIENT_MUTEX, sleep_on_test};
+use client::client::Client;
+use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use jack_enums::*;
 
 pub use super::callbacks::{NotificationHandler, ProcessHandler};
@@ -20,21 +18,15 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 ///
 /// # Example
 /// ```
-/// use jack::prelude as j;
-///
 /// // Create a client and a handler
 /// let (client, _status) =
-///     j::Client::new("my_client", j::client_options::NO_START_SERVER)
-///         .unwrap();
-/// let process_handler = j::ClosureProcessHandler::new(
-///     move |_: &j::Client, _: &j::ProcessScope| {
-///         j::JackControl::Continue
-///     }
+///     jack::Client::new("my_client", jack::client_options::NO_START_SERVER).unwrap();
+/// let process_handler = jack::ClosureProcessHandler::new(
+///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );
 ///
 /// // An active async client is created, `client` is consumed.
-/// let active_client = j::AsyncClient::new(client, (),
-/// process_handler).unwrap();
+/// let active_client = jack::AsyncClient::new(client, (), process_handler).unwrap();
 /// ```
 pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     client: Option<Client>,
@@ -58,17 +50,13 @@ where
     /// methods specified by the `NotificationHandler` and `ProcessHandler`
     /// objects.
     ///
-    /// On failure, either `Err(JackErr::CallbackRegistrationError)` or
-    /// `Err(JackErr::ClientActivationError)` is returned.
+    /// On failure, either `Err(Error::CallbackRegistrationError)` or
+    /// `Err(Error::ClientActivationError)` is returned.
     ///
     /// `notification_handler` and `process_handler` are consumed, but they are
     /// returned when
     /// `Client::deactivate` is called.
-    pub fn new(
-        client: Client,
-        notification_handler: N,
-        process_handler: P,
-    ) -> Result<Self, JackErr> {
+    pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
@@ -79,29 +67,31 @@ where
             ));
             sleep_on_test();
             if handler_ptr.is_null() {
-                Err(JackErr::CallbackRegistrationError)
+                Err(Error::CallbackRegistrationError)
             } else {
                 let res = j::jack_activate(client.as_ptr());
                 for _ in 0..4 {
                     sleep_on_test();
                 }
                 match res {
-                    0 => {
-                        Ok(AsyncClient {
-                            client: Some(client),
-                            handler: Some(handler_ptr),
-                        })
-                    }
+                    0 => Ok(AsyncClient {
+                        client: Some(client),
+                        handler: Some(handler_ptr),
+                    }),
 
                     _ => {
                         drop(Box::from_raw(handler_ptr));
-                        Err(JackErr::ClientActivationError)
+                        Err(Error::ClientActivationError)
                     }
                 }
             }
         }
     }
 
+    /// Return the underlying `jack::Client`.
+    pub fn as_client(&self) -> &Client {
+        self.client.as_ref().unwrap()
+    }
 
     /// Tell the JACK server to remove this client from the process graph.
     /// Also, disconnect all
@@ -114,7 +104,7 @@ where
     /// In the case of error, the `Client` is destroyed because its state is
     /// unknown, and it is
     /// therefore unsafe to continue using.
-    pub fn deactivate(mut self) -> Result<(Client, N, P), JackErr> {
+    pub fn deactivate(mut self) -> Result<(Client, N, P), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             let inner_client = self.client.take().unwrap();
@@ -122,7 +112,7 @@ where
             // deactivate
             sleep_on_test();
             if j::jack_deactivate(inner_client.as_ptr()) != 0 {
-                return Err(JackErr::ClientDeactivationError);
+                return Err(Error::ClientDeactivationError);
             }
 
             // clear the callbacks
@@ -138,18 +128,6 @@ where
     }
 }
 
-impl<N, P> Deref for AsyncClient<N, P>
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
-{
-    type Target = Client;
-
-    fn deref(&self) -> &Self::Target {
-        self.client.as_ref().unwrap()
-    }
-}
-
 /// Closes the client.
 impl<N, P> Drop for AsyncClient<N, P>
 where
@@ -162,7 +140,7 @@ where
             // Deactivate the handler
             sleep_on_test();
             if self.client.is_some() {
-                j::jack_deactivate(self.as_ptr()); // result doesn't matter
+                j::jack_deactivate(self.as_client().as_ptr()); // result doesn't matter
             }
 
             sleep_on_test();
@@ -183,7 +161,6 @@ where
     P: ProcessHandler,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let c: &Client = &self;
-        write!(f, "AsyncClient({:?})", c)
+        write!(f, "AsyncClient({:?})", self.as_client())
     }
 }

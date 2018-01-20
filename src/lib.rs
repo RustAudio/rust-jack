@@ -57,6 +57,20 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
+pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, NotificationHandler,
+                 ProcessHandler, ProcessScope};
+pub use client::{client_options, client_status, ClientOptions, ClientStatus};
+pub use client::CLIENT_NAME_SIZE;
+pub use jack_enums::{Control, Error, LatencyType};
+pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
+                  reset_info_callback, set_error_callback, set_info_callback};
+pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,
+               MidiIter, MidiOutPort, MidiOutSpec, Port, RawMidi, Unowned, UnownedPort};
+pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
+pub use port::{port_flags, PortFlags};
+pub use port::PortSpec;
+pub use primitive_types::{Frames, PortId, Time};
+pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 
 /// Create and manage client connections to a JACK server.
 pub mod client;
@@ -80,33 +94,25 @@ pub mod primitive_types;
 
 /// Return JACK's current system time in microseconds, using the JACK
 /// clock source.
-pub fn get_time() -> primitive_types::JackTime {
+pub fn get_time() -> primitive_types::Time {
     unsafe { jack_sys::jack_get_time() }
 }
 
-/// Contains every trait defined in the jack crate.
-pub mod traits {
-    pub use client::{NotificationHandler, ProcessHandler};
-    pub use port::PortSpec;
-}
-
-/// Contains most functionality needed to interact with JACK.
-pub mod prelude {
-    pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, NotificationHandler,
-                     ProcessHandler, ProcessScope};
-    pub use client::{ClientOptions, ClientStatus, client_options, client_status};
-    pub use client::CLIENT_NAME_SIZE;
-    pub use jack_enums::{JackControl, JackErr, LatencyType};
-    pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
-                      reset_info_callback, set_error_callback, set_info_callback};
-    pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,
-                   MidiIter, MidiOutPort, MidiOutSpec, Port, RawMidi, Unowned, UnownedPort};
-    pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
-    pub use port::{PortFlags, port_flags};
-    pub use port::PortSpec;
-    pub use primitive_types::{JackFrames, JackPortId, JackTime};
-    pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
-}
-
 #[cfg(test)]
-mod test;
+mod test {
+    use super::*;
+    use std::{thread, time};
+
+    #[test]
+    fn time_can_get_time() {
+        get_time();
+    }
+
+    #[test]
+    fn time_is_monotonically_increasing() {
+        let initial_t = get_time();
+        thread::sleep(time::Duration::from_millis(100));
+        let later_t = get_time();
+        assert!(initial_t < later_t, "failed {} < {}", initial_t, later_t);
+    }
+}

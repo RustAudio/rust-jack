@@ -1,5 +1,3 @@
-use prelude::*;
-
 fn open_test_client(name: &str) -> Client {
     Client::new(name, client_options::NO_START_SERVER)
         .unwrap()
@@ -111,7 +109,6 @@ fn port_can_request_monitor() {
         assert_eq!(p.is_monitoring_input(), should_monitor.clone());
     }
 }
-
 
 #[test]
 fn port_can_set_alias() {

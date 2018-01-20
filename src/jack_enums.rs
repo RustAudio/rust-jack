@@ -4,7 +4,7 @@ use client::client_status::ClientStatus;
 
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum JackErr {
+pub enum Error {
     CallbackDeregistrationError,
     CallbackRegistrationError,
     ClientActivationError,
@@ -35,7 +35,7 @@ pub enum LatencyType {
 
 /// Specify an option, either to continue processing, or to stop.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum JackControl {
+pub enum Control {
     /// Continue processing.
     Continue,
 
@@ -43,17 +43,17 @@ pub enum JackControl {
     Quit,
 }
 
-impl JackControl {
+impl Control {
     pub fn to_ffi(self) -> libc::c_int {
         match self {
-            JackControl::Continue => 0,
-            JackControl::Quit => -1,
+            Control::Continue => 0,
+            Control::Quit => -1,
         }
     }
 }
 
-impl Default for JackControl {
+impl Default for Control {
     fn default() -> Self {
-        JackControl::Continue
+        Control::Continue
     }
 }

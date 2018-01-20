@@ -1,42 +1,40 @@
 //! Takes 2 audio inputs and outputs them to 2 audio outputs.
 //! All JACK notifications are also printed out.
 extern crate jack;
-use jack::prelude as j;
 use std::io;
 
 struct Notifications;
 
-impl j::NotificationHandler for Notifications {
-    fn thread_init(&self, _: &j::Client) {
+impl jack::NotificationHandler for Notifications {
+    fn thread_init(&self, _: &jack::Client) {
         println!("JACK: thread init");
     }
 
-    fn shutdown(&mut self, status: j::ClientStatus, reason: &str) {
+    fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
         println!(
             "JACK: shutdown with status {:?} because \"{}\"",
-            status,
-            reason
+            status, reason
         );
     }
 
-    fn freewheel(&mut self, _: &j::Client, is_enabled: bool) {
+    fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
         println!(
             "JACK: freewheel mode is {}",
             if is_enabled { "on" } else { "off" }
         );
     }
 
-    fn buffer_size(&mut self, _: &j::Client, sz: j::JackFrames) -> j::JackControl {
+    fn buffer_size(&mut self, _: &jack::Client, sz: jack::Frames) -> jack::Control {
         println!("JACK: buffer size changed to {}", sz);
-        j::JackControl::Continue
+        jack::Control::Continue
     }
 
-    fn sample_rate(&mut self, _: &j::Client, srate: j::JackFrames) -> j::JackControl {
+    fn sample_rate(&mut self, _: &jack::Client, srate: jack::Frames) -> jack::Control {
         println!("JACK: sample rate changed to {}", srate);
-        j::JackControl::Continue
+        jack::Control::Continue
     }
 
-    fn client_registration(&mut self, _: &j::Client, name: &str, is_reg: bool) {
+    fn client_registration(&mut self, _: &jack::Client, name: &str, is_reg: bool) {
         println!(
             "JACK: {} client with name \"{}\"",
             if is_reg { "registered" } else { "unregistered" },
@@ -44,7 +42,7 @@ impl j::NotificationHandler for Notifications {
         );
     }
 
-    fn port_registration(&mut self, _: &j::Client, port_id: j::JackPortId, is_reg: bool) {
+    fn port_registration(&mut self, _: &jack::Client, port_id: jack::PortId, is_reg: bool) {
         println!(
             "JACK: {} port with id {}",
             if is_reg { "registered" } else { "unregistered" },
@@ -54,25 +52,23 @@ impl j::NotificationHandler for Notifications {
 
     fn port_rename(
         &mut self,
-        _: &j::Client,
-        port_id: j::JackPortId,
+        _: &jack::Client,
+        port_id: jack::PortId,
         old_name: &str,
         new_name: &str,
-    ) -> j::JackControl {
+    ) -> jack::Control {
         println!(
             "JACK: port with id {} renamed from {} to {}",
-            port_id,
-            old_name,
-            new_name
+            port_id, old_name, new_name
         );
-        j::JackControl::Continue
+        jack::Control::Continue
     }
 
     fn ports_connected(
         &mut self,
-        _: &j::Client,
-        port_id_a: j::JackPortId,
-        port_id_b: j::JackPortId,
+        _: &jack::Client,
+        port_id_a: jack::PortId,
+        port_id_b: jack::PortId,
         are_connected: bool,
     ) {
         println!(
@@ -87,22 +83,22 @@ impl j::NotificationHandler for Notifications {
         );
     }
 
-    fn graph_reorder(&mut self, _: &j::Client) -> j::JackControl {
+    fn graph_reorder(&mut self, _: &jack::Client) -> jack::Control {
         println!("JACK: graph reordered");
-        j::JackControl::Continue
+        jack::Control::Continue
     }
 
-    fn xrun(&mut self, _: &j::Client) -> j::JackControl {
+    fn xrun(&mut self, _: &jack::Client) -> jack::Control {
         println!("JACK: xrun occurred");
-        j::JackControl::Continue
+        jack::Control::Continue
     }
 
-    fn latency(&mut self, _: &j::Client, mode: j::LatencyType) {
+    fn latency(&mut self, _: &jack::Client, mode: jack::LatencyType) {
         println!(
             "JACK: {} latency has changed",
             match mode {
-                j::LatencyType::Capture => "capture",
-                j::LatencyType::Playback => "playback",
+                jack::LatencyType::Capture => "capture",
+                jack::LatencyType::Playback => "playback",
             }
         );
     }
@@ -110,36 +106,36 @@ impl j::NotificationHandler for Notifications {
 
 fn main() {
     // Create client
-    let (client, _status) = j::Client::new("rust_jack_simple", j::client_options::NO_START_SERVER)
-        .unwrap();
+    let (client, _status) =
+        jack::Client::new("rust_jack_simple", jack::client_options::NO_START_SERVER).unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.
     let in_a = client
-        .register_port("rust_in_l", j::AudioInSpec::default())
+        .register_port("rust_in_l", jack::AudioInSpec::default())
         .unwrap();
     let in_b = client
-        .register_port("rust_in_r", j::AudioInSpec::default())
+        .register_port("rust_in_r", jack::AudioInSpec::default())
         .unwrap();
     let mut out_a = client
-        .register_port("rust_out_l", j::AudioOutSpec::default())
+        .register_port("rust_out_l", jack::AudioOutSpec::default())
         .unwrap();
     let mut out_b = client
-        .register_port("rust_out_r", j::AudioOutSpec::default())
+        .register_port("rust_out_r", jack::AudioOutSpec::default())
         .unwrap();
-    let process_callback = move |_: &j::Client, ps: &j::ProcessScope| -> j::JackControl {
-        let mut out_a_p = j::AudioOutPort::new(&mut out_a, ps);
-        let mut out_b_p = j::AudioOutPort::new(&mut out_b, ps);
-        let in_a_p = j::AudioInPort::new(&in_a, ps);
-        let in_b_p = j::AudioInPort::new(&in_b, ps);
+    let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+        let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
+        let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
+        let in_a_p = jack::AudioInPort::new(&in_a, ps);
+        let in_b_p = jack::AudioInPort::new(&in_b, ps);
         out_a_p.clone_from_slice(&in_a_p);
         out_b_p.clone_from_slice(&in_b_p);
-        j::JackControl::Continue
+        jack::Control::Continue
     };
-    let process = j::ClosureProcessHandler::new(process_callback);
+    let process = jack::ClosureProcessHandler::new(process_callback);
 
     // Activate the client, which starts the processing.
-    let active_client = j::AsyncClient::new(client, Notifications, process).unwrap();
+    let active_client = jack::AsyncClient::new(client, Notifications, process).unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");

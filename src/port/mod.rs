@@ -9,3 +9,6 @@ pub use self::audio::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec};
 pub use self::midi::{MidiInPort, MidiInSpec, MidiIter, MidiOutPort, MidiOutSpec, RawMidi};
 pub use self::port::*;
 pub use self::port_flags::PortFlags;
+
+#[cfg(test)]
+mod test_client;

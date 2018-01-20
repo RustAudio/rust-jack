@@ -1,4 +1,5 @@
-use prelude::*;
+use client::*;
+use jack_enums::Error;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     let ret = Client::new(name, client_options::NO_START_SERVER).unwrap();
@@ -25,7 +26,7 @@ fn client_fails_to_open_with_large_name() {
     Client::new(&name, client_options::NO_START_SERVER).unwrap();
     // fails on travis, switched to should_panic for a catch all
     // assert_eq!(Client::new(&name, client_options::NO_START_SERVER).err(),
-    // Some(JackErr::ClientError(client_status::FAILURE |
+    // Some(Error::ClientError(client_status::FAILURE |
     // client_status::SERVER_ERROR)));
 }
 
@@ -57,7 +58,7 @@ fn client_can_set_buffer_size() {
 fn client_detects_bad_buffer_size() {
     let (c, _) = open_test_client("client_detects_bad_buffer_size");
     let initial_size = c.buffer_size();
-    assert_eq!(c.set_buffer_size(0), Err(JackErr::SetBufferSizeError));
+    assert_eq!(c.set_buffer_size(0), Err(Error::SetBufferSizeError));
     c.set_buffer_size(initial_size).unwrap();
     assert_eq!(c.buffer_size(), initial_size);
 }

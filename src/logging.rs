@@ -1,7 +1,7 @@
 use libc;
 use std::ffi;
-use std::io::{Write, stderr};
-use std::sync::{Mutex, ONCE_INIT, Once};
+use std::io::{stderr, Write};
+use std::sync::{Mutex, Once, ONCE_INIT};
 
 use jack_sys as j;
 
@@ -11,9 +11,9 @@ lazy_static! {
 }
 
 unsafe extern "C" fn error_wrapper(msg: *const libc::c_char) {
-    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or(
-        "rust failed to interpret error message",
-    );
+    let msg = ffi::CStr::from_ptr(msg)
+        .to_str()
+        .unwrap_or("rust failed to interpret error message");
     let f = ERROR_FN.lock().unwrap();
     match *f {
         Some(f) => f(msg),
@@ -22,9 +22,9 @@ unsafe extern "C" fn error_wrapper(msg: *const libc::c_char) {
 }
 
 unsafe extern "C" fn info_wrapper(msg: *const libc::c_char) {
-    let msg = ffi::CStr::from_ptr(msg).to_str().unwrap_or(
-        "rust failed to interpret info message",
-    );
+    let msg = ffi::CStr::from_ptr(msg)
+        .to_str()
+        .unwrap_or("rust failed to interpret info message");
     let f = INFO_FN.lock().unwrap();
     match *f {
         Some(f) => f(msg),
@@ -62,9 +62,7 @@ static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
 /// crate](https://cratse.io/crates/log).
 pub fn set_error_callback(error: fn(&str)) {
     *ERROR_FN.lock().unwrap() = Some(error);
-    IS_ERROR_CALLBACK_SET.call_once(|| unsafe {
-        j::jack_set_error_function(Some(error_wrapper))
-    })
+    IS_ERROR_CALLBACK_SET.call_once(|| unsafe { j::jack_set_error_function(Some(error_wrapper)) })
 }
 
 /// Get the error callback that was set using `set_error_callback`. This
@@ -79,4 +77,43 @@ pub fn get_error_callback() -> Option<fn(&str)> {
 /// stderr.
 pub fn reset_error_callback() {
     *ERROR_FN.lock().unwrap() = None;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn null_log_fn(_: &str) {}
+
+    #[test]
+    fn logging_can_set_info() {
+        // initial state
+        reset_info_callback();
+        assert!(get_info_callback().is_none());
+
+        // set
+        set_info_callback(null_log_fn);
+        assert!(get_info_callback().is_some());
+        get_info_callback().unwrap()("Using info callback!.");
+
+        // reset
+        reset_info_callback();
+        assert!(get_info_callback().is_none());
+    }
+
+    #[test]
+    fn logging_can_set_error() {
+        // initial state
+        reset_error_callback();
+        assert!(get_error_callback().is_none());
+
+        // set
+        set_error_callback(null_log_fn);
+        assert!(get_error_callback().is_some());
+        get_error_callback().unwrap()("Using error callback!.");
+
+        // reset
+        reset_error_callback();
+        assert!(get_error_callback().is_none());
+    }
 }
