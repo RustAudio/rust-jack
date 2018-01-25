@@ -7,7 +7,7 @@ use std::io;
 fn main() {
     // open client
     let (client, _status) =
-        jack::Client::new("rust_jack_show_midi", jack::ClientOptionsNO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::NO_START_SERVER).unwrap();
 
     // process logic
     let mut maker = client

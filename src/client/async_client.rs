@@ -18,7 +18,7 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// ```
 /// // Create a client and a handler
 /// let (client, _status) =
-///     jack::Client::new("my_client", jack::ClientOptionsNO_START_SERVER).unwrap();
+///     jack::Client::new("my_client", jack::ClientOptions::NO_START_SERVER).unwrap();
 /// let process_handler = jack::ClosureProcessHandler::new(
 ///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );

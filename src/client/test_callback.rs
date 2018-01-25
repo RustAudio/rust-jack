@@ -67,7 +67,7 @@ impl ProcessHandler for Counter {
 }
 
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, ClientOptionsNO_START_SERVER).unwrap().0
+    Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
 
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {

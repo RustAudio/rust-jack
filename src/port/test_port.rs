@@ -1,5 +1,5 @@
 fn open_test_client(name: &str) -> Client {
-    Client::new(name, ClientOptionsNO_START_SERVER).unwrap().0
+    Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioIn>) {
