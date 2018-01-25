@@ -17,11 +17,11 @@ fn main() {
         .register_port("rust_midi_shower", jack::MidiInSpec::default())
         .unwrap();
     let cback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let show_p = jack::MidiInPort::new(&shower, ps);
-        for e in show_p.iter() {
+        let show_p = shower.iter(ps);
+        for e in show_p {
             println!("{:?}", e);
         }
-        let mut put_p = jack::MidiOutPort::new(&mut maker, ps);
+        let mut put_p = maker.writer(ps);
         put_p
             .write(&jack::RawMidi {
                 time: 0,

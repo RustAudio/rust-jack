@@ -1,5 +1,4 @@
 use super::*;
-use client::AsyncClient;
 use client::Client;
 use client::NotificationHandler;
 use client::client_options;
@@ -87,7 +86,7 @@ fn client_port_can_get_port_by_id() {
 
     // Open and activate client
     let c = open_test_client(client_name);
-    let ac = AsyncClient::new(c, h, ()).unwrap();
+    let ac = c.activate_async(h, ()).unwrap();
 
     // Register port
     let _pa = ac.as_client()
@@ -148,7 +147,7 @@ fn client_port_can_connect_ports() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect them
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -165,7 +164,7 @@ fn client_port_can_connect_ports_by_name() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect them
     client
@@ -186,7 +185,7 @@ fn client_port_can_connect_unowned_ports() {
         .unwrap();
 
     // start client
-    let _client = AsyncClient::new(client, (), ()).unwrap();
+    let _client = client.activate_async((), ()).unwrap();
 
     // connect them
     connector
@@ -211,8 +210,10 @@ fn client_port_cant_connect_inactive_client() {
         .name()
         .to_string();
 
-    // commented out to not start client
-    // let client = AsyncClient::new(client, (), ()).unwrap();
+    // Normally we start a client before we begin connecting, but in this case
+    // we're checking for errors that happen when we connect before activating.
+    //
+    // let client = client.activate_async((), ()).unwrap();
 
     // connect them
     assert_eq!(
@@ -234,7 +235,7 @@ fn client_port_recognizes_already_connected_ports() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // attempt to connect the ports twice
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -249,8 +250,9 @@ fn client_port_recognizes_already_connected_ports() {
 
 #[test]
 fn client_port_fails_to_connect_nonexistant_ports() {
-    let client = open_test_client("client_port_ftcnp");
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = open_test_client("client_port_ftcnp")
+        .activate_async((), ())
+        .unwrap();
     assert_eq!(
         client
             .as_client()
@@ -275,7 +277,7 @@ fn client_port_can_disconnect_port_from_all() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect and disconnect
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -295,7 +297,7 @@ fn client_port_can_disconnect_ports() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect and disconnect
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
@@ -315,7 +317,7 @@ fn client_port_can_disconnect_ports_by_name() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect and disconnect
     client
@@ -342,7 +344,7 @@ fn client_port_can_disconnect_unowned_ports() {
         .unwrap();
 
     // start client
-    let client = AsyncClient::new(client, (), ()).unwrap();
+    let client = client.activate_async((), ()).unwrap();
 
     // connect and disconnect
     client

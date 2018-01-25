@@ -23,10 +23,10 @@ fn main() {
         .register_port("rust_out_r", jack::AudioOutSpec::default())
         .unwrap();
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let mut out_a_p = jack::AudioOutPort::new(&mut out_a, ps);
-        let mut out_b_p = jack::AudioOutPort::new(&mut out_b, ps);
-        let in_a_p = jack::AudioInPort::new(&in_a, ps);
-        let in_b_p = jack::AudioInPort::new(&in_b, ps);
+        let out_a_p = out_a.as_mut_slice(ps);
+        let out_b_p = out_b.as_mut_slice(ps);
+        let in_a_p = in_a.as_slice(ps);
+        let in_b_p = in_b.as_slice(ps);
         out_a_p.clone_from_slice(&in_a_p);
         out_b_p.clone_from_slice(&in_b_p);
         jack::Control::Continue

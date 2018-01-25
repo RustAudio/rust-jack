@@ -1,4 +1,3 @@
-use std::ops::{Deref, DerefMut};
 use std::slice;
 
 use jack_sys as j;
@@ -86,109 +85,29 @@ unsafe impl PortSpec for AudioInSpec {
     }
 }
 
-/// Safely and thinly wrap a `Port<AudioOutSpec>`. Derefs into a `&mut[f32]`.
-///
-/// # Example
-/// ```
-/// let client = jack::client::Client::new("c", jack::client::client_options::NO_START_SERVER)
-///     .unwrap()
-///     .0;
-/// let mut out_port = client
-///     .register_port("p", jack::port::AudioOutSpec::default())
-///     .unwrap();
-/// let _process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
-///     let mut out_p = jack::port::AudioOutPort::new(&mut out_port, ps);
-///     {
-///         let out_b: &mut [f32] = &mut out_p; // can deref into &mut [f32]
-///     }
-///     out_p[0] = 0.0;
-/// };
-/// ```
-pub struct AudioOutPort<'a> {
-    _port: &'a mut Port<AudioOutSpec>,
-    buffer: &'a mut [f32],
-}
-
-impl<'a> AudioOutPort<'a> {
-    /// Wrap a `Port<AudioOutSpec>` within a process scope of a client
-    /// that registered the port. Panics if the port does not belong
-    /// to the client that created the process.
-    pub fn new(port: &'a mut Port<AudioOutSpec>, ps: &'a ProcessScope) -> Self {
-        assert_eq!(port.client_ptr(), ps.client_ptr());
-        let buff = unsafe {
-            slice::from_raw_parts_mut(
-                port.buffer(ps.n_frames()) as *mut f32,
-                ps.n_frames() as usize,
-            )
-        };
-        AudioOutPort {
-            _port: port,
-            buffer: buff,
-        }
-    }
-}
-
-impl<'a> Deref for AudioOutPort<'a> {
-    type Target = [f32];
-
-    fn deref(&self) -> &[f32] {
-        self.buffer
-    }
-}
-
-impl<'a> DerefMut for AudioOutPort<'a> {
-    fn deref_mut(&mut self) -> &mut [f32] {
-        self.buffer
-    }
-}
-
-/// Safely and thinly wrap a `Port<AudioInSpec>`. Derefs into a `&[f32]`.
-///
-/// # Example
-/// ```
-/// let client = jack::client::Client::new("c", jack::client::client_options::NO_START_SERVER)
-///     .unwrap()
-///     .0;
-/// let in_port = client
-///     .register_port("p", jack::port::AudioInSpec::default())
-///     .unwrap();
-/// let process = move |_: &jack::client::Client, ps: &jack::client::ProcessScope| {
-///     let in_p = jack::port::AudioInPort::new(&in_port, ps);
-///     {
-///         let _in_b: &[f32] = &in_p; // can deref into &[f32]
-///     }
-///     let _x = in_p[0];
-/// };
-/// ```
-pub struct AudioInPort<'a> {
-    _port: &'a Port<AudioInSpec>,
-    buffer: &'a [f32],
-}
-
-impl<'a> AudioInPort<'a> {
-    /// Wrap a `Port<AudioInSpec>` within a process scope of a client
-    /// that registered the port. Panics if the port does not belong
-    /// to the client that created the process.
-    pub fn new(port: &'a Port<AudioInSpec>, ps: &'a ProcessScope) -> Self {
-        assert_eq!(port.client_ptr(), ps.client_ptr());
+impl Port<AudioInSpec> {
+    pub fn as_slice<'a>(&'a self, ps: &'a ProcessScope) -> &'a [f32] {
+        assert_eq!(self.client_ptr(), ps.client_ptr());
         let buff = unsafe {
             slice::from_raw_parts(
-                port.buffer(ps.n_frames()) as *const f32,
+                self.buffer(ps.n_frames()) as *const f32,
                 ps.n_frames() as usize,
             )
         };
-        AudioInPort {
-            _port: port,
-            buffer: buff,
-        }
+        buff
     }
 }
 
-impl<'a> Deref for AudioInPort<'a> {
-    type Target = [f32];
-
-    fn deref(&self) -> &[f32] {
-        self.buffer
+impl Port<AudioOutSpec> {
+    pub fn as_mut_slice<'a>(&'a mut self, ps: &'a ProcessScope) -> &'a mut [f32] {
+        assert_eq!(self.client_ptr(), ps.client_ptr());
+        let buff = unsafe {
+            slice::from_raw_parts_mut(
+                self.buffer(ps.n_frames()) as *mut f32,
+                ps.n_frames() as usize,
+            )
+        };
+        buff
     }
 }
 
@@ -219,10 +138,10 @@ mod test {
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.31244352;
             let exp_b = -0.61212;
-            let in_a = AudioInPort::new(&in_a, ps);
-            let in_b = AudioInPort::new(&in_b, ps);
-            let mut out_a = AudioOutPort::new(&mut out_a, ps);
-            let mut out_b = AudioOutPort::new(&mut out_b, ps);
+            let in_a = in_a.as_slice(ps);
+            let in_b = in_b.as_slice(ps);
+            let out_a = out_a.as_mut_slice(ps);
+            let out_b = out_b.as_mut_slice(ps);
             for v in out_a.iter_mut() {
                 *v = exp_a;
             }

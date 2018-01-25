@@ -486,7 +486,7 @@ impl Drop for Client {
 
 impl fmt::Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", ClientInfo::new(self))
+        write!(f, "{:?}", ClientInfo::from(self))
     }
 }
 
@@ -609,8 +609,8 @@ struct ClientInfo {
     frame_time: pt::Frames,
 }
 
-impl ClientInfo {
-    fn new(c: &Client) -> ClientInfo {
+impl<'a> From<&'a Client> for ClientInfo {
+    fn from(c: &Client) -> ClientInfo {
         ClientInfo {
             name: c.name().into(),
             sample_rate: c.sample_rate(),

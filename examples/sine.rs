@@ -24,8 +24,7 @@ fn main() {
     let process = jack::ClosureProcessHandler::new(
         move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
             // Get output buffer
-            let mut out_p = jack::AudioOutPort::new(&mut out_port, ps);
-            let out: &mut [f32] = &mut out_p;
+            let out = out_port.as_mut_slice(ps);
 
             // Check frequency requests
             while let Ok(f) = rx.try_recv() {

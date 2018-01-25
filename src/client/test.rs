@@ -40,7 +40,7 @@ fn client_can_be_named() {
 #[test]
 fn client_can_activate() {
     let (c, _) = open_test_client("client_can_activate");
-    let _ac = AsyncClient::new(c, (), ()).unwrap();
+    let _ac = c.activate_async((), ()).unwrap();
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn client_detects_bad_buffer_size() {
 #[test]
 fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
-    let a = AsyncClient::new(c, (), ()).unwrap();
+    let a = c.activate_async((), ()).unwrap();
     a.deactivate().unwrap();
 }
 

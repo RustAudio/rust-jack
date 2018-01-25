@@ -1,4 +1,5 @@
 use std::{mem, slice};
+use std::marker::PhantomData;
 
 use jack_sys as j;
 use libc;
@@ -57,6 +58,123 @@ unsafe impl PortSpec for MidiInSpec {
     }
 }
 
+impl Port<MidiInSpec> {
+    pub fn iter<'a>(&'a self, ps: &'a ProcessScope) -> MidiIter<'a> {
+        assert_eq!(self.client_ptr(), ps.client_ptr());
+        MidiIter {
+            buffer: unsafe { self.buffer(ps.n_frames()) },
+            index: 0,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn nth(&self, ps: &ProcessScope, n: usize) -> Option<RawMidi> {
+        let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
+        let res = unsafe {
+            j::jack_midi_event_get(&mut ev, self.buffer(ps.n_frames()), n as libc::uint32_t)
+        };
+        if res != 0 {
+            return None;
+        }
+        let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
+        Some(RawMidi {
+            time: ev.time,
+            bytes: bytes_slice,
+        })
+    }
+
+    pub fn len(&self, ps: &ProcessScope) -> usize {
+        assert_eq!(self.client_ptr(), ps.client_ptr());
+        let buffer = unsafe { self.buffer(ps.n_frames()) };
+        if buffer.is_null() {
+            return 0;
+        };
+        let n = unsafe { j::jack_midi_get_event_count(buffer) };
+        n as usize
+    }
+}
+
+/// Iterate through Midi Messages within a `Port<MidiInSpec>`.
+#[derive(Debug, Clone)]
+pub struct MidiIter<'a> {
+    buffer: *mut ::libc::c_void,
+    index: usize,
+    _phantom: PhantomData<&'a ()>,
+}
+
+impl<'a> MidiIter<'a> {
+    /// Return the next element without advancing the iterator.
+    pub fn peek(&self) -> Option<RawMidi<'a>> {
+        self.absolute_nth(self.index as libc::uint32_t)
+    }
+
+    /// Return the next element only if the message passes the predicate.
+    pub fn next_if<P>(&mut self, predicate: P) -> Option<RawMidi<'a>>
+    where
+        P: FnOnce(RawMidi) -> bool,
+    {
+        if self.peek().map(predicate).unwrap_or(false) {
+            self.next()
+        } else {
+            None
+        }
+    }
+
+    fn absolute_nth(&self, n: libc::uint32_t) -> Option<RawMidi<'a>> {
+        let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
+        let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer, n) };
+        if res != 0 {
+            return None;
+        }
+        let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
+        Some(RawMidi {
+            time: ev.time,
+            bytes: bytes_slice,
+        })
+    }
+
+    fn absolute_len(&self) -> usize {
+        if self.buffer.is_null() {
+            return 0;
+        } else {
+            unsafe { j::jack_midi_get_event_count(self.buffer) as usize }
+        }
+    }
+}
+
+impl<'a> Iterator for MidiIter<'a> {
+    type Item = RawMidi<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let ret = self.peek();
+        self.index += 1;
+        ret
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.absolute_len();
+        (len, Some(len))
+    }
+
+    fn count(self) -> usize {
+        self.size_hint().0
+    }
+
+    fn last(self) -> Option<Self::Item> {
+        let len = self.absolute_len() as libc::uint32_t;
+        if len == 0 {
+            None
+        } else {
+            self.absolute_nth(len - 1)
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.index += n;
+        self.next()
+    }
+}
+
 unsafe impl PortSpec for MidiOutSpec {
     fn jack_port_type(&self) -> &'static str {
         j::RAW_MIDI_TYPE
@@ -72,86 +190,33 @@ unsafe impl PortSpec for MidiOutSpec {
     }
 }
 
-/// Safely and thinly wrap a `Port<MidiInPort>`.
-#[derive(Debug, Clone)]
-pub struct MidiInPort<'a> {
-    _port: &'a Port<MidiInSpec>,
-    buffer_ptr: *mut ::libc::c_void,
-}
-
-impl<'a> MidiInPort<'a> {
-    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that
-    /// registered the
-    /// port. Panics if the port does not belong to the client that created the
-    /// process.
-    pub fn new(port: &'a Port<MidiInSpec>, ps: &'a ProcessScope) -> Self {
-        assert_eq!(port.client_ptr(), ps.client_ptr());
-        let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
-        MidiInPort {
-            _port: port,
-            buffer_ptr: buffer_ptr,
-        }
-    }
-
-    pub fn nth(&self, n: usize) -> Option<RawMidi> {
-        let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
-        let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer_ptr, n as libc::uint32_t) };
-        if res != 0 {
-            return None;
-        }
-        let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
-        Some(RawMidi {
-            time: ev.time,
-            bytes: bytes_slice,
-        })
-    }
-
-    pub fn len(&self) -> usize {
-        if self.buffer_ptr.is_null() {
-            return 0;
-        };
-        let n = unsafe { j::jack_midi_get_event_count(self.buffer_ptr) };
-        n as usize
-    }
-
-    pub fn iter(&'a self) -> MidiIter {
-        MidiIter {
-            port: &self,
-            index: 0,
-        }
-    }
-}
-
-/// Safely and thinly wrap a `Port<MidiInPort>`.
-#[derive(Debug)]
-pub struct MidiOutPort<'a> {
-    _port: &'a mut Port<MidiOutSpec>,
-    buffer_ptr: *mut ::libc::c_void,
-}
-
-impl<'a> MidiOutPort<'a> {
-    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that
-    /// registered the
-    /// port. Panics if the port does not belong to the client that created the
-    /// process.
+impl Port<MidiOutSpec> {
+    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that registered the
+    /// port. Panics if the port does not belong to the client that created the process.
     ///
     /// The data in the port is cleared.
-    pub fn new(port: &'a mut Port<MidiOutSpec>, ps: &'a ProcessScope) -> Self {
-        assert_eq!(port.client_ptr(), ps.client_ptr());
-        let buffer_ptr = unsafe { port.buffer(ps.n_frames()) };
-        unsafe { j::jack_midi_clear_buffer(buffer_ptr) };
-        MidiOutPort {
-            _port: port,
-            buffer_ptr: buffer_ptr,
+    pub fn writer<'a>(&'a mut self, ps: &'a ProcessScope) -> MidiWriter<'a> {
+        assert_eq!(self.client_ptr(), ps.client_ptr());
+        let buffer = unsafe { self.buffer(ps.n_frames()) };
+        unsafe { j::jack_midi_clear_buffer(buffer) };
+        MidiWriter {
+            buffer: buffer,
+            _phantom: PhantomData,
         }
     }
+}
 
+#[derive(Debug)]
+pub struct MidiWriter<'a> {
+    buffer: *mut ::libc::c_void,
+    _phantom: PhantomData<&'a ()>,
+}
+
+impl<'a> MidiWriter<'a> {
     /// Write an event into an event port buffer.
     ///
-    /// Clients must write normalised MIDI data to the port - no running status
-    /// and no (1-byte)
-    /// realtime messages interspersed with other messagse (realtime messages
-    /// are fine when they
+    /// Clients must write normalised MIDI data to the port - no running status and no (1-byte)
+    /// realtime messages interspersed with other messagse (realtime messages are fine when they
     /// occur on their own, like other messages).
     pub fn write(&mut self, message: &RawMidi) -> Result<(), Error> {
         let ev = j::jack_midi_event_t {
@@ -159,7 +224,7 @@ impl<'a> MidiOutPort<'a> {
             size: message.bytes.len(),
             buffer: message.bytes.as_ptr() as *mut u8,
         };
-        let res = unsafe { j::jack_midi_event_write(self.buffer_ptr, ev.time, ev.buffer, ev.size) };
+        let res = unsafe { j::jack_midi_event_write(self.buffer, ev.time, ev.buffer, ev.size) };
         match res {
             0 => Ok(()),
             _ => Err(Error::NotEnoughSpace),
@@ -168,81 +233,20 @@ impl<'a> MidiOutPort<'a> {
 
     /// Get the number of events that could not be written to port_buffer.
     ///
-    /// If the return value is greater than 0, than the buffer is full.
-    /// Currently, the only way this
-    /// can happen is if events are lost on port mixdown.
+    /// If the return value is greater than 0, than the buffer is full.  Currently, the only way
+    /// this can happen is if events are lost on port mixdown.
     pub fn lost_count(&self) -> usize {
-        let n = unsafe { j::jack_midi_get_lost_event_count(self.buffer_ptr) };
+        let n = unsafe { j::jack_midi_get_lost_event_count(self.buffer) };
         n as usize
     }
 
     /// Get the size of the largest event that can be stored by the port.
     ///
-    /// This function returns the current space available, taking into account
-    /// events already stored
+    /// This function returns the current space available, taking into account events already stored
     /// in the port.
     pub fn max_event_size(&self) -> usize {
-        let n = unsafe { j::jack_midi_max_event_size(self.buffer_ptr) };
+        let n = unsafe { j::jack_midi_max_event_size(self.buffer) };
         n as usize
-    }
-}
-
-/// Iterate through Midi Messages within a `MidiInPort`.
-#[derive(Debug, Clone)]
-pub struct MidiIter<'a> {
-    port: &'a MidiInPort<'a>,
-    index: usize,
-}
-
-impl<'a> MidiIter<'a> {
-    /// Return the next element without advancing the iterator.
-    pub fn peek(&self) -> Option<RawMidi<'a>> {
-        self.port.nth(self.index)
-    }
-
-    /// Return the next element only if the message passes the predicate.
-    pub fn next_if<P>(&mut self, predicate: P) -> Option<RawMidi<'a>>
-    where
-        P: FnOnce(RawMidi) -> bool,
-    {
-        if self.peek().map(predicate).unwrap_or(false) {
-            self.next()
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> Iterator for MidiIter<'a> {
-    type Item = RawMidi<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let ret = self.peek();
-        self.index += 1;
-        ret
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let count = self.port.len() - self.index;
-        (count, Some(count))
-    }
-
-    fn count(self) -> usize {
-        self.size_hint().0
-    }
-
-    fn last(self) -> Option<Self::Item> {
-        let n = self.port.len();
-        if n == 0 {
-            None
-        } else {
-            self.port.nth(n - 1)
-        }
-    }
-
-    fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.index += n;
-        self.next()
     }
 }
 
@@ -300,7 +304,7 @@ mod test {
         }
     }
 
-    struct IterTest<F: Send + Fn(MidiInPort) -> Vec<OwnedRawMidi>> {
+    struct IterTest<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> {
         stream: Vec<OwnedRawMidi>,
         collected: Vec<OwnedRawMidi>,
         collector: F,
@@ -308,7 +312,7 @@ mod test {
         midi_out: Port<MidiOutSpec>,
     }
 
-    impl<F: Send + Fn(MidiInPort) -> Vec<OwnedRawMidi>> IterTest<F> {
+    impl<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> IterTest<F> {
         fn new(client: &Client, stream: Vec<OwnedRawMidi>, collector: F) -> IterTest<F> {
             IterTest {
                 stream: stream,
@@ -327,12 +331,9 @@ mod test {
         }
     }
 
-    impl<F: Send + Fn(MidiInPort) -> Vec<OwnedRawMidi>> ProcessHandler for IterTest<F> {
+    impl<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> ProcessHandler for IterTest<F> {
         fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
-            let (midi_in, mut midi_out) = (
-                MidiInPort::new(&self.midi_in, ps),
-                MidiOutPort::new(&mut self.midi_out, ps),
-            );
+            let (midi_in, mut midi_out) = (self.midi_in.iter(ps), self.midi_out.writer(ps));
             // Write to output.
             for m in self.stream.iter() {
                 midi_out.write(&m.unowned()).unwrap();
@@ -365,13 +366,14 @@ mod test {
                 time: 64,
                 bytes: &[0b10000000, 0b01000000],
             };
-            let in_a = MidiInPort::new(&in_a, ps);
-            let in_b = MidiInPort::new(&in_b, ps);
-            let mut out_a = MidiOutPort::new(&mut out_a, ps);
-            let mut out_b = MidiOutPort::new(&mut out_b, ps);
+            let in_a = in_a.iter(ps);
+            let in_b = in_b.iter(ps);
+            let mut out_a = out_a.writer(ps);
+            let mut out_b = out_b.writer(ps);
             out_a.write(&exp_a).unwrap();
             out_b.write(&exp_b).unwrap();
-            if in_a.len() == 1 && in_a.iter().all(|m| m == exp_a) && in_b.iter().all(|m| m == exp_b)
+            if in_a.clone().next().is_some() && in_a.clone().all(|m| m == exp_a)
+                && in_b.clone().all(|m| m == exp_b)
             {
                 let _ = signal_succeed.send(true).unwrap();
             }
@@ -410,7 +412,7 @@ mod test {
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let out_p = MidiOutPort::new(&mut out_p, ps);
+            let out_p = out_p.writer(ps);
             *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
             Control::Continue
         };
@@ -435,7 +437,7 @@ mod test {
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let mut out_p = MidiOutPort::new(&mut out_p, ps);
+            let mut out_p = out_p.writer(ps);
             *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
 
             let bytes: Vec<u8> = (0..out_p.max_event_size() + 1).map(|_| 0).collect();
@@ -477,8 +479,8 @@ mod test {
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let in_p = MidiInPort::new(&in_p, ps);
-            let mut out_p = MidiOutPort::new(&mut out_p, ps);
+            let in_p = in_p.iter(ps);
+            let mut out_p = out_p.writer(ps);
 
             for i in 10..14 {
                 let msg = RawMidi {
@@ -489,11 +491,11 @@ mod test {
             }
 
             let rm_to_owned = |m: &RawMidi| (m.time, m.bytes.to_vec());
-            *PMI_NEXT.lock().unwrap() = in_p.iter().next().map(|m| rm_to_owned(&m));
-            *PMI_SIZE_HINT.lock().unwrap() = in_p.iter().size_hint();
-            *PMI_COUNT.lock().unwrap() = in_p.iter().count();
-            *PMI_LAST.lock().unwrap() = in_p.iter().last().map(|m| rm_to_owned(&m));
-            *PMI_THIRD.lock().unwrap() = in_p.iter().nth(2).map(|m| rm_to_owned(&m));
+            *PMI_NEXT.lock().unwrap() = in_p.clone().next().map(|m| rm_to_owned(&m));
+            *PMI_SIZE_HINT.lock().unwrap() = in_p.size_hint();
+            *PMI_COUNT.lock().unwrap() = in_p.clone().count();
+            *PMI_LAST.lock().unwrap() = in_p.clone().last().map(|m| rm_to_owned(&m));
+            *PMI_THIRD.lock().unwrap() = in_p.clone().nth(2).map(|m| rm_to_owned(&m));
 
             Control::Continue
         };
@@ -535,9 +537,9 @@ mod test {
                 bytes: vec![7, 8],
             },
         ];
-        let collect = |midi_in: MidiInPort| {
-            let mut collected = Vec::with_capacity(midi_in.len());
-            let mut iter = midi_in.iter();
+        let collect = |midi_in: MidiIter| {
+            let mut collected = Vec::with_capacity(midi_in.clone().count());
+            let mut iter = midi_in.clone();
             while let Some(m) = iter.next_if(|m| m.time < 11) {
                 collected.push(OwnedRawMidi::new(&m));
             }
