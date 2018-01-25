@@ -4,7 +4,7 @@ use std::slice;
 
 use client::ProcessScope;
 use port::{Port, PortSpec};
-use port::port_flags::{PortFlags, IS_INPUT, IS_OUTPUT};
+use port::port_flags::PortFlags;
 
 /// `AudioIn` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -14,7 +14,7 @@ use port::port_flags::{PortFlags, IS_INPUT, IS_OUTPUT};
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();
@@ -31,7 +31,7 @@ pub struct AudioIn;
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();
@@ -46,7 +46,7 @@ unsafe impl<'a> PortSpec for AudioOut {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_OUTPUT
+        PortFlags::IS_OUTPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -61,7 +61,7 @@ unsafe impl PortSpec for AudioIn {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_INPUT
+        PortFlags::IS_INPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -103,14 +103,11 @@ mod test {
     use super::*;
     use client::Client;
     use client::ClosureProcessHandler;
-    use client::client_options;
     use jack_enums::Control;
     use std::sync::mpsc::channel;
 
     fn open_test_client(name: &str) -> Client {
-        Client::new(name, client_options::NO_START_SERVER)
-            .unwrap()
-            .0
+        Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
     }
 
     #[test]

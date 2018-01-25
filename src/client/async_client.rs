@@ -2,9 +2,9 @@ use jack_sys as j;
 use std::fmt;
 
 use super::callbacks::{clear_callbacks, register_callbacks};
+use Error;
 use client::client::Client;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use jack_enums::*;
 
 pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
@@ -18,7 +18,7 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// ```
 /// // Create a client and a handler
 /// let (client, _status) =
-///     jack::Client::new("my_client", jack::client_options::NO_START_SERVER).unwrap();
+///     jack::Client::new("my_client", jack::ClientOptionsNO_START_SERVER).unwrap();
 /// let process_handler = jack::ClosureProcessHandler::new(
 ///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );

@@ -2,11 +2,11 @@ use jack_sys as j;
 use libc;
 use std::{ffi, fmt, ptr};
 
+use ClientOptions;
+use ClientStatus;
+use Error;
 use client::async_client::{AsyncClient, NotificationHandler, ProcessHandler};
-use client::client_options::ClientOptions;
-use client::client_status::ClientStatus;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use jack_enums::*;
 use jack_utils::collect_strs;
 use port::{Port, PortSpec, Unowned};
 use port::port_flags::PortFlags;
@@ -16,7 +16,7 @@ use primitive_types as pt;
 ///
 /// # Example
 /// ```
-/// let c_res = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER);
+/// let c_res = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER);
 /// match c_res {
 ///     Ok((client, status)) => println!(
 ///         "Managed to open client {}, with
@@ -32,17 +32,12 @@ pub struct Client(*mut j::jack_client_t);
 unsafe impl Send for Client {}
 
 impl Client {
-    /// The maximum length of the JACK client name string. Unlike the "C" JACK
-    /// API, this does not take into account the final `NULL` character and
-    /// instead corresponds directly to `.len()`.
-
-    /// Opens a JACK client with the given name and options. If the client is
-    /// successfully opened, then `Ok(client)` is returned. If there is a
-    /// failure, then `Err(Error::ClientError(status))` will be returned.
+    /// Opens a JACK client with the given name and options. If the client is successfully opened,
+    /// then `Ok(client)` is returned. If there is a failure, then `Err(Error::ClientError(status))`
+    /// will be returned.
     ///
-    /// Although the client may be successful in opening, there still may be
-    /// some errors minor errors when attempting to opening. To access these,
-    /// check the returned `ClientStatus`.
+    /// Although the client may be successful in opening, there still may be some errors minor
+    /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         sleep_on_test();
@@ -81,26 +76,20 @@ impl Client {
         srate as usize
     }
 
-    /// The current CPU load estimated by JACK. It is on a scale of `0.0` to
-    /// `100.0`.
+    /// The current CPU load estimated by JACK. It is on a scale of `0.0` to `100.0`.
     ///
-    /// This is a running average of the time it takes to execute a full
-    /// process cycle for all
-    /// clients as a percentage of the real time available per cycle determined
-    /// by the buffer size
+    /// This is a running average of the time it takes to execute a full process cycle for all
+    /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
     pub fn cpu_load(&self) -> f32 {
         let load = unsafe { j::jack_cpu_load(self.raw()) };
         load as f32
     }
 
-    /// Get the name of the current client. This may differ from the name
-    /// requested by
-    /// `Client::new` as JACK will may rename a client if necessary (ie: name
-    /// collision, name too
-    /// long). The name will only the be different than the one passed to
-    /// `Client::new` if the
-    /// `ClientStatus` was `NAME_NOT_UNIQUE`.
+    /// Get the name of the current client. This may differ from the name requested by `Client::new`
+    /// as JACK will may rename a client if necessary (ie: name collision, name too long). The name
+    /// will only the be different than the one passed to `Client::new` if the `ClientStatus` was
+    /// `NAME_NOT_UNIQUE`.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe {
             let ptr = j::jack_get_client_name(self.raw());
@@ -117,10 +106,8 @@ impl Client {
 
     /// Change the buffer size passed to the process callback.
     ///
-    /// This operation stops the JACK engine process cycle, then calls all
-    /// registered buffer size
-    /// callback functions before restarting the process cycle. This will cause
-    /// a gap in the audio
+    /// This operation stops the JACK engine process cycle, then calls all registered buffer size
+    /// callback functions before restarting the process cycle. This will cause a gap in the audio
     /// flow, so it should only be done at appropriate stopping points.
     pub fn set_buffer_size(&self, n_frames: pt::Frames) -> Result<(), Error> {
         let res = unsafe { j::jack_set_buffer_size(self.raw(), n_frames) };
@@ -171,20 +158,16 @@ impl Client {
 
     /// Returns a vector of port names that match the specified arguments
     ///
-    /// `port_name_pattern` - A regular expression used to select ports by
-    /// name. If `None` or zero lengthed, no selection based on name will be
-    /// carried out.
+    /// `port_name_pattern` - A regular expression used to select ports by name. If `None` or zero
+    /// lengthed, no selection based on name will be carried out.
     ///
-    /// `type_name_pattern` - A regular expression used to select ports by
-    /// type. If `None` or zero
-    /// lengthed, no selection based on type will be carried out. The port type
-    /// is the same one
-    /// returned by `PortSpec::jack_port_type()`. For example, `AudioIn`
-    /// and `AudioOut` are
-    /// both of type `"32 bit float mono audio"`.
+    /// `type_name_pattern` - A regular expression used to select ports by type. If `None` or zero
+    /// lengthed, no selection based on type will be carried out. The port type is the same one
+    /// returned by `PortSpec::jack_port_type()`. For example, `AudioIn` and `AudioOut` are both of
+    /// type `"32 bit float mono audio"`.
     ///
-    /// `flags` - A value used to select ports by their flags. Use
-    /// `PortFlags::empty()` for no flag selection.
+    /// `flags` - A value used to select ports by their flags. Use `PortFlags::empty()` for no flag
+    /// selection.
     pub fn ports(
         &self,
         port_name_pattern: Option<&str>,
