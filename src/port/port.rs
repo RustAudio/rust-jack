@@ -16,8 +16,7 @@ lazy_static! {
     pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
 }
 
-/// Defines the configuration for a certain port to JACK, ie 32 bit floating
-/// audio input, 8 bit raw
+/// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
 /// midi output, etc...
 pub unsafe trait PortSpec: Sized {
     /// String used by JACK upon port creation to identify the port
@@ -31,17 +30,13 @@ pub unsafe trait PortSpec: Sized {
     fn jack_buffer_size(&self) -> libc::c_ulong;
 }
 
-/// An endpoint to interact with JACK data streams, for audio, midi,
-/// etc...
+/// An endpoint to interact with JACK data streams, for audio, midi, etc...
 ///
-/// The `Port` struct contains mostly metadata and exposes data as raw
-/// pointers. For a better data
-/// consumption/production API, see the `AudioInPort`, `AudioOutPort`,
-/// `MidiInPort`, and
+/// The `Port` struct contains mostly metadata and exposes data as raw pointers. For a better data
+/// consumption/production API, see the `AudioInPort`, `AudioOutPort`, `MidiInPort`, and
 /// `MidiOutPort`.
 ///
-/// Most JACK functionality is exposed, including the raw pointers, but it
-/// should be possible to
+/// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
 pub struct Port<PS: PortSpec> {
     spec: PS,
@@ -94,8 +89,7 @@ impl<PS: PortSpec> Port<PS> {
         PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
     }
 
-    /// The port type. JACK's built in types include `"32 bit float mono
-    /// audio`" and `"8 bit raw
+    /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
         unsafe {
@@ -174,10 +168,8 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is
-    /// turned on if it was
-    /// off, and turns it off if only one request has been made to turn it on.
-    /// Otherwise it does
+    /// If the `CAN_MONITOR` flag is set for the port, then input monitoring is turned on if it was
+    /// off, and turns it off if only one request has been made to turn it on.  Otherwise it does
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         let onoff = match enable_monitor {
@@ -191,8 +183,7 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    /// Set's the short name of the port. If the full name is longer than
-    /// `PORT_NAME_SIZE`, then it
+    /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
         let short_name = ffi::CString::new(short_name).unwrap();
@@ -205,16 +196,13 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Sets `alias` as an alias for `self`.
     ///
-    /// May be called at any time. If the alias is longer than
-    /// `PORT_NAME_SIZE`, it will be
+    /// May be called at any time. If the alias is longer than `PORT_NAME_SIZE`, it will be
     /// truncated.
     ///
-    /// After a successful call, and until JACK exists, or the alias is unset,
-    /// `alias` may be used
+    /// After a successful call, and until JACK exists, or the alias is unset, `alias` may be used
     /// as an alternate name for the port.
     ///
-    /// Ports can have up to two aliases - if both are already set, this
-    /// function will return an
+    /// Ports can have up to two aliases - if both are already set, this function will return an
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
@@ -227,8 +215,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Remove `alias` as an alias for port. May be called at any time.
     ///
-    /// After a successful call, `alias` can no longer be used as an alternate
-    /// name for `self`.
+    /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
@@ -238,8 +225,7 @@ impl<PS: PortSpec> Port<PS> {
         }
     }
 
-    /// Remove the port from the client, disconnecting any existing
-    /// connections.  The port must have
+    /// Remove the port from the client, disconnecting any existing connections.  The port must have
     /// been created with the provided client.
     pub fn unregister(self) -> Result<(), Error> {
         let res = unsafe { j::jack_port_unregister(self.client_ptr, self.raw()) };
@@ -280,12 +266,9 @@ impl<PS: PortSpec> Port<PS> {
         self.port_ptr
     }
 
-    /// Obtain the buffer that the Port is holding. For standard audio and midi
-    /// ports, consider
-    /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort`
-    /// adapter. For more
-    /// custom data, consider implementing your own adapter that safely uses
-    /// the `Port::buffer`
+    /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider
+    /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort` adapter. For more
+    /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
     /// method.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: pt::Frames) -> *mut libc::c_void {
@@ -294,7 +277,7 @@ impl<PS: PortSpec> Port<PS> {
 }
 
 /// `PortSpec` for a port that holds has no readable or writeable data from JACK on the created
-/// client. It can be used for obtaining information about external ports.
+/// client. It can be used to connect ports or to obtain metadata.
 #[derive(Debug, Default)]
 pub struct Unowned;
 
