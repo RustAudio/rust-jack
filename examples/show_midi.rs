@@ -44,8 +44,9 @@ fn main() {
     };
 
     // activate
-    let process = jack::ClosureProcessHandler::new(cback);
-    let active_client = jack::AsyncClient::new(client, (), process).unwrap();
+    let active_client = client
+        .activate_async((), jack::ClosureProcessHandler::new(cback))
+        .unwrap();
 
     // wait
     println!("Press any key to quit");
