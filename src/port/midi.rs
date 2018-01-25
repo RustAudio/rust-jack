@@ -177,6 +177,7 @@ impl Port<MidiOut> {
     }
 }
 
+/// Write midi events to an output midi port.
 #[derive(Debug)]
 pub struct MidiWriter<'a> {
     buffer: *mut ::libc::c_void,

@@ -10,10 +10,8 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
-/// To create input or output (either sound or midi), a `Port` can be used
-/// within the `process`
-/// callback. See `Client::register_port` on creating ports. Also, see `Port`
-/// for documentation on
+/// To create input or output (either sound or midi), a `Port` can be used within the `process`
+/// callback. See `Client::register_port` on creating ports. Also, see `Port` for documentation on
 /// the API for port.
 ///
 /// # Example
@@ -45,16 +43,13 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    /// Tell the JACK server that the program is ready to start processing
-    /// audio. JACK will call the
-    /// methods specified by the `NotificationHandler` and `ProcessHandler`
-    /// objects.
+    /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
+    /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
     ///
     /// On failure, either `Err(Error::CallbackRegistrationError)` or
     /// `Err(Error::ClientActivationError)` is returned.
     ///
-    /// `notification_handler` and `process_handler` are consumed, but they are
-    /// returned when
+    /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
@@ -91,16 +86,13 @@ where
         self.client.as_ref().unwrap()
     }
 
-    /// Tell the JACK server to remove this client from the process graph.
-    /// Also, disconnect all
+    /// Tell the JACK server to remove this client from the process graph.  Also, disconnect all
     /// ports belonging to it since inactive clients have no port connections.
     ///
-    /// The `handler` that was used for `Client::activate` is returned on
-    /// success. Its state may
+    /// The `handler` that was used for `Client::activate` is returned on success. Its state may
     /// have changed due to JACK calling its methods.
     ///
-    /// In the case of error, the `Client` is destroyed because its state is
-    /// unknown, and it is
+    /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
     /// therefore unsafe to continue using.
     pub fn deactivate(mut self) -> Result<(Client, N, P), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
@@ -132,6 +124,7 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
+    /// Deactivate and close the client.
     fn drop(&mut self) {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {

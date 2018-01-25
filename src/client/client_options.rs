@@ -22,8 +22,7 @@ bitflags! {
         /// TODO(wmedrano): Implement `load_name` functionality
         const LOAD_NAME       = j::JackLoadName,
 
-        /// Pass optional `load_init` to `jack_initialize()` entry
-        /// point of an internal client.
+        /// Pass optional `load_init` to `jack_initialize()` entry point of an internal client.
         ///
         /// TODO: implement
         const LOAD_INIT       = j::JackLoadInit,

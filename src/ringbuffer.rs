@@ -2,14 +2,10 @@ use jack_sys as j;
 use libc;
 use std;
 
-/// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be
-/// safely accessed by
-/// two threads simultaneously, one reading from the buffer and the other
-/// writing to it - without
-/// using any synchronization or mutual exclusion primitives.  For this to work
-/// correctly, there can
-/// only be a single reader and a single writer thread. Their identities cannot
-/// be interchanged.
+/// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be safely accessed by
+/// two threads simultaneously, one reading from the buffer and the other writing to it - without
+/// using any synchronization or mutual exclusion primitives.  For this to work correctly, there can
+/// only be a single reader and a single writer thread. Their identities cannot be interchanged.
 ///
 /// # Example
 /// ```
@@ -61,16 +57,12 @@ impl RingBuffer {
         }
     }
 
-    /// Re-create the ring buffer object from reader and writer. useful if you
-    /// need to call reset.
-    /// The reader and the writer pair must have been created from the same
-    /// RingBuffer object.  Not
-    /// needed for deallocation, disposing of both reader and writer will
-    /// deallocate buffer
+    /// Re-create the ring buffer object from reader and writer. useful if you need to call reset.
+    /// The reader and the writer pair must have been created from the same RingBuffer object.  Not
+    /// needed for deallocation, disposing of both reader and writer will deallocate buffer
     /// resources automatically.
     ///
-    /// panics if the reader and the writer were created from different
-    /// RingBuffer objects.
+    /// panics if the reader and the writer were created from different RingBuffer objects.
     pub fn from_reader_writer(r: RingBufferReader, w: RingBufferWriter) -> Self {
         let mut handle_r = r.into_handle();
         let handle_w = w.into_handle();
@@ -99,8 +91,8 @@ impl Drop for RingBuffer {
     }
 }
 
-/// Read end of the ring buffer. Can only be used from one thread (can be
-/// different from the write thread).
+/// Read end of the ring buffer. Can only be used from one thread (can be different from the write
+/// thread).
 pub struct RingBufferReader {
     ringbuffer_handle: std::sync::Arc<RingBuffer>,
 }
@@ -108,8 +100,8 @@ pub struct RingBufferReader {
 unsafe impl Send for RingBufferReader {}
 // impl !Sync for RingBufferReader{ }
 
-/// Write end of the ring buffer. Can only be used from one thread (can be a
-/// different from the read thread).
+/// Write end of the ring buffer. Can only be used from one thread (can be a different from the read
+/// thread).
 pub struct RingBufferWriter {
     ringbuffer_handle: std::sync::Arc<RingBuffer>,
 }
@@ -128,16 +120,11 @@ impl RingBufferReader {
         self.ringbuffer_handle
     }
 
-    /// Fill a data structure with a description of the current readable data
-    /// held in the
-    /// ringbuffer. This description is returned in a two slices. Two slices
-    /// are needed because the
-    /// data to be read may be split across the end of the ringbuffer. The
-    /// first slice represents
-    /// the bytes ready to be read. If the second slice is not empty, it is the
-    /// continuation of the
-    /// data that ended in the first slices. For convenience, consider using
-    /// peek_iter instead.
+    /// Fill a data structure with a description of the current readable data held in the
+    /// ringbuffer. This description is returned in a two slices. Two slices are needed because the
+    /// data to be read may be split across the end of the ringbuffer. The first slice represents
+    /// the bytes ready to be read. If the second slice is not empty, it is the continuation of the
+    /// data that ended in the first slices. For convenience, consider using peek_iter instead.
     pub fn get_vector<'a>(&'a self) -> (&'a [u8], &'a [u8]) {
         let mut vec = [
             j::jack_ringbuffer_data_t::default(),
@@ -166,8 +153,8 @@ impl RingBufferReader {
         (view1, view2)
     }
 
-    /// Read data from the ringbuffer.
-    /// Returns: the number of bytes read, which may range from 0 to buf.len().
+    /// Read data from the ringbuffer.  Returns: the number of bytes read, which may range from 0 to
+    /// buf.len().
     pub fn read_buffer(&mut self, buf: &mut [u8]) -> usize {
         if buf.len() == 0 {
             return 0;
@@ -180,14 +167,11 @@ impl RingBufferReader {
         read as usize
     }
 
-    /// Read data from the ringbuffer. Opposed to read_buffer() this function
-    /// does not move the read pointer.
-    /// Thus it's a convenient way to inspect data in the ringbuffer in a
-    /// continous fashion.
-    /// The price is that the data is copied into a user provided buffer.
-    /// For "raw" non-copy inspection of the data in the ringbuffer use
-    /// get_vector() or peek_iter.
-    /// Returns: the number of bytes read, which may range from 0 to buf.len()
+    /// Read data from the ringbuffer. Opposed to read_buffer() this function does not move the read
+    /// pointer.  Thus it's a convenient way to inspect data in the ringbuffer in a continous
+    /// fashion.  The price is that the data is copied into a user provided buffer.  For "raw"
+    /// non-copy inspection of the data in the ringbuffer use get_vector() or peek_iter.  Returns:
+    /// the number of bytes read, which may range from 0 to buf.len()
     pub fn peek(&self, buf: &mut [u8]) -> usize {
         if buf.len() == 0 {
             return 0;
@@ -200,8 +184,8 @@ impl RingBufferReader {
         read as usize
     }
 
-    /// Advance the read pointer. use this after peek/peek_iter or get_vector
-    /// to advance the buffer pointer.
+    /// Advance the read pointer. use this after peek/peek_iter or get_vector to advance the buffer
+    /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
         unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle.0, incnt) };
@@ -239,9 +223,8 @@ impl RingBufferWriter {
         self.ringbuffer_handle
     }
 
-    /// Write data into the ringbuffer.
-    /// Returns: The number of bytes written, which may range from 0 to
-    /// buf.len()
+    /// Write data into the ringbuffer.  Returns: The number of bytes written, which may range from
+    /// 0 to buf.len()
     pub fn write_buffer(&mut self, buf: &[u8]) -> usize {
         if buf.len() == 0 {
             return 0;
@@ -254,8 +237,8 @@ impl RingBufferWriter {
         read as usize
     }
 
-    /// Advance the write pointer. use this after peek_iter or get_vector to
-    /// advance the buffer pointer.
+    /// Advance the write pointer. use this after peek_iter or get_vector to advance the buffer
+    /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
         unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle.0, incnt) };
@@ -266,10 +249,8 @@ impl RingBufferWriter {
         unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle.0) as usize }
     }
 
-    /// Return a pair of slices of the current writable space in the
-    /// ringbuffer. two slices are
-    /// needed because the space available for writing may be split across the
-    /// end of the
+    /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
+    /// needed because the space available for writing may be split across the end of the
     /// ringbuffer.  consider using peek_iter for convenience.
     pub fn get_vector<'a>(&'a mut self) -> (&'a mut [u8], &'a mut [u8]) {
         let mut vec = [

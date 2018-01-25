@@ -14,8 +14,6 @@ use primitive_types as pt;
 
 /// A client to interact with a JACK server.
 ///
-/// For asynchronous operation, see the `AsyncClient` struct.
-///
 /// # Example
 /// ```
 /// let c_res = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER);
@@ -62,6 +60,8 @@ impl Client {
         }
     }
 
+    /// Begin processing in real-time using the specified `NotificationHandler` and
+    /// `ProcessHandler`.
     pub fn activate_async<N, P>(
         self,
         notification_handler: N,
@@ -200,23 +200,19 @@ impl Client {
         }
     }
 
-    /// Create a new port for the client. This is an object used for moving
-    /// data of any type in or
+    /// Create a new port for the client. This is an object used for moving data of any type in or
     /// out of the client. Ports may be connected in various ways.
     ///
-    /// The `port_spec` specifies the IO direction and data type. Oftentimes,
-    /// the built-in types
-    /// (`AudioIn`, `AudioOut`, `MidiIn`, `MidiOut`) can be
-    /// used.
+    /// The `port_spec` specifies the IO direction and data type. Oftentimes, the built-in types
+    /// (`AudioIn`, `AudioOut`, `MidiIn`, `MidiOut`) can be used.
     ///
-    /// Each port has a short name. The port's full name contains the name of
-    /// the client concatenated with a colon (:) followed by its short
-    /// name. `Port::name_size()` is the maximum length of the full
-    /// name. Exceeding that will cause the port registration to fail and return
+    /// Each port has a short name. The port's full name contains the name of the client
+    /// concatenated with a colon (:) followed by its short name. `Port::name_size()` is the maximum
+    /// length of the full name. Exceeding that will cause the port registration to fail and return
     /// `Err(())`.
     ///
-    /// The `port_name` must be unique among all ports owned by this client. If
-    /// the name is not unique, the registration will fail.
+    /// The `port_name` must be unique among all ports owned by this client. If the name is not
+    /// unique, the registration will fail.
     pub fn register_port<PS: PortSpec>(
         &self,
         port_name: &str,
@@ -242,7 +238,7 @@ impl Client {
         }
     }
 
-    // Get a `Port` by its port id.
+    /// Get a `Port` by its port id.
     pub fn port_by_id(&self, port_id: pt::PortId) -> Option<Port<Unowned>> {
         let pp = unsafe { j::jack_port_by_id(self.raw(), port_id) };
         if pp.is_null() {
@@ -263,19 +259,15 @@ impl Client {
         }
     }
 
-    /// The estimated time in frames that has passed since the JACK server
-    /// began the current process
+    /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> pt::Frames {
         unsafe { j::jack_frames_since_cycle_start(self.raw()) }
     }
 
-    /// The estimated current time in frames. This function is intended for use
-    /// in other threads
-    /// (not the process callback). The return value can be compared with the
-    /// value of
-    /// `last_frame_time` to relate time in other threads to JACK time. To
-    /// obtain better time
+    /// The estimated current time in frames. This function is intended for use in other threads
+    /// (not the process callback). The return value can be compared with the value of
+    /// `last_frame_time` to relate time in other threads to JACK time. To obtain better time
     /// information from within the process callback, see `ProcessScope`.
     ///
     /// # TODO
@@ -312,8 +304,7 @@ impl Client {
     ///
     /// `Err(Error::PortMonitorError)` is returned on failure.
     ///
-    /// Only works if the port has the `CAN_MONITOR` flag, or else nothing
-    /// happens.
+    /// Only works if the port has the `CAN_MONITOR` flag, or else nothing happens.
     pub fn request_monitor_by_name(
         &self,
         port_name: &str,
@@ -360,11 +351,10 @@ impl Client {
 
     /// Establish a connection between two ports by their full name.
     ///
-    /// When a connection exists, data written to the source port will be
-    /// available to be read at the destination port.
+    /// When a connection exists, data written to the source port will be available to be read at
+    /// the destination port.
     ///
-    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is
-    /// returned.
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
     ///
     /// # Preconditions
     /// 1. The port types must be identical
@@ -396,11 +386,10 @@ impl Client {
 
     /// Establish a connection between two ports.
     ///
-    /// When a connection exists, data written to the source port will be
-    /// available to be read at the destination port.
+    /// When a connection exists, data written to the source port will be available to be read at
+    /// the destination port.
     ///
-    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is
-    /// returned.
+    /// On failure, either a `PortAlreadyConnected` or `PortConnectionError` is returned.
     ///
     /// # Preconditions
     /// 1. The port types must be identical
@@ -490,8 +479,7 @@ impl fmt::Debug for Client {
     }
 }
 
-/// `ProcessScope` provides information on the client and frame time
-/// information within a process
+/// `ProcessScope` provides information on the client and frame time information within a process
 /// callback.
 #[derive(Debug)]
 pub struct ProcessScope {
@@ -508,31 +496,23 @@ impl ProcessScope {
         self.n_frames
     }
 
-    /// The precise time at the start of the current process cycle. This
-    /// function may only be used
-    /// from the process callback, and can be used to interpret timestamps
-    /// generated by
-    /// `self.frame_time()` in other threads, with respect to the current
-    /// process cycle.
+    /// The precise time at the start of the current process cycle. This function may only be used
+    /// from the process callback, and can be used to interpret timestamps generated by
+    /// `self.frame_time()` in other threads, with respect to the current process cycle.
     pub fn last_frame_time(&self) -> pt::Frames {
         unsafe { j::jack_last_frame_time(self.client_ptr()) }
     }
 
-    /// The estimated time in frames that has passed since the JACK server
-    /// began the current process
+    /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> pt::Frames {
         unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
     }
 
-    /// Provides the internal cycle timing information as used by most of the
-    /// other time related
-    /// functions. This allows the caller to map between frame counts and
-    /// microseconds with full
-    /// precision (i.e. without rounding frame times to integers), and also
-    /// provides e.g. the
-    /// microseconds time of the start of the current cycle directly (it has to
-    /// be computed
+    /// Provides the internal cycle timing information as used by most of the other time related
+    /// functions. This allows the caller to map between frame counts and microseconds with full
+    /// precision (i.e. without rounding frame times to integers), and also provides e.g. the
+    /// microseconds time of the start of the current cycle directly (it has to be computed
     /// otherwise).
     ///
     /// `Err(Error::TimeError)` is returned on failure.
@@ -577,8 +557,7 @@ impl ProcessScope {
         self.client_ptr
     }
 
-    /// Create a `ProcessScope` for the client with the given pointer and the
-    /// specified amount of
+    /// Create a `ProcessScope` for the client with the given pointer and the specified amount of
     /// frames.
     ///
     /// This is mostly for use within the jack crate itself.
