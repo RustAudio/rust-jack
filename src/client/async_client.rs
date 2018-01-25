@@ -60,16 +60,13 @@ where
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
-            let handler_ptr = try!(register_callbacks(
-                notification_handler,
-                process_handler,
-                client.as_ptr(),
-            ));
+            let handler_ptr =
+                register_callbacks(notification_handler, process_handler, client.raw())?;
             sleep_on_test();
             if handler_ptr.is_null() {
                 Err(Error::CallbackRegistrationError)
             } else {
-                let res = j::jack_activate(client.as_ptr());
+                let res = j::jack_activate(client.raw());
                 for _ in 0..4 {
                     sleep_on_test();
                 }
@@ -89,6 +86,7 @@ where
     }
 
     /// Return the underlying `jack::Client`.
+    #[inline(always)]
     pub fn as_client(&self) -> &Client {
         self.client.as_ref().unwrap()
     }
@@ -111,13 +109,13 @@ where
 
             // deactivate
             sleep_on_test();
-            if j::jack_deactivate(inner_client.as_ptr()) != 0 {
+            if j::jack_deactivate(inner_client.raw()) != 0 {
                 return Err(Error::ClientDeactivationError);
             }
 
             // clear the callbacks
             sleep_on_test();
-            try!(clear_callbacks(inner_client.as_ptr()));
+            clear_callbacks(inner_client.raw())?;
 
             // done, take ownership of pointer
             let handler_box = Box::from_raw(self.handler.take().unwrap());
@@ -140,7 +138,7 @@ where
             // Deactivate the handler
             sleep_on_test();
             if self.client.is_some() {
-                j::jack_deactivate(self.as_client().as_ptr()); // result doesn't matter
+                j::jack_deactivate(self.as_client().raw()); // result doesn't matter
             }
 
             sleep_on_test();
@@ -150,7 +148,7 @@ where
             }
 
             // The client will close itself once it goes out of scope.
-            // self.client.unwrap().drop()
+            // self.client.take()
         }
     }
 }

@@ -201,7 +201,7 @@ where
     P: ProcessHandler,
 {
     let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    let scope = ProcessScope::from_raw(n_frames, obj.2.as_ptr());
+    let scope = ProcessScope::from_raw(n_frames, obj.2.raw());
     obj.1.process(&obj.2, &scope).to_ffi()
 }
 
