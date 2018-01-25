@@ -44,8 +44,8 @@ pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, Notific
 pub use client::{client_options, client_status, ClientOptions, ClientStatus};
 pub use client::CLIENT_NAME_SIZE;
 pub use jack_enums::{Control, Error, LatencyType};
-pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
-                  reset_info_callback, set_error_callback, set_info_callback};
+pub use logging::{error_callback, info_callback, reset_error_callback, reset_info_callback,
+                  set_error_callback, set_info_callback};
 pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, RawMidi, Unowned};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{port_flags, PortFlags};
