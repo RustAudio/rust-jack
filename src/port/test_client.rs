@@ -17,16 +17,16 @@ fn open_test_client(name: &str) -> Client {
 #[test]
 fn client_port_can_register_port() {
     let c = open_test_client("cp_can_register_port");
-    c.register_port("cpcrp_a", AudioInSpec::default()).unwrap();
+    c.register_port("cpcrp_a", AudioIn::default()).unwrap();
 }
 
 #[test]
 fn client_port_register_port_enforces_unique_names() {
     let pname = "cprpeun_a";
     let c = open_test_client("cp_can_register_port");
-    c.register_port(pname, AudioInSpec::default()).unwrap();
+    c.register_port(pname, AudioIn::default()).unwrap();
     assert_eq!(
-        c.register_port(pname, AudioInSpec::default()).err(),
+        c.register_port(pname, AudioIn::default()).err(),
         Some(Error::PortRegistrationError(pname.to_string()))
     );
 }
@@ -39,7 +39,7 @@ fn client_port_register_port_enforces_name_length() {
         .collect::<Vec<&str>>()
         .join("_");
     assert_eq!(
-        c.register_port(&pname, AudioInSpec::default()).err(),
+        c.register_port(&pname, AudioIn::default()).err(),
         Some(Error::PortRegistrationError(pname.to_string()))
     );
 }
@@ -47,8 +47,7 @@ fn client_port_register_port_enforces_name_length() {
 #[test]
 fn client_port_can_request_monitor_by_name() {
     let c = open_test_client("cp_can_request_monitor_by_name");
-    let p = c.register_port("cpcrmbn_a", AudioInSpec::default())
-        .unwrap();
+    let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
     c.request_monitor_by_name(p.name(), true).unwrap();
     c.request_monitor_by_name(p.name(), false).unwrap();
 }
@@ -56,8 +55,7 @@ fn client_port_can_request_monitor_by_name() {
 #[test]
 fn client_port_can_get_port_by_name() {
     let c = open_test_client("cp_can_get_port_by_name");
-    let p = c.register_port("named_port", AudioInSpec::default())
-        .unwrap();
+    let p = c.register_port("named_port", AudioIn::default()).unwrap();
     let _p = c.port_by_name(p.name()).unwrap();
 }
 
@@ -90,7 +88,7 @@ fn client_port_can_get_port_by_id() {
 
     // Register port
     let _pa = ac.as_client()
-        .register_port(port_name, AudioInSpec::default())
+        .register_port(port_name, AudioIn::default())
         .unwrap();
 
     // Get by id
@@ -115,8 +113,7 @@ fn client_port_can_get_port_by_id() {
 #[test]
 fn client_port_fails_to_nonexistant_port() {
     let c = open_test_client("cp_can_request_monitor_by_name");
-    let p = c.register_port("cpcrmbn_a", AudioInSpec::default())
-        .unwrap();
+    let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
     let _p = c.port_by_name(p.name()).unwrap();
 }
 
@@ -124,10 +121,8 @@ fn client_port_fails_to_nonexistant_port() {
 fn client_port_recognizes_my_ports() {
     let ca = open_test_client("cp_cprmp_ca");
     let cb = open_test_client("cp_cprmp_cb");
-    let pa = ca.register_port("cpcprmp_pa", AudioInSpec::default())
-        .unwrap();
-    let pb = cb.register_port("cpcprmp_pb", AudioInSpec::default())
-        .unwrap();
+    let pa = ca.register_port("cpcprmp_pa", AudioIn::default()).unwrap();
+    let pb = cb.register_port("cpcprmp_pb", AudioIn::default()).unwrap();
     let pa_alt = ca.port_by_name(pa.name()).unwrap();
     let pb_alt = ca.port_by_name(pb.name()).unwrap();
     assert!(ca.is_mine(&pa));
@@ -141,10 +136,8 @@ fn client_port_can_connect_ports() {
     let client = open_test_client("client_port_ccp");
 
     // initialize ports
-    let in_p = client.register_port("inp", AudioInSpec::default()).unwrap();
-    let out_p = client
-        .register_port("outp", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("inp", AudioIn::default()).unwrap();
+    let out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -158,10 +151,8 @@ fn client_port_can_connect_ports_by_name() {
     let client = open_test_client("client_port_ccpbn");
 
     // initialize ports
-    let _in_p = client.register_port("inp", AudioInSpec::default()).unwrap();
-    let _out_p = client
-        .register_port("outp", AudioOutSpec::default())
-        .unwrap();
+    let _in_p = client.register_port("inp", AudioIn::default()).unwrap();
+    let _out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -179,10 +170,8 @@ fn client_port_can_connect_unowned_ports() {
     let connector = open_test_client("client_port_ccup_conn");
 
     // initialize ports
-    let _in_p = client.register_port("inp", AudioInSpec::default()).unwrap();
-    let _out_p = client
-        .register_port("outp", AudioOutSpec::default())
-        .unwrap();
+    let _in_p = client.register_port("inp", AudioIn::default()).unwrap();
+    let _out_p = client.register_port("outp", AudioOut::default()).unwrap();
 
     // start client
     let _client = client.activate_async((), ()).unwrap();
@@ -200,12 +189,12 @@ fn client_port_cant_connect_inactive_client() {
 
     // initialize ports
     let in_p = other
-        .register_port("inp", AudioInSpec::default())
+        .register_port("inp", AudioIn::default())
         .unwrap()
         .name()
         .to_string();
     let out_p = other
-        .register_port("outp", AudioOutSpec::default())
+        .register_port("outp", AudioOut::default())
         .unwrap()
         .name()
         .to_string();
@@ -227,12 +216,8 @@ fn client_port_recognizes_already_connected_ports() {
     let client = open_test_client("client_port_racp");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -269,12 +254,8 @@ fn client_port_can_disconnect_port_from_all() {
     let client = open_test_client("client_port_cdpfa");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -289,12 +270,8 @@ fn client_port_can_disconnect_ports() {
     let client = open_test_client("client_port_cdp");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -309,12 +286,8 @@ fn client_port_can_disconnect_ports_by_name() {
     let client = open_test_client("client_port_cdpbn");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -336,12 +309,8 @@ fn client_port_can_disconnect_unowned_ports() {
     let disconnector = open_test_client("client_port_cdup_disc");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // start client
     let client = client.activate_async((), ()).unwrap();
@@ -362,12 +331,8 @@ fn client_port_can_get_existing_ports() {
     let port_getter = open_test_client("client_port_cgep_getter");
 
     // initialize ports
-    let in_p = client
-        .register_port("conna", AudioInSpec::default())
-        .unwrap();
-    let out_p = client
-        .register_port("connb", AudioOutSpec::default())
-        .unwrap();
+    let in_p = client.register_port("conna", AudioIn::default()).unwrap();
+    let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // retrieve
     use std::collections::HashSet;
@@ -414,7 +379,7 @@ fn client_port_can_get_port_by_type_pattern() {
     let client = open_test_client(cname);
 
     // register port with type name, like midi
-    let _p = client.register_port(pname, MidiInSpec::default());
+    let _p = client.register_port(pname, MidiIn::default());
     use std::{thread, time};
     thread::sleep(time::Duration::from_millis(400));
 

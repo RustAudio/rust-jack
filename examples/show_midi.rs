@@ -11,10 +11,10 @@ fn main() {
 
     // process logic
     let mut maker = client
-        .register_port("rust_midi_maker", jack::MidiOutSpec::default())
+        .register_port("rust_midi_maker", jack::MidiOut::default())
         .unwrap();
     let shower = client
-        .register_port("rust_midi_shower", jack::MidiInSpec::default())
+        .register_port("rust_midi_shower", jack::MidiIn::default())
         .unwrap();
     let cback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let show_p = shower.iter(ps);

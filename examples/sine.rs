@@ -12,7 +12,7 @@ fn main() {
 
     // 2. register port
     let mut out_port = client
-        .register_port("sine_out", jack::AudioOutSpec::default())
+        .register_port("sine_out", jack::AudioOut::default())
         .unwrap();
 
     // 3. define process callback handler

@@ -33,7 +33,7 @@ unsafe extern "C" fn info_wrapper(msg: *const libc::c_char) {
 }
 
 static IS_INFO_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global JACK info callback. It is recommended to use the [log
+/// Set the global JACK info callback. It is recommended to specify a callback that uses the [log
 /// crate](https://cratse.io/crates/log).
 pub fn set_info_callback(info: fn(&str)) {
     *INFO_FN.lock().unwrap() = Some(info);
@@ -58,7 +58,7 @@ pub fn reset_info_callback() {
 }
 
 static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
-/// Set the global JACK error callback. It is recommended to use the [log
+/// Set the global JACK info callback. It is recommended to specify a callback that uses the [log
 /// crate](https://cratse.io/crates/log).
 pub fn set_error_callback(error: fn(&str)) {
     *ERROR_FN.lock().unwrap() = Some(error);

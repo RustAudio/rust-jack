@@ -64,14 +64,14 @@ impl<PS: PortSpec> Port<PS> {
         Port {
             spec: Unowned,
             client_ptr: self.client_ptr(),
-            port_ptr: self.as_ptr(),
+            port_ptr: self.raw(),
         }
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name<'a>(&'a self) -> &'a str {
         unsafe {
-            ffi::CStr::from_ptr(j::jack_port_name(self.as_ptr()))
+            ffi::CStr::from_ptr(j::jack_port_name(self.raw()))
                 .to_str()
                 .unwrap()
         }
@@ -81,7 +81,7 @@ impl<PS: PortSpec> Port<PS> {
     /// prefix.
     pub fn short_name<'a>(&'a self) -> &'a str {
         unsafe {
-            ffi::CStr::from_ptr(j::jack_port_short_name(self.as_ptr()))
+            ffi::CStr::from_ptr(j::jack_port_short_name(self.raw()))
                 .to_str()
                 .unwrap()
         }
@@ -90,7 +90,7 @@ impl<PS: PortSpec> Port<PS> {
     /// The flags for the port. These are set when the port is registered with
     /// its client.
     pub fn flags(&self) -> PortFlags {
-        let bits = unsafe { j::jack_port_flags(self.as_ptr()) };
+        let bits = unsafe { j::jack_port_flags(self.raw()) };
         PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
     }
 
@@ -99,7 +99,7 @@ impl<PS: PortSpec> Port<PS> {
     /// midi"`. Custom types may also be used.
     pub fn port_type<'a>(&self) -> &'a str {
         unsafe {
-            ffi::CStr::from_ptr(j::jack_port_type(self.as_ptr()))
+            ffi::CStr::from_ptr(j::jack_port_type(self.raw()))
                 .to_str()
                 .unwrap()
         }
@@ -107,7 +107,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> usize {
-        let n = unsafe { j::jack_port_connected(self.as_ptr()) };
+        let n = unsafe { j::jack_port_connected(self.raw()) };
         n as usize
     }
 
@@ -116,7 +116,7 @@ impl<PS: PortSpec> Port<PS> {
     pub fn is_connected_to(&self, port_name: &str) -> bool {
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
-            j::jack_port_connected_to(self.as_ptr(), port_name.as_ptr())
+            j::jack_port_connected_to(self.raw(), port_name.as_ptr())
         };
         match res {
             0 => false,
@@ -126,7 +126,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Remove connections to/from port `self`.
     pub fn disconnect(&self) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_disconnect(self.client_ptr(), self.as_ptr()) };
+        let res = unsafe { j::jack_port_disconnect(self.client_ptr(), self.raw()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -141,7 +141,7 @@ impl<PS: PortSpec> Port<PS> {
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
-            j::jack_port_get_aliases(self.as_ptr(), ptrs.as_mut_ptr());
+            j::jack_port_get_aliases(self.raw(), ptrs.as_mut_ptr());
         };
         [a, b]
             .iter()
@@ -153,7 +153,7 @@ impl<PS: PortSpec> Port<PS> {
 
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> bool {
-        match unsafe { j::jack_port_monitoring_input(self.as_ptr()) } {
+        match unsafe { j::jack_port_monitoring_input(self.raw()) } {
             0 => false,
             _ => true,
         }
@@ -167,7 +167,7 @@ impl<PS: PortSpec> Port<PS> {
             true => 1,
             false => 0,
         };
-        let res = unsafe { j::jack_port_request_monitor(self.as_ptr(), onoff) };
+        let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -184,7 +184,7 @@ impl<PS: PortSpec> Port<PS> {
             true => 1,
             false => 0,
         };
-        let res = unsafe { j::jack_port_ensure_monitor(self.as_ptr(), onoff) };
+        let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -196,7 +196,7 @@ impl<PS: PortSpec> Port<PS> {
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
         let short_name = ffi::CString::new(short_name).unwrap();
-        let res = unsafe { j::jack_port_set_name(self.as_ptr(), short_name.as_ptr()) };
+        let res = unsafe { j::jack_port_set_name(self.raw(), short_name.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortNamingError),
@@ -218,7 +218,7 @@ impl<PS: PortSpec> Port<PS> {
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { j::jack_port_set_alias(self.as_ptr(), alias.as_ptr()) };
+        let res = unsafe { j::jack_port_set_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -231,7 +231,7 @@ impl<PS: PortSpec> Port<PS> {
     /// name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { j::jack_port_unset_alias(self.as_ptr(), alias.as_ptr()) };
+        let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -242,7 +242,7 @@ impl<PS: PortSpec> Port<PS> {
     /// connections.  The port must have
     /// been created with the provided client.
     pub fn unregister(self) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_unregister(self.client_ptr, self.as_ptr()) };
+        let res = unsafe { j::jack_port_unregister(self.client_ptr, self.raw()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -276,7 +276,7 @@ impl<PS: PortSpec> Port<PS> {
     ///
     /// This is mostly for use within the jack crate itself.
     #[inline(always)]
-    pub fn as_ptr(&self) -> *mut j::jack_port_t {
+    pub fn raw(&self) -> *mut j::jack_port_t {
         self.port_ptr
     }
 
@@ -293,16 +293,10 @@ impl<PS: PortSpec> Port<PS> {
     }
 }
 
-/// `PortSpec` for a port that holds has no readable or writeable data from
-/// JACK on the created
+/// `PortSpec` for a port that holds has no readable or writeable data from JACK on the created
 /// client. It can be used for obtaining information about external ports.
 #[derive(Debug, Default)]
 pub struct Unowned;
-
-/// `Port<UnownedSpec>` - Port that holds no data from Jack, though it can
-/// still be used to query
-/// information.
-pub type UnownedPort = Port<Unowned>;
 
 unsafe impl PortSpec for Unowned {
     /// Panics on call since the `Unowned` spec can't be used to create ports.

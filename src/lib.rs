@@ -26,12 +26,12 @@
 //! metadata, though their port data (audio buffers and midi buffers) cannot be accessed safely.
 //!
 //! Ports can be registered with the `Client::register_port` method. This requires a `PortSpec`. The
-//! jack crate comes with common specs such as `AudioInSpec`, `AudioOutSpec`, `MidiInSpec`, and
-//! `MidiOutSpec` under the `port` mod.
+//! jack crate comes with common specs such as `AudioIn`, `AudioOut`, `MidiIn`, and
+//! `MidiOut`.
 //!
-//! To access the data of registered ports, use wrappers that are valid when a `ProcessScope` is
-//! present. The data underneath the port can be obtained with `Port::buffer`, but prefer using
-//! specialized method for each port type.
+//! To access the data of registered ports, use their specialized methods within a `ProcessHandler`
+//! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
+//! to.
 #[macro_use]
 extern crate bitflags;
 extern crate jack_sys;
@@ -46,8 +46,7 @@ pub use client::CLIENT_NAME_SIZE;
 pub use jack_enums::{Control, Error, LatencyType};
 pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
                   reset_info_callback, set_error_callback, set_info_callback};
-pub use port::{AudioInSpec, AudioOutSpec, MidiInSpec, MidiIter, MidiOutSpec, MidiWriter, Port,
-               RawMidi, Unowned, UnownedPort};
+pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, RawMidi, Unowned};
 pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use port::{port_flags, PortFlags};
 pub use port::PortSpec;
@@ -55,24 +54,24 @@ pub use primitive_types::{Frames, PortId, Time};
 pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 
 /// Create and manage client connections to a JACK server.
-pub mod client;
+mod client;
 
 /// Create and manage JACK ring buffers.
-pub mod ringbuffer;
+mod ringbuffer;
 
 /// Control error and info logging from JACK.
-pub mod logging;
+mod logging;
 
 /// Enum types in jack.
-pub mod jack_enums;
+mod jack_enums;
 
 mod jack_utils;
 
 /// Types for safely interacting with port data from JACK.
-pub mod port;
+mod port;
 
 /// Platform independent types.
-pub mod primitive_types;
+mod primitive_types;
 
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.

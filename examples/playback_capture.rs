@@ -11,16 +11,16 @@ fn main() {
     // Register ports. They will be used in a callback that will be
     // called when new data is available.
     let in_a = client
-        .register_port("rust_in_l", jack::AudioInSpec::default())
+        .register_port("rust_in_l", jack::AudioIn::default())
         .unwrap();
     let in_b = client
-        .register_port("rust_in_r", jack::AudioInSpec::default())
+        .register_port("rust_in_r", jack::AudioIn::default())
         .unwrap();
     let mut out_a = client
-        .register_port("rust_out_l", jack::AudioOutSpec::default())
+        .register_port("rust_out_l", jack::AudioOut::default())
         .unwrap();
     let mut out_b = client
-        .register_port("rust_out_r", jack::AudioOutSpec::default())
+        .register_port("rust_out_r", jack::AudioOut::default())
         .unwrap();
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let out_a_p = out_a.as_mut_slice(ps);

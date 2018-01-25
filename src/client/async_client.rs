@@ -26,7 +26,7 @@ pub use super::callbacks::{NotificationHandler, ProcessHandler};
 /// );
 ///
 /// // An active async client is created, `client` is consumed.
-/// let active_client = jack::AsyncClient::new(client, (), process_handler).unwrap();
+/// let active_client = client.activate_async((), process_handler).unwrap();
 /// ```
 pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
     client: Option<Client>,

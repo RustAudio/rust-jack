@@ -1,8 +1,7 @@
-use std::{mem, slice};
-use std::marker::PhantomData;
-
 use jack_sys as j;
 use libc;
+use std::{mem, slice};
+use std::marker::PhantomData;
 
 use client::ProcessScope;
 use jack_enums::Error;
@@ -31,19 +30,17 @@ impl<'a> Default for RawMidi<'a> {
     }
 }
 
-/// `MidiInSpec` implements the `PortSpec` trait, which defines an endpoint for
-/// JACK. In this case,
-/// it defines midi input.
+/// `MidiIn` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
+/// defines midi input.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct MidiInSpec;
+pub struct MidiIn;
 
-/// `MidiOutSpec` implements the `PortSpec` trait, which defines an endpoint
-/// for JACK. In this case,
-/// it defines a midi output.
+/// `MidiOut` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
+/// defines a midi output.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct MidiOutSpec;
+pub struct MidiOut;
 
-unsafe impl PortSpec for MidiInSpec {
+unsafe impl PortSpec for MidiIn {
     fn jack_port_type(&self) -> &'static str {
         j::RAW_MIDI_TYPE
     }
@@ -58,7 +55,8 @@ unsafe impl PortSpec for MidiInSpec {
     }
 }
 
-impl Port<MidiInSpec> {
+impl Port<MidiIn> {
+    /// Get an iterator over midi events.
     pub fn iter<'a>(&'a self, ps: &'a ProcessScope) -> MidiIter<'a> {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         MidiIter {
@@ -67,34 +65,9 @@ impl Port<MidiInSpec> {
             _phantom: PhantomData,
         }
     }
-
-    pub fn nth(&self, ps: &ProcessScope, n: usize) -> Option<RawMidi> {
-        let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
-        let res = unsafe {
-            j::jack_midi_event_get(&mut ev, self.buffer(ps.n_frames()), n as libc::uint32_t)
-        };
-        if res != 0 {
-            return None;
-        }
-        let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
-        Some(RawMidi {
-            time: ev.time,
-            bytes: bytes_slice,
-        })
-    }
-
-    pub fn len(&self, ps: &ProcessScope) -> usize {
-        assert_eq!(self.client_ptr(), ps.client_ptr());
-        let buffer = unsafe { self.buffer(ps.n_frames()) };
-        if buffer.is_null() {
-            return 0;
-        };
-        let n = unsafe { j::jack_midi_get_event_count(buffer) };
-        n as usize
-    }
 }
 
-/// Iterate through Midi Messages within a `Port<MidiInSpec>`.
+/// Iterate through Midi Messages within a `Port<MidiIn>`.
 #[derive(Debug, Clone)]
 pub struct MidiIter<'a> {
     buffer: *mut ::libc::c_void,
@@ -152,17 +125,17 @@ impl<'a> Iterator for MidiIter<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.absolute_len();
+        let len = self.absolute_len() - self.index;
         (len, Some(len))
     }
 
     fn count(self) -> usize {
-        self.size_hint().0
+        self.absolute_len() - self.index
     }
 
     fn last(self) -> Option<Self::Item> {
         let len = self.absolute_len() as libc::uint32_t;
-        if len == 0 {
+        if len == 0 || self.index >= len as usize {
             None
         } else {
             self.absolute_nth(len - 1)
@@ -175,7 +148,7 @@ impl<'a> Iterator for MidiIter<'a> {
     }
 }
 
-unsafe impl PortSpec for MidiOutSpec {
+unsafe impl PortSpec for MidiOut {
     fn jack_port_type(&self) -> &'static str {
         j::RAW_MIDI_TYPE
     }
@@ -190,11 +163,9 @@ unsafe impl PortSpec for MidiOutSpec {
     }
 }
 
-impl Port<MidiOutSpec> {
-    /// Wrap a `Port<MidiInSpec>` within a process scope of a client that registered the
-    /// port. Panics if the port does not belong to the client that created the process.
-    ///
-    /// The data in the port is cleared.
+impl Port<MidiOut> {
+    /// Create a writer that can write midi events to the specified midi port. Calling this function
+    /// clears the midi buffer.
     pub fn writer<'a>(&'a mut self, ps: &'a ProcessScope) -> MidiWriter<'a> {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         let buffer = unsafe { self.buffer(ps.n_frames()) };
@@ -253,7 +224,6 @@ impl<'a> MidiWriter<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use client::AsyncClient;
     use client::Client;
     use client::ClosureProcessHandler;
     use client::ProcessHandler;
@@ -308,8 +278,8 @@ mod test {
         stream: Vec<OwnedRawMidi>,
         collected: Vec<OwnedRawMidi>,
         collector: F,
-        midi_in: Port<MidiInSpec>,
-        midi_out: Port<MidiOutSpec>,
+        midi_in: Port<MidiIn>,
+        midi_out: Port<MidiOut>,
     }
 
     impl<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> IterTest<F> {
@@ -318,8 +288,8 @@ mod test {
                 stream: stream,
                 collected: Vec::new(),
                 collector: collector,
-                midi_in: client.register_port("in", MidiInSpec::default()).unwrap(),
-                midi_out: client.register_port("out", MidiOutSpec::default()).unwrap(),
+                midi_in: client.register_port("in", MidiIn::default()).unwrap(),
+                midi_out: client.register_port("out", MidiOut::default()).unwrap(),
             }
         }
 
@@ -350,10 +320,10 @@ mod test {
     fn port_midi_can_read_write() {
         // open clients and ports
         let c = open_test_client("port_midi_crw");
-        let in_a = c.register_port("ia", MidiInSpec::default()).unwrap();
-        let in_b = c.register_port("ib", MidiInSpec::default()).unwrap();
-        let mut out_a = c.register_port("oa", MidiOutSpec::default()).unwrap();
-        let mut out_b = c.register_port("ob", MidiOutSpec::default()).unwrap();
+        let in_a = c.register_port("ia", MidiIn::default()).unwrap();
+        let in_b = c.register_port("ib", MidiIn::default()).unwrap();
+        let mut out_a = c.register_port("oa", MidiOut::default()).unwrap();
+        let mut out_b = c.register_port("ob", MidiOut::default()).unwrap();
 
         // set callback routine
         let (signal_succeed, did_succeed) = channel();
@@ -381,7 +351,8 @@ mod test {
         };
 
         // activate
-        let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+            .unwrap();
 
         // connect ports to each other
         ac.as_client()
@@ -408,7 +379,7 @@ mod test {
     fn port_midi_can_get_max_event_size() {
         // open clients and ports
         let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
+        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
@@ -418,7 +389,8 @@ mod test {
         };
 
         // activate
-        let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+            .unwrap();
 
         // check correctness
         assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
@@ -433,7 +405,7 @@ mod test {
     fn port_midi_cant_exceed_max_event_size() {
         // open clients and ports
         let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
+        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
@@ -452,7 +424,8 @@ mod test {
         };
 
         // activate
-        let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+            .unwrap();
 
         // check correctness
         assert_eq!(
@@ -474,8 +447,8 @@ mod test {
     fn port_midi_iter() {
         // open clients and ports
         let c = open_test_client("port_midi_iter");
-        let in_p = c.register_port("ip", MidiInSpec::default()).unwrap();
-        let mut out_p = c.register_port("op", MidiOutSpec::default()).unwrap();
+        let in_p = c.register_port("ip", MidiIn::default()).unwrap();
+        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
@@ -501,7 +474,8 @@ mod test {
         };
 
         // run
-        let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+            .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_midi_iter:op", "port_midi_iter:ip")
             .unwrap();
@@ -548,7 +522,7 @@ mod test {
         let processor = IterTest::new(&c, stream.clone(), collect);
         let connector = processor.connector();
 
-        let ac = AsyncClient::new(c, (), processor).unwrap();
+        let ac = c.activate_async((), processor).unwrap();
         connector.connect(ac.as_client());
         thread::sleep(time::Duration::from_millis(200));
 

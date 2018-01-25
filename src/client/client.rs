@@ -8,7 +8,7 @@ use client::client_status::ClientStatus;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use jack_enums::*;
 use jack_utils::collect_strs;
-use port::{Port, PortSpec, Unowned, UnownedPort};
+use port::{Port, PortSpec, Unowned};
 use port::port_flags::PortFlags;
 use primitive_types as pt;
 
@@ -179,8 +179,8 @@ impl Client {
     /// type. If `None` or zero
     /// lengthed, no selection based on type will be carried out. The port type
     /// is the same one
-    /// returned by `PortSpec::jack_port_type()`. For example, `AudioInSpec`
-    /// and `AudioOutSpec` are
+    /// returned by `PortSpec::jack_port_type()`. For example, `AudioIn`
+    /// and `AudioOut` are
     /// both of type `"32 bit float mono audio"`.
     ///
     /// `flags` - A value used to select ports by their flags. Use
@@ -206,7 +206,7 @@ impl Client {
     ///
     /// The `port_spec` specifies the IO direction and data type. Oftentimes,
     /// the built-in types
-    /// (`AudioInSpec`, `AudioOutSpec`, `MidiInSpec`, `MidiOutSpec`) can be
+    /// (`AudioIn`, `AudioOut`, `MidiIn`, `MidiOut`) can be
     /// used.
     ///
     /// Each port has a short name. The port's full name contains the name of
@@ -243,7 +243,7 @@ impl Client {
     }
 
     // Get a `Port` by its port id.
-    pub fn port_by_id(&self, port_id: pt::PortId) -> Option<UnownedPort> {
+    pub fn port_by_id(&self, port_id: pt::PortId) -> Option<Port<Unowned>> {
         let pp = unsafe { j::jack_port_by_id(self.raw(), port_id) };
         if pp.is_null() {
             None
@@ -253,7 +253,7 @@ impl Client {
     }
 
     /// Get a `Port` by its port name.
-    pub fn port_by_name(&self, port_name: &str) -> Option<UnownedPort> {
+    pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
         let port_name = ffi::CString::new(port_name).unwrap();
         let pp = unsafe { j::jack_port_by_name(self.raw(), port_name.as_ptr()) };
         if pp.is_null() {
@@ -302,7 +302,7 @@ impl Client {
 
     /// Returns `true` if the port `port` belongs to this client.
     pub fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
-        match unsafe { j::jack_port_is_mine(self.raw(), port.as_ptr()) } {
+        match unsafe { j::jack_port_is_mine(self.raw(), port.raw()) } {
             1 => true,
             _ => false,
         }

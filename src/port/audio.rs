@@ -1,51 +1,46 @@
-use std::slice;
-
 use jack_sys as j;
 use libc;
+use std::slice;
 
 use client::ProcessScope;
 use port::{Port, PortSpec};
 use port::port_flags::{PortFlags, IS_INPUT, IS_OUTPUT};
 
-/// `AudioInSpec` implements the `PortSpec` trait which, defines an
+/// `AudioIn` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioInSpec::buffer()` is used to gain access the buffer.
+/// `AudioIn::buffer()` is used to gain access the buffer.
 ///
 /// # Example
 /// ```
-/// let client = jack::client::Client::new(
-///     "rusty_client",
-///     jack::client::client_options::NO_START_SERVER,
-/// ).unwrap()
+/// let client = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER)
+///     .unwrap()
 ///     .0;
-/// let spec = jack::port::AudioInSpec::default();
+/// let spec = jack::AudioIn::default();
 /// let audio_in_port = client.register_port("in", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioInSpec;
+pub struct AudioIn;
 
-/// `AudioOutSpec` implements the `PortSpec` trait, which defines an
+/// `AudioOut` implements the `PortSpec` trait, which defines an
 /// endpoint for JACK. In this case, it is a mutable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioOutSpec::buffer()` is used to gain access the buffer.
+/// `AudioOut::buffer()` is used to gain access the buffer.
 ///
 /// # Example
 /// ```
-/// let client = jack::client::Client::new(
-///     "rusty_client",
-///     jack::client::client_options::NO_START_SERVER,
-/// ).unwrap()
+/// let client = jack::Client::new("rusty_client", jack::client_options::NO_START_SERVER)
+///     .unwrap()
 ///     .0;
-/// let spec = jack::port::AudioInSpec::default();
+/// let spec = jack::AudioIn::default();
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioOutSpec;
+pub struct AudioOut;
 
-unsafe impl<'a> PortSpec for AudioOutSpec {
+unsafe impl<'a> PortSpec for AudioOut {
     fn jack_port_type(&self) -> &'static str {
         j::FLOAT_MONO_AUDIO
     }
@@ -60,17 +55,7 @@ unsafe impl<'a> PortSpec for AudioOutSpec {
     }
 }
 
-unsafe impl PortSpec for AudioInSpec {
-    /// Create an AudioInSpec instance from a buffer pointer and frame
-    /// count. This is mostly used by `Port<AudioInSpec>` within a
-    /// `process` scope.
-    ///
-    /// # Arguments
-    ///
-    /// * `ptr` - buffer pointer to underlying data.
-    ///
-    /// * `nframes` - the size of the buffer.
-
+unsafe impl PortSpec for AudioIn {
     fn jack_port_type(&self) -> &'static str {
         j::FLOAT_MONO_AUDIO
     }
@@ -85,7 +70,8 @@ unsafe impl PortSpec for AudioInSpec {
     }
 }
 
-impl Port<AudioInSpec> {
+impl Port<AudioIn> {
+    /// Read the received audio data.
     pub fn as_slice<'a>(&'a self, ps: &'a ProcessScope) -> &'a [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         let buff = unsafe {
@@ -98,7 +84,8 @@ impl Port<AudioInSpec> {
     }
 }
 
-impl Port<AudioOutSpec> {
+impl Port<AudioOut> {
+    /// Get a slice to write audio data to.
     pub fn as_mut_slice<'a>(&'a mut self, ps: &'a ProcessScope) -> &'a mut [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         let buff = unsafe {
@@ -114,7 +101,6 @@ impl Port<AudioOutSpec> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use client::AsyncClient;
     use client::Client;
     use client::ClosureProcessHandler;
     use client::client_options;
@@ -130,10 +116,10 @@ mod test {
     #[test]
     fn port_audio_can_read_write() {
         let c = open_test_client("port_audio_crw");
-        let in_a = c.register_port("ia", AudioInSpec::default()).unwrap();
-        let in_b = c.register_port("ib", AudioInSpec::default()).unwrap();
-        let mut out_a = c.register_port("oa", AudioOutSpec::default()).unwrap();
-        let mut out_b = c.register_port("ob", AudioOutSpec::default()).unwrap();
+        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
+        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
+        let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
+        let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
         let (signal_succeed, did_succeed) = channel();
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.31244352;
@@ -154,7 +140,8 @@ mod test {
             }
             Control::Continue
         };
-        let ac = AsyncClient::new(c, (), ClosureProcessHandler::new(process_callback)).unwrap();
+        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+            .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
             .unwrap();

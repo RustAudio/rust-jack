@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use super::*;
 use client::{Client, NotificationHandler, ProcessHandler};
 use jack_enums::{Control, LatencyType};
-use port::AudioInSpec;
+use port::AudioIn;
 use primitive_types::{Frames, PortId};
 
 #[derive(Debug, Default)]
@@ -74,7 +74,8 @@ fn open_test_client(name: &str) -> Client {
 
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
     let c = open_test_client(name);
-    let ac = AsyncClient::new(c, Counter::default(), Counter::default()).unwrap();
+    let ac = c.activate_async(Counter::default(), Counter::default())
+        .unwrap();
     ac
 }
 
@@ -184,7 +185,7 @@ fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
     let mut counter = Counter::default();
     counter.induce_xruns = true;
-    let ac = AsyncClient::new(c, Counter::default(), counter).unwrap();
+    let ac = c.activate_async(Counter::default(), counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.xruns_count > 0, "No xruns encountered.");
 }
@@ -193,10 +194,10 @@ fn client_cback_reports_xruns() {
 fn client_cback_calls_port_registered() {
     let ac = active_test_client("client_cback_cpr");
     let _pa = ac.as_client()
-        .register_port("pa", AudioInSpec::default())
+        .register_port("pa", AudioIn::default())
         .unwrap();
     let _pb = ac.as_client()
-        .register_port("pb", AudioInSpec::default())
+        .register_port("pb", AudioIn::default())
         .unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(
@@ -214,10 +215,10 @@ fn client_cback_calls_port_registered() {
 fn client_cback_calls_port_unregistered() {
     let ac = active_test_client("client_cback_cpr");
     let _pa = ac.as_client()
-        .register_port("pa", AudioInSpec::default())
+        .register_port("pa", AudioIn::default())
         .unwrap();
     let _pb = ac.as_client()
-        .register_port("pb", AudioInSpec::default())
+        .register_port("pb", AudioIn::default())
         .unwrap();
     _pa.unregister().unwrap();
     _pb.unregister().unwrap();

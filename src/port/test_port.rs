@@ -4,16 +4,16 @@ fn open_test_client(name: &str) -> Client {
         .0
 }
 
-fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioInSpec>) {
+fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioIn>) {
     let c = open_test_client(client);
-    let p = c.register_port(port, AudioInSpec::default()).unwrap();
+    let p = c.register_port(port, AudioIn::default()).unwrap();
     (c, p)
 }
 
 #[test]
 fn port_can_be_cast_to_unowned() {
     let (_c, p) = open_client_with_port("port_cwpn", "the_port_name");
-    let p_alt: UnownedPort = p.clone_unowned();
+    let p_alt: Port<Unowned> = p.clone_unowned();
     assert_eq!(p.short_name(), p_alt.short_name());
     assert_eq!(p.name(), p_alt.name());
 }
@@ -45,10 +45,10 @@ fn port_can_rename() {
 #[test]
 fn port_connected_count() {
     let c = open_test_client("port_connected_count");
-    let pa = c.register_port("pa", AudioInSpec::default()).unwrap();
-    let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
-    let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();
-    let pd = c.register_port("pd", AudioOutSpec::default()).unwrap();
+    let pa = c.register_port("pa", AudioIn::default()).unwrap();
+    let pb = c.register_port("pb", AudioOut::default()).unwrap();
+    let pc = c.register_port("pc", AudioOut::default()).unwrap();
+    let pd = c.register_port("pd", AudioOut::default()).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.connect_ports(&pb, &pa).unwrap();
     c.connect_ports(&pc, &pa).unwrap();
@@ -61,10 +61,10 @@ fn port_connected_count() {
 #[test]
 fn port_knows_connections() {
     let c = open_test_client("port_knows_connections");
-    let pa = c.register_port("pa", AudioInSpec::default()).unwrap();
-    let pb = c.register_port("pb", AudioOutSpec::default()).unwrap();
-    let pc = c.register_port("pc", AudioOutSpec::default()).unwrap();
-    let pd = c.register_port("pd", AudioOutSpec::default()).unwrap();
+    let pa = c.register_port("pa", AudioIn::default()).unwrap();
+    let pb = c.register_port("pb", AudioOut::default()).unwrap();
+    let pc = c.register_port("pc", AudioOut::default()).unwrap();
+    let pd = c.register_port("pd", AudioOut::default()).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.connect_ports(&pb, &pa).unwrap();
     c.connect_ports(&pc, &pa).unwrap();

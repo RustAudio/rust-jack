@@ -140,6 +140,7 @@ pub trait NotificationHandler: Send {
     fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
+/// Specifies real-time processing.
 pub trait ProcessHandler: Send {
     /// Called whenever there is work to be done.
     ///
