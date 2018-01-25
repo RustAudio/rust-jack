@@ -1,22 +1,26 @@
 use std::{mem, ptr, thread, time};
 use std::sync::Mutex;
 
-use prelude::*;
+use super::*;
+use client::{Client, NotificationHandler, ProcessHandler};
+use jack_enums::{Control, LatencyType};
+use port::AudioIn;
+use primitive_types::{Frames, PortId};
 
 #[derive(Debug, Default)]
 pub struct Counter {
-    pub process_return_val: JackControl,
+    pub process_return_val: Control,
     pub induce_xruns: bool,
     pub thread_init_count: Mutex<usize>,
     pub frames_processed: usize,
-    pub buffer_size_change_history: Vec<JackFrames>,
+    pub buffer_size_change_history: Vec<Frames>,
     pub registered_client_history: Vec<String>,
     pub unregistered_client_history: Vec<String>,
-    pub port_register_history: Vec<JackPortId>,
-    pub port_unregister_history: Vec<JackPortId>,
+    pub port_register_history: Vec<PortId>,
+    pub port_unregister_history: Vec<PortId>,
     pub xruns_count: usize,
-    pub last_frame_time: JackFrames,
-    pub frames_since_cycle_start: JackFrames,
+    pub last_frame_time: Frames,
+    pub frames_since_cycle_start: Frames,
 }
 
 impl NotificationHandler for Counter {
@@ -24,9 +28,9 @@ impl NotificationHandler for Counter {
         *self.thread_init_count.lock().unwrap() += 1;
     }
 
-    fn buffer_size(&mut self, _: &Client, size: JackFrames) -> JackControl {
+    fn buffer_size(&mut self, _: &Client, size: Frames) -> Control {
         self.buffer_size_change_history.push(size);
-        JackControl::Continue
+        Control::Continue
     }
 
     fn client_registration(&mut self, _: &Client, name: &str, is_registered: bool) {
@@ -36,21 +40,21 @@ impl NotificationHandler for Counter {
         }
     }
 
-    fn port_registration(&mut self, _: &Client, pid: JackPortId, is_registered: bool) {
+    fn port_registration(&mut self, _: &Client, pid: PortId, is_registered: bool) {
         match is_registered {
             true => self.port_register_history.push(pid),
             false => self.port_unregister_history.push(pid),
         }
     }
 
-    fn xrun(&mut self, _: &Client) -> JackControl {
+    fn xrun(&mut self, _: &Client) -> Control {
         self.xruns_count += 1;
-        JackControl::Continue
+        Control::Continue
     }
 }
 
 impl ProcessHandler for Counter {
-    fn process(&mut self, _: &Client, ps: &ProcessScope) -> JackControl {
+    fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
         self.frames_processed += ps.n_frames() as usize;
         self.last_frame_time = ps.last_frame_time();
         self.frames_since_cycle_start = ps.frames_since_cycle_start();
@@ -58,7 +62,7 @@ impl ProcessHandler for Counter {
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
         }
-        JackControl::Continue
+        Control::Continue
     }
 }
 
@@ -70,7 +74,8 @@ fn open_test_client(name: &str) -> Client {
 
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
     let c = open_test_client(name);
-    let ac = AsyncClient::new(c, Counter::default(), Counter::default()).unwrap();
+    let ac = c.activate_async(Counter::default(), Counter::default())
+        .unwrap();
     ac
 }
 
@@ -84,23 +89,23 @@ fn client_cback_has_proper_default_callbacks() {
     // check each callbacks
     assert_eq!(h.thread_init(&wc), ());
     assert_eq!(h.shutdown(client_status::ClientStatus::empty(), "mock"), ());
-    assert_eq!(h.process(&wc, &ps), JackControl::Continue);
+    assert_eq!(h.process(&wc, &ps), Control::Continue);
     assert_eq!(h.freewheel(&wc, true), ());
     assert_eq!(h.freewheel(&wc, false), ());
-    assert_eq!(h.buffer_size(&wc, 0), JackControl::Continue);
-    assert_eq!(h.sample_rate(&wc, 0), JackControl::Continue);
+    assert_eq!(h.buffer_size(&wc, 0), Control::Continue);
+    assert_eq!(h.sample_rate(&wc, 0), Control::Continue);
     assert_eq!(h.client_registration(&wc, "mock", true), ());
     assert_eq!(h.client_registration(&wc, "mock", false), ());
     assert_eq!(h.port_registration(&wc, 0, true), ());
     assert_eq!(h.port_registration(&wc, 0, false), ());
     assert_eq!(
         h.port_rename(&wc, 0, "old_mock", "new_mock"),
-        JackControl::Continue
+        Control::Continue
     );
     assert_eq!(h.ports_connected(&wc, 0, 1, true), ());
     assert_eq!(h.ports_connected(&wc, 2, 3, false), ());
-    assert_eq!(h.graph_reorder(&wc), JackControl::Continue);
-    assert_eq!(h.xrun(&wc), JackControl::Continue);
+    assert_eq!(h.graph_reorder(&wc), Control::Continue);
+    assert_eq!(h.xrun(&wc), Control::Continue);
     assert_eq!(h.latency(&wc, LatencyType::Capture), ());
     assert_eq!(h.latency(&wc, LatencyType::Playback), ());
 
@@ -128,12 +133,12 @@ fn client_cback_calls_process() {
 #[test]
 fn client_cback_calls_buffer_size() {
     let ac = active_test_client("client_cback_calls_process");
-    let initial = ac.buffer_size();
+    let initial = ac.as_client().buffer_size();
     let second = initial / 2;
     let third = second / 2;
-    ac.set_buffer_size(second).unwrap();
-    ac.set_buffer_size(third).unwrap();
-    ac.set_buffer_size(initial).unwrap();
+    ac.as_client().set_buffer_size(second).unwrap();
+    ac.as_client().set_buffer_size(third).unwrap();
+    ac.as_client().set_buffer_size(initial).unwrap();
     let counter = ac.deactivate().unwrap().1;
     let mut history_iter = counter.buffer_size_change_history.iter().cloned();
     assert_eq!(history_iter.find(|&s| s == initial), Some(initial));
@@ -147,13 +152,14 @@ fn client_cback_calls_after_client_registered() {
     let ac = active_test_client("client_cback_cacr");
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
-    assert!(counter.registered_client_history.contains(
-        &"client_cback_cacr_other".to_string(),
-    ));
-    assert!(!counter.unregistered_client_history.contains(
-        &"client_cback_cacr_other"
-            .to_string(),
-    ));
+    assert!(
+        counter
+            .registered_client_history
+            .contains(&"client_cback_cacr_other".to_string(),)
+    );
+    assert!(!counter
+        .unregistered_client_history
+        .contains(&"client_cback_cacr_other".to_string(),));
 }
 
 #[test]
@@ -162,12 +168,16 @@ fn client_cback_calls_after_client_unregistered() {
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
-    assert!(counter.registered_client_history.contains(
-        &"client_cback_cacu_other".to_string(),
-    ));
-    assert!(counter.unregistered_client_history.contains(
-        &"client_cback_cacu_other".to_string(),
-    ));
+    assert!(
+        counter
+            .registered_client_history
+            .contains(&"client_cback_cacu_other".to_string(),)
+    );
+    assert!(
+        counter
+            .unregistered_client_history
+            .contains(&"client_cback_cacu_other".to_string(),)
+    );
 }
 
 #[test]
@@ -175,7 +185,7 @@ fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
     let mut counter = Counter::default();
     counter.induce_xruns = true;
-    let ac = AsyncClient::new(c, Counter::default(), counter).unwrap();
+    let ac = c.activate_async(Counter::default(), counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.xruns_count > 0, "No xruns encountered.");
 }
@@ -183,8 +193,12 @@ fn client_cback_reports_xruns() {
 #[test]
 fn client_cback_calls_port_registered() {
     let ac = active_test_client("client_cback_cpr");
-    let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
-    let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
+    let _pa = ac.as_client()
+        .register_port("pa", AudioIn::default())
+        .unwrap();
+    let _pb = ac.as_client()
+        .register_port("pb", AudioIn::default())
+        .unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(
         counter.port_register_history.len(),
@@ -200,8 +214,12 @@ fn client_cback_calls_port_registered() {
 #[test]
 fn client_cback_calls_port_unregistered() {
     let ac = active_test_client("client_cback_cpr");
-    let _pa = ac.register_port("pa", AudioInSpec::default()).unwrap();
-    let _pb = ac.register_port("pb", AudioInSpec::default()).unwrap();
+    let _pa = ac.as_client()
+        .register_port("pa", AudioIn::default())
+        .unwrap();
+    let _pb = ac.as_client()
+        .register_port("pb", AudioIn::default())
+        .unwrap();
     _pa.unregister().unwrap();
     _pb.unregister().unwrap();
     let counter = ac.deactivate().unwrap().1;

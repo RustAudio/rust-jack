@@ -1,10 +1,9 @@
-use std::{ffi, mem};
-
 use jack_sys as j;
 use libc;
+use std::{ffi, mem};
 
 use client::ProcessScope;
-use client::base::Client;
+use client::client::Client;
 use client::client_status::ClientStatus;
 use jack_enums::*;
 use primitive_types as pt;
@@ -33,53 +32,53 @@ pub trait NotificationHandler: Send {
 
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change.
-    fn buffer_size(&mut self, _: &Client, _size: pt::JackFrames) -> JackControl {
-        JackControl::Continue
+    fn buffer_size(&mut self, _: &Client, _size: pt::Frames) -> Control {
+        Control::Continue
     }
 
     /// Called whenever the system sample rate changes.
-    fn sample_rate(&mut self, _: &Client, _srate: pt::JackFrames) -> JackControl {
-        JackControl::Continue
+    fn sample_rate(&mut self, _: &Client, _srate: pt::Frames) -> Control {
+        Control::Continue
     }
 
     /// Called whenever a client is registered or unregistered
     fn client_registration(&mut self, _: &Client, _name: &str, _is_registered: bool) {}
 
     /// Called whenever a port is registered or unregistered
-    fn port_registration(&mut self, _: &Client, _port_id: pt::JackPortId, _is_registered: bool) {}
+    fn port_registration(&mut self, _: &Client, _port_id: pt::PortId, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
     fn port_rename(
         &mut self,
         _: &Client,
-        _port_id: pt::JackPortId,
+        _port_id: pt::PortId,
         _old_name: &str,
         _new_name: &str,
-    ) -> JackControl {
-        JackControl::Continue
+    ) -> Control {
+        Control::Continue
     }
 
     /// Called whenever ports are connected/disconnected to/from each other.
     fn ports_connected(
         &mut self,
         _: &Client,
-        _port_id_a: pt::JackPortId,
-        _port_id_b: pt::JackPortId,
+        _port_id_a: pt::PortId,
+        _port_id_b: pt::PortId,
         _are_connected: bool,
     ) {
     }
 
     /// Called whenever the processing graph is reordered.
-    fn graph_reorder(&mut self, _: &Client) -> JackControl {
-        JackControl::Continue
+    fn graph_reorder(&mut self, _: &Client) -> Control {
+        Control::Continue
     }
 
     /// Called whenever an xrun occurs.
     ///
     /// An xrun is a buffer under or over run, which means some data has been
     /// missed.
-    fn xrun(&mut self, _: &Client) -> JackControl {
-        JackControl::Continue
+    fn xrun(&mut self, _: &Client) -> Control {
+        Control::Continue
     }
 
     /// Called whenever it is necessary to recompute the latencies for some or
@@ -141,6 +140,7 @@ pub trait NotificationHandler: Send {
     fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
+/// Specifies real-time processing.
 pub trait ProcessHandler: Send {
     /// Called whenever there is work to be done.
     ///
@@ -152,9 +152,9 @@ pub trait ProcessHandler: Send {
     /// pthread_join,
     /// pthread_cond_wait, etc, etc.
     ///
-    /// Should return `JackControl::Continue` on success, and
-    /// `JackControl::Quit` on error.
-    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> JackControl;
+    /// Should return `Control::Continue` on success, and
+    /// `Control::Quit` on error.
+    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
 }
 
 unsafe fn handler_and_ptr_from_void<'a, N, P>(ptr: *mut libc::c_void) -> &'a mut (N, P, Client)
@@ -196,13 +196,13 @@ unsafe extern "C" fn shutdown<N, P>(
     )
 }
 
-unsafe extern "C" fn process<N, P>(n_frames: pt::JackFrames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn process<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
 {
     let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    let scope = ProcessScope::from_raw(n_frames, obj.2.as_ptr());
+    let scope = ProcessScope::from_raw(n_frames, obj.2.raw());
     obj.1.process(&obj.2, &scope).to_ffi()
 }
 
@@ -219,10 +219,7 @@ where
     obj.0.freewheel(&obj.2, is_starting)
 }
 
-unsafe extern "C" fn buffer_size<N, P>(
-    n_frames: pt::JackFrames,
-    data: *mut libc::c_void,
-) -> libc::c_int
+unsafe extern "C" fn buffer_size<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
@@ -231,10 +228,7 @@ where
     obj.0.buffer_size(&obj.2, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn sample_rate<N, P>(
-    n_frames: pt::JackFrames,
-    data: *mut libc::c_void,
-) -> libc::c_int
+unsafe extern "C" fn sample_rate<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
@@ -260,9 +254,8 @@ unsafe extern "C" fn client_registration<N, P>(
     obj.0.client_registration(&obj.2, name, register)
 }
 
-
 unsafe extern "C" fn port_registration<N, P>(
-    port_id: pt::JackPortId,
+    port_id: pt::PortId,
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
@@ -279,7 +272,7 @@ unsafe extern "C" fn port_registration<N, P>(
 
 #[allow(dead_code)] // TODO: remove once it can be registered
 unsafe extern "C" fn port_rename<N, P>(
-    port_id: pt::JackPortId,
+    port_id: pt::PortId,
     old_name: *const libc::c_char,
     new_name: *const libc::c_char,
     data: *mut libc::c_void,
@@ -297,8 +290,8 @@ where
 }
 
 unsafe extern "C" fn port_connect<N, P>(
-    port_id_a: pt::JackPortId,
-    port_id_b: pt::JackPortId,
+    port_id_a: pt::PortId,
+    port_id_b: pt::PortId,
     connect: libc::c_int,
     data: *mut libc::c_void,
 ) where
@@ -310,12 +303,8 @@ unsafe extern "C" fn port_connect<N, P>(
         0 => false,
         _ => true,
     };
-    obj.0.ports_connected(
-        &obj.2,
-        port_id_a,
-        port_id_b,
-        are_connected,
-    )
+    obj.0
+        .ports_connected(&obj.2, port_id_a, port_id_b, are_connected)
 }
 
 unsafe extern "C" fn graph_order<N, P>(data: *mut libc::c_void) -> libc::c_int
@@ -354,7 +343,7 @@ where
 ///
 /// This is mostly for use within the jack crate itself.
 ///
-/// Returns `Err(JackErr::CallbackDeregistrationError)` on failure.
+/// Returns `Err(Error::CallbackDeregistrationError)` on failure.
 ///
 /// # Unsafe
 ///
@@ -363,7 +352,7 @@ where
 /// # TODO
 ///
 /// * Implement correctly. Freezes on my system.
-pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), JackErr> {
+pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Error> {
     // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
     // j::jack_set_process_callback(client, None, ptr::null_mut());
     Ok(())
@@ -374,7 +363,7 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Jack
 /// This is mostly for use within the jack crate itself.
 ///
 /// Returns `Ok(handler_ptr)` on success, or
-/// `Err(JackErr::CallbackRegistrationError)` on failure.
+/// `Err(Error::CallbackRegistrationError)` on failure.
 ///
 /// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut
 /// j::jack_client_t)`.
@@ -399,7 +388,7 @@ pub unsafe fn register_callbacks<N, P>(
     notification_handler: N,
     process_handler: P,
     client: *mut j::jack_client_t,
-) -> Result<*mut (N, P, *mut j::jack_client_t), JackErr>
+) -> Result<*mut (N, P, *mut j::jack_client_t), Error>
 where
     N: NotificationHandler,
     P: ProcessHandler,

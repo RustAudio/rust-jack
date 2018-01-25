@@ -26,7 +26,6 @@ script:
   - cargo build
   - cargo test
   - cargo doc
-  - cargo fmt -- --write-mode=diff
 cache:
   bundler: true
   directories:

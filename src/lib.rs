@@ -2,54 +2,36 @@
 //!
 //! # Server
 //!
-//! JACK provides a high priority server to manipulate audio and midi across
-//! applications. The rust
-//! jack crate does not provide server creation functionality, so a server has
-//! to be set up with the
+//! JACK provides a high priority server to manipulate audio and midi across applications. The rust
+//! jack crate does not provide server creation functionality, so a server has to be set up with the
 //! `jackd` commandline tool, `qjackctl` the gui tool, or another method.
 //!
 //! # Client
 //!
-//! Typically, applications connect clients to the server. For the rust jack
-//! crate, a connection can
+//! Typically, applications connect clients to the server. For the rust jack crate, a connection can
 //! be made with `client::Client::new`, which returns a `client::Client`.
 //!
-//! The `Client` can query the server for information, register ports, and
-//! manage connections for
+//! The `Client` can query the server for information, register ports, and manage connections for
 //! ports.
 //!
-//! To commence processing audio/midi and other information in real-time, rust
-//! jack provides the
-//! `client::AsyncClient::new`, which consumes a `Client` an object that
-//! implements
-//! `NotificationHandler` and an object that implements `ProcessHandler` and
-//! returns a
-//! `AsyncClient`. `AsyncClient` processes the data in real-time with the
-//! provided handlers.
+//! To commence processing audio/midi and other information in real-time, rust jack provides the
+//! `Client::activate_async`, which consumes the `Client`, an object that implements
+//! `NotificationHandler` and an object that implements `ProcessHandler` and returns a
+//! `AsyncClient`. `AsyncClient` processes the data in real-time with the provided handlers.
 //!
 //! # Port
 //!
 //! A `Client` may obtain port information through the `Client::port_by_id` and
-//! `Client::port_by_name` methods. These ports can be used to manage
-//! connections or to obtain port
-//! metadata, though their port data (audio buffers and midi buffers) cannot be
-//! accessed safely.
+//! `Client::port_by_name` methods. These ports can be used to manage connections or to obtain port
+//! metadata, though their port data (audio buffers and midi buffers) cannot be accessed safely.
 //!
-//! Ports can be registered with the `Client::register_port` method. This
-//! requires a `PortSpec`. The
-//! jack crate comes with common specs such as `AudioInSpec`, `AudioOutSpec`,
-//! `MidiInSpec`, and
-//! `MidiOutSpec` under the `port` mod.
+//! Ports can be registered with the `Client::register_port` method. This requires a `PortSpec`. The
+//! jack crate comes with common specs such as `AudioIn`, `AudioOut`, `MidiIn`, and
+//! `MidiOut`.
 //!
-//! To access the data of registered ports, use wrappers that are valid when a
-//! `ProcessScope` is
-//! present. The ones provided by the rust jack crate are `AudioInPort`,
-//! `AudioOutPort`,
-//! `MidiInPort`, and `MidiOutPort`, all of which are under the `port` mod. It
-//! is also possible to
-//! access the data without wrapping the newly registered `Port<PortSpec>` by
-//! using the
-//! `Port::buffer` method, but this returns a void pointer and is unsafe.
+//! To access the data of registered ports, use their specialized methods within a `ProcessHandler`
+//! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
+//! to.
 #[macro_use]
 extern crate bitflags;
 extern crate jack_sys;
@@ -57,56 +39,61 @@ extern crate jack_sys;
 extern crate lazy_static;
 extern crate libc;
 
+pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, NotificationHandler,
+                 ProcessHandler, ProcessScope};
+pub use client::{client_options, client_status, ClientOptions, ClientStatus};
+pub use client::CLIENT_NAME_SIZE;
+pub use jack_enums::{Control, Error, LatencyType};
+pub use logging::{error_callback, info_callback, reset_error_callback, reset_info_callback,
+                  set_error_callback, set_info_callback};
+pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, RawMidi, Unowned};
+pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
+pub use port::{port_flags, PortFlags};
+pub use port::PortSpec;
+pub use primitive_types::{Frames, PortId, Time};
+pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 
 /// Create and manage client connections to a JACK server.
-pub mod client;
+mod client;
 
 /// Create and manage JACK ring buffers.
-pub mod ringbuffer;
+mod ringbuffer;
 
 /// Control error and info logging from JACK.
-pub mod logging;
+mod logging;
 
 /// Enum types in jack.
-pub mod jack_enums;
+mod jack_enums;
 
 mod jack_utils;
 
 /// Types for safely interacting with port data from JACK.
-pub mod port;
+mod port;
 
 /// Platform independent types.
-pub mod primitive_types;
+mod primitive_types;
 
-/// Return JACK's current system time in microseconds, using the JACK
-/// clock source.
-pub fn get_time() -> primitive_types::JackTime {
+/// Return JACK's current system time in microseconds, using the JACK clock
+/// source.
+pub fn get_time() -> primitive_types::Time {
     unsafe { jack_sys::jack_get_time() }
 }
 
-/// Contains every trait defined in the jack crate.
-pub mod traits {
-    pub use client::{NotificationHandler, ProcessHandler};
-    pub use port::PortSpec;
-}
-
-/// Contains most functionality needed to interact with JACK.
-pub mod prelude {
-    pub use client::{AsyncClient, Client, ClosureProcessHandler, CycleTimes, NotificationHandler,
-                     ProcessHandler, ProcessScope};
-    pub use client::{ClientOptions, ClientStatus, client_options, client_status};
-    pub use client::CLIENT_NAME_SIZE;
-    pub use jack_enums::{JackControl, JackErr, LatencyType};
-    pub use logging::{get_error_callback, get_info_callback, reset_error_callback,
-                      reset_info_callback, set_error_callback, set_info_callback};
-    pub use port::{AudioInPort, AudioInSpec, AudioOutPort, AudioOutSpec, MidiInPort, MidiInSpec,
-                   MidiIter, MidiOutPort, MidiOutSpec, Port, RawMidi, Unowned, UnownedPort};
-    pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
-    pub use port::{PortFlags, port_flags};
-    pub use port::PortSpec;
-    pub use primitive_types::{JackFrames, JackPortId, JackTime};
-    pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
-}
-
 #[cfg(test)]
-mod test;
+mod test {
+    use super::*;
+    use std::{thread, time};
+
+    #[test]
+    fn time_can_get_time() {
+        get_time();
+    }
+
+    #[test]
+    fn time_is_monotonically_increasing() {
+        let initial_t = get_time();
+        thread::sleep(time::Duration::from_millis(100));
+        let later_t = get_time();
+        assert!(initial_t < later_t, "failed {} < {}", initial_t, later_t);
+    }
+}
