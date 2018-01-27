@@ -6,7 +6,7 @@ use std::io;
 fn main() {
     // Create client
     let (client, _status) =
-        jack::Client::new("rust_jack_simple", jack::client_options::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.

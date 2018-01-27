@@ -3,11 +3,12 @@ use libc;
 use std::{mem, slice};
 use std::marker::PhantomData;
 
-use client::ProcessScope;
-use jack_enums::Error;
-use port::{Port, PortSpec};
-use port::port_flags::{PortFlags, IS_INPUT, IS_OUTPUT};
-use primitive_types as pt;
+use Error;
+use Frames;
+use Port;
+use PortFlags;
+use PortSpec;
+use ProcessScope;
 
 /// Contains 8bit raw midi information along with a timestamp relative to the
 /// process cycle.
@@ -15,7 +16,7 @@ use primitive_types as pt;
 pub struct RawMidi<'a> {
     /// The amount of time passed, in frames, relative to the start of the
     /// process cycle
-    pub time: pt::Frames,
+    pub time: Frames,
 
     /// Midi data
     pub bytes: &'a [u8],
@@ -46,7 +47,7 @@ unsafe impl PortSpec for MidiIn {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_INPUT
+        PortFlags::IS_INPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -154,7 +155,7 @@ unsafe impl PortSpec for MidiOut {
     }
 
     fn jack_flags(&self) -> PortFlags {
-        IS_OUTPUT
+        PortFlags::IS_OUTPUT
     }
 
     fn jack_buffer_size(&self) -> libc::c_ulong {
@@ -225,10 +226,10 @@ impl<'a> MidiWriter<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ClientOptions;
     use client::Client;
     use client::ClosureProcessHandler;
     use client::ProcessHandler;
-    use client::client_options;
     use jack_enums::Control;
     use primitive_types::Frames;
     use std::{thread, time};
@@ -237,9 +238,7 @@ mod test {
     use std::sync::mpsc::channel;
 
     fn open_test_client(name: &str) -> Client {
-        Client::new(name, client_options::NO_START_SERVER)
-            .unwrap()
-            .0
+        Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
     }
 
     struct Connector {
