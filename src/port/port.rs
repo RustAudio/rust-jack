@@ -1,12 +1,11 @@
+use jack_sys as j;
+use libc;
 use std::{ffi, fmt, iter};
 use std::marker::Sized;
 
-use libc;
-
-use jack_enums::Error;
-use jack_sys as j;
-use port::port_flags::PortFlags;
-use primitive_types as pt;
+use Error;
+use Frames;
+use PortFlags;
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -271,7 +270,7 @@ impl<PS: PortSpec> Port<PS> {
     /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
     /// method.
     #[inline(always)]
-    pub unsafe fn buffer(&self, n_frames: pt::Frames) -> *mut libc::c_void {
+    pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }
 }

@@ -2,11 +2,14 @@ use jack_sys as j;
 use libc;
 use std::{ffi, mem};
 
-use client::ProcessScope;
-use client::client::Client;
-use client::client_status::ClientStatus;
-use jack_enums::*;
-use primitive_types as pt;
+use Client;
+use ClientStatus;
+use Control;
+use Error;
+use Frames;
+use LatencyType;
+use PortId;
+use ProcessScope;
 
 /// Specifies callbacks for JACK.
 pub trait NotificationHandler: Send {
@@ -32,12 +35,12 @@ pub trait NotificationHandler: Send {
 
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change.
-    fn buffer_size(&mut self, _: &Client, _size: pt::Frames) -> Control {
+    fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
         Control::Continue
     }
 
     /// Called whenever the system sample rate changes.
-    fn sample_rate(&mut self, _: &Client, _srate: pt::Frames) -> Control {
+    fn sample_rate(&mut self, _: &Client, _srate: Frames) -> Control {
         Control::Continue
     }
 
@@ -45,13 +48,13 @@ pub trait NotificationHandler: Send {
     fn client_registration(&mut self, _: &Client, _name: &str, _is_registered: bool) {}
 
     /// Called whenever a port is registered or unregistered
-    fn port_registration(&mut self, _: &Client, _port_id: pt::PortId, _is_registered: bool) {}
+    fn port_registration(&mut self, _: &Client, _port_id: PortId, _is_registered: bool) {}
 
     /// Called whenever a port is renamed.
     fn port_rename(
         &mut self,
         _: &Client,
-        _port_id: pt::PortId,
+        _port_id: PortId,
         _old_name: &str,
         _new_name: &str,
     ) -> Control {
@@ -62,8 +65,8 @@ pub trait NotificationHandler: Send {
     fn ports_connected(
         &mut self,
         _: &Client,
-        _port_id_a: pt::PortId,
-        _port_id_b: pt::PortId,
+        _port_id_a: PortId,
+        _port_id_b: PortId,
         _are_connected: bool,
     ) {
     }
@@ -196,7 +199,7 @@ unsafe extern "C" fn shutdown<N, P>(
     )
 }
 
-unsafe extern "C" fn process<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn process<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
@@ -219,7 +222,7 @@ where
     obj.0.freewheel(&obj.2, is_starting)
 }
 
-unsafe extern "C" fn buffer_size<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn buffer_size<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
@@ -228,7 +231,7 @@ where
     obj.0.buffer_size(&obj.2, n_frames).to_ffi()
 }
 
-unsafe extern "C" fn sample_rate<N, P>(n_frames: pt::Frames, data: *mut libc::c_void) -> libc::c_int
+unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
     N: NotificationHandler,
     P: ProcessHandler,
@@ -255,7 +258,7 @@ unsafe extern "C" fn client_registration<N, P>(
 }
 
 unsafe extern "C" fn port_registration<N, P>(
-    port_id: pt::PortId,
+    port_id: PortId,
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
@@ -272,7 +275,7 @@ unsafe extern "C" fn port_registration<N, P>(
 
 #[allow(dead_code)] // TODO: remove once it can be registered
 unsafe extern "C" fn port_rename<N, P>(
-    port_id: pt::PortId,
+    port_id: PortId,
     old_name: *const libc::c_char,
     new_name: *const libc::c_char,
     data: *mut libc::c_void,
@@ -290,8 +293,8 @@ where
 }
 
 unsafe extern "C" fn port_connect<N, P>(
-    port_id_a: pt::PortId,
-    port_id_b: pt::PortId,
+    port_id_a: PortId,
+    port_id_b: PortId,
     connect: libc::c_int,
     data: *mut libc::c_void,
 ) where

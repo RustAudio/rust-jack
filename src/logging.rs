@@ -1,9 +1,8 @@
+use jack_sys as j;
 use libc;
 use std::ffi;
 use std::io::{stderr, Write};
 use std::sync::{Mutex, Once, ONCE_INIT};
-
-use jack_sys as j;
 
 lazy_static! {
     static ref INFO_FN: Mutex<Option<fn(&str)>> = Mutex::new(None);

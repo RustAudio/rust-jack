@@ -2,10 +2,14 @@ use std::{mem, ptr, thread, time};
 use std::sync::Mutex;
 
 use super::*;
-use client::{Client, NotificationHandler, ProcessHandler};
-use jack_enums::{Control, LatencyType};
-use port::AudioIn;
-use primitive_types::{Frames, PortId};
+use AudioIn;
+use Client;
+use Control;
+use Frames;
+use LatencyType;
+use NotificationHandler;
+use PortId;
+use ProcessHandler;
 
 #[derive(Debug, Default)]
 pub struct Counter {

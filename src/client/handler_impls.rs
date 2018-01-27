@@ -1,7 +1,8 @@
-use super::callbacks::{NotificationHandler, ProcessHandler};
-use client::ProcessScope;
-use client::client::Client;
-use jack_enums::Control;
+use Client;
+use Control;
+use NotificationHandler;
+use ProcessHandler;
+use ProcessScope;
 
 /// A trivial handler that does nothing.
 impl NotificationHandler for () {}

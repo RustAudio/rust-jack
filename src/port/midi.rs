@@ -3,11 +3,12 @@ use libc;
 use std::{mem, slice};
 use std::marker::PhantomData;
 
-use client::ProcessScope;
-use jack_enums::Error;
-use port::{Port, PortSpec};
-use port::port_flags::PortFlags;
-use primitive_types as pt;
+use Error;
+use Frames;
+use Port;
+use PortFlags;
+use PortSpec;
+use ProcessScope;
 
 /// Contains 8bit raw midi information along with a timestamp relative to the
 /// process cycle.
@@ -15,7 +16,7 @@ use primitive_types as pt;
 pub struct RawMidi<'a> {
     /// The amount of time passed, in frames, relative to the start of the
     /// process cycle
-    pub time: pt::Frames,
+    pub time: Frames,
 
     /// Midi data
     pub bytes: &'a [u8],

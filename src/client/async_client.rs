@@ -1,12 +1,11 @@
 use jack_sys as j;
 use std::fmt;
 
+use super::callbacks::{NotificationHandler, ProcessHandler};
 use super::callbacks::{clear_callbacks, register_callbacks};
 use Error;
 use client::client::Client;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-
-pub use super::callbacks::{NotificationHandler, ProcessHandler};
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///

@@ -2,9 +2,10 @@ use jack_sys as j;
 use libc;
 use std::slice;
 
-use client::ProcessScope;
-use port::{Port, PortSpec};
-use port::port_flags::PortFlags;
+use Port;
+use PortFlags;
+use PortSpec;
+use ProcessScope;
 
 /// `AudioIn` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -100,11 +101,13 @@ impl Port<AudioOut> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use client::Client;
-    use client::ClosureProcessHandler;
-    use jack_enums::Control;
     use std::sync::mpsc::channel;
+
+    use super::*;
+    use Client;
+    use ClientOptions;
+    use ClosureProcessHandler;
+    use Control;
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0

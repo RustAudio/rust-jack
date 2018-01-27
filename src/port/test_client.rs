@@ -1,12 +1,13 @@
-use super::*;
-use client::Client;
-use client::NotificationHandler;
-use client::client_options;
-use jack_enums::Error;
-use port::PORT_NAME_SIZE;
-use primitive_types::PortId;
 use std::sync::Mutex;
 use std::sync::mpsc;
+
+use super::*;
+use Client;
+use ClientOptions;
+use Error;
+use NotificationHandler;
+use PORT_NAME_SIZE;
+use PortId;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
