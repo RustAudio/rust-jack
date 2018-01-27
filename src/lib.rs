@@ -44,10 +44,8 @@ pub use client::{AsyncClient, Client, ClientOptions, ClientStatus, ClosureProces
 pub use jack_enums::{Control, Error, LatencyType};
 pub use logging::{error_callback, info_callback, reset_error_callback, reset_info_callback,
                   set_error_callback, set_info_callback};
-pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, RawMidi, Unowned};
-pub use port::{PORT_NAME_SIZE, PORT_TYPE_SIZE};
-pub use port::{port_flags, PortFlags};
-pub use port::PortSpec;
+pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags,
+               PortSpec, RawMidi, Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE};
 pub use primitive_types::{Frames, PortId, Time};
 pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 
