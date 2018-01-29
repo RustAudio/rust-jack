@@ -37,16 +37,16 @@ pub unsafe trait PortSpec: Sized {
 ///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
-pub struct Port<PS: PortSpec> {
+pub struct Port<PS> {
     spec: PS,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
 }
 
-unsafe impl<PS: PortSpec> Send for Port<PS> {}
-unsafe impl<PS: PortSpec> Sync for Port<PS> {}
+unsafe impl<PS: PortSpec + Send> Send for Port<PS> {}
+unsafe impl<PS: PortSpec + Sync> Sync for Port<PS> {}
 
-impl<PS: PortSpec> Port<PS> {
+impl<PS> Port<PS> {
     /// Returns the spec that was used to create this port.
     pub fn spec(&self) -> &PS {
         &self.spec
@@ -114,15 +114,6 @@ impl<PS: PortSpec> Port<PS> {
         match res {
             0 => false,
             _ => true,
-        }
-    }
-
-    /// Remove connections to/from port `self`.
-    pub fn disconnect(&self) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_disconnect(self.client_ptr(), self.raw()) };
-        match res {
-            0 => Ok(()),
-            _ => Err(Error::PortDisconnectionError),
         }
     }
 
@@ -221,16 +212,6 @@ impl<PS: PortSpec> Port<PS> {
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
-        }
-    }
-
-    /// Remove the port from the client, disconnecting any existing connections.  The port must have
-    /// been created with the provided client.
-    pub fn unregister(self) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_unregister(self.client_ptr, self.raw()) };
-        match res {
-            0 => Ok(()),
-            _ => Err(Error::PortDisconnectionError),
         }
     }
 

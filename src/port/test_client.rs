@@ -261,7 +261,7 @@ fn client_port_can_disconnect_port_from_all() {
 
     // connect and disconnect
     client.as_client().connect_ports(&out_p, &in_p).unwrap();
-    in_p.disconnect().unwrap();
+    client.as_client().disconnect(&in_p).unwrap();
 }
 
 #[test]

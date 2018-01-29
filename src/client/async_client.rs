@@ -25,17 +25,12 @@ use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 /// // An active async client is created, `client` is consumed.
 /// let active_client = client.activate_async((), process_handler).unwrap();
 /// ```
-pub struct AsyncClient<N: NotificationHandler, P: ProcessHandler> {
+pub struct AsyncClient<N, P> {
     client: Option<Client>,
     handler: Option<*mut (N, P, *mut j::jack_client_t)>,
 }
 
-unsafe impl<N, P> Send for AsyncClient<N, P>
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
-{
-}
+unsafe impl<N: Send, P: Send> Send for AsyncClient<N, P> {}
 
 impl<N, P> AsyncClient<N, P>
 where
@@ -78,7 +73,11 @@ where
             }
         }
     }
+}
 
+
+impl<N, P> AsyncClient<N, P>
+{
     /// Return the underlying `jack::Client`.
     #[inline(always)]
     pub fn as_client(&self) -> &Client {
@@ -119,9 +118,6 @@ where
 
 /// Closes the client.
 impl<N, P> Drop for AsyncClient<N, P>
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
 {
     /// Deactivate and close the client.
     fn drop(&mut self) {
@@ -146,9 +142,6 @@ where
 }
 
 impl<N, P> fmt::Debug for AsyncClient<N, P>
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "AsyncClient({:?})", self.as_client())

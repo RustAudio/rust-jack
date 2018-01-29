@@ -394,6 +394,23 @@ impl Client {
         self.connect_ports_by_name(source_port.name(), destination_port.name())
     }
 
+    /// Remove all connections to/from the port.
+    pub fn disconnect<PS>(&self, port: &Port<PS>) -> Result<(), Error> {
+        let res = unsafe { j::jack_port_disconnect(self.raw(), port.raw()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(Error::PortDisconnectionError),
+        }
+    }
+
+    pub fn unregister_port<PS>(&self, port: Port<PS>) -> Result<(), Error> {
+        let res = unsafe { j::jack_port_unregister(self.raw(), port.raw()) };
+        match res {
+            0 => Ok(()),
+            _ => Err(Error::PortDisconnectionError),
+        }
+    }
+
     /// Remove a connection between two ports.
     pub fn disconnect_ports<A: PortSpec, B: PortSpec>(
         &self,
