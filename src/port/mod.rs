@@ -12,3 +12,6 @@ pub use self::port_flags::PortFlags;
 
 #[cfg(test)]
 mod test_client;
+
+#[cfg(test)]
+mod test_port;

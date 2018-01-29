@@ -1,3 +1,12 @@
+use Client;
+use Unowned;
+use PortFlags;
+use PortSpec;
+use AudioIn;
+use AudioOut;
+use Port;
+use ClientOptions;
+
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
@@ -48,8 +57,8 @@ fn port_connected_count() {
     let pc = c.register_port("pc", AudioOut::default()).unwrap();
     let pd = c.register_port("pd", AudioOut::default()).unwrap();
     let c = c.activate_async((), ()).unwrap();
-    c.connect_ports(&pb, &pa).unwrap();
-    c.connect_ports(&pc, &pa).unwrap();
+    c.as_client().connect_ports(&pb, &pa).unwrap();
+    c.as_client().connect_ports(&pc, &pa).unwrap();
     assert_eq!(pa.connected_count(), 2);
     assert_eq!(pb.connected_count(), 1);
     assert_eq!(pc.connected_count(), 1);
@@ -64,8 +73,8 @@ fn port_knows_connections() {
     let pc = c.register_port("pc", AudioOut::default()).unwrap();
     let pd = c.register_port("pd", AudioOut::default()).unwrap();
     let c = c.activate_async((), ()).unwrap();
-    c.connect_ports(&pb, &pa).unwrap();
-    c.connect_ports(&pc, &pa).unwrap();
+    c.as_client().connect_ports(&pb, &pa).unwrap();
+    c.as_client().connect_ports(&pc, &pa).unwrap();
 
     // pa
     assert!(pa.is_connected_to(pb.name()));
