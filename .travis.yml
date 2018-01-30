@@ -24,10 +24,11 @@ script:
   - cargo build
   - cargo test
   - cargo doc
-  - rustfmt --write-mode=diff
+  - cargo fmt -- --version
+  - cargo fmt -- --write-mode=diff
 after_success:
   - travis-cargo --only stable doc-upload
-  - cargo coveralls
+  - travis-cargo coveralls --no-sudo --verify
 cache:
   bundler: true
   directories:
