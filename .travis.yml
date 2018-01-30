@@ -16,16 +16,12 @@ addons:
 before_install:
   - jackd -r -ddummy -r44100 -p1024 &
 before_script:
-  - rustup component add rustfmt-preview
   - pip install 'travis-cargo<0.2' --user
   - export PATH=#HOME/.local:$PATH
-  - cargo install cargo-travis -f
 script:
   - cargo build
   - cargo test
   - cargo doc
-  - cargo fmt -- --version
-  - cargo fmt -- --write-mode=diff
 after_success:
   - travis-cargo --only stable doc-upload
   - travis-cargo coveralls --no-sudo --verify
