@@ -6,7 +6,6 @@
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
 [![Build Status](https://travis-ci.org/RustAudio/rust-jack.svg?branch=master)](https://travis-ci.org/RustAudio/rust-jack)
-[![Coverage Status](https://coveralls.io/repos/github/RustAudio/rust-jack/badge.svg?branch=master&cache_less=3)](https://coveralls.io/github/RustAudio/rust-jack)
 
 
 Nice Rust bindings for
@@ -71,13 +70,6 @@ Testing expects there to be an available JACK server running at a sample rate of
 
 ```bash
 $ cargo test
-```
-
-If you want test coverage as well, try `cargo kcov`.
-
-```bash
-$ cargo install cargo-kcov
-$ cargo kcov
 ```
 
 #### Possible Issues

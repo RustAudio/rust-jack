@@ -21,10 +21,8 @@ before_script:
 script:
   - cargo build
   - cargo test
-  - cargo doc
 after_success:
   - travis-cargo --only stable doc-upload
-  - travis-cargo coveralls --no-sudo --verify
 cache:
   bundler: true
   directories:
