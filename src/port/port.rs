@@ -78,7 +78,7 @@ impl<PS> Port<PS> {
 
     /// Returns the short name of the port, it excludes the "client_name:"
     /// prefix.
-    pub fn short_name<'a>(&'a self) -> Result<&'a strl, Error> {
+    pub fn short_name<'a>(&'a self) -> Result<&'a str, Error> {
         self.check_client_life()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_short_name(self.raw()))
@@ -108,9 +108,10 @@ impl<PS> Port<PS> {
     }
 
     /// Number of ports connected to/from `&self`.
-    pub fn connected_count(&self) -> usize {
+    pub fn connected_count(&self) -> Result<usize, Error> {
+        self.check_client_life()?;
         let n = unsafe { j::jack_port_connected(self.raw()) };
-        n as usize
+        Ok(n as usize)
     }
 
     /// Returns `true` if the port is directly connected to a port with the
@@ -320,10 +321,10 @@ impl PortInfo {
         let s = p.spec();
         PortInfo {
             name: p.name().unwrap_or("client not alive").into(),
-            connections: p.connected_count(),
-            port_type: s.jack_port_type().to_string(),
+            connections: p.connected_count().unwrap_or(0),
+            port_type: s.jack_port_type().to_owned(),
             port_flags: s.jack_flags(),
-            aliases: p.aliases(),
+            aliases: p.aliases().unwrap_or(Vec::new()),
         }
     }
 }

@@ -47,15 +47,15 @@ fn client_port_register_port_enforces_name_length() {
 fn client_port_can_request_monitor_by_name() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
-    c.request_monitor_by_name(p.name(), true).unwrap();
-    c.request_monitor_by_name(p.name(), false).unwrap();
+    c.request_monitor_by_name(p.name().unwrap(), true).unwrap();
+    c.request_monitor_by_name(p.name().unwrap(), false).unwrap();
 }
 
 #[test]
 fn client_port_can_get_port_by_name() {
     let c = open_test_client("cp_can_get_port_by_name");
     let p = c.register_port("named_port", AudioIn::default()).unwrap();
-    let _p = c.port_by_name(p.name()).unwrap();
+    let _p = c.port_by_name(p.name().unwrap()).unwrap();
 }
 
 pub struct PortIdHandler {
@@ -95,7 +95,7 @@ fn client_port_can_get_port_by_id() {
     let registered_ports: Vec<String> = reg_rx
         .iter()
         .flat_map(|i| c.port_by_id(i))
-        .map(|p| p.name().to_string())
+        .map(|p| p.name().unwrap().to_string())
         .collect();
     let port_name = format!("{}:{}", client_name, port_name);
     assert!(registered_ports.contains(&port_name));
@@ -113,7 +113,7 @@ fn client_port_can_get_port_by_id() {
 fn client_port_fails_to_nonexistant_port() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
-    let _p = c.port_by_name(p.name()).unwrap();
+    let _p = c.port_by_name(p.name().unwrap()).unwrap();
 }
 
 #[test]
@@ -122,8 +122,8 @@ fn client_port_recognizes_my_ports() {
     let cb = open_test_client("cp_cprmp_cb");
     let pa = ca.register_port("cpcprmp_pa", AudioIn::default()).unwrap();
     let pb = cb.register_port("cpcprmp_pb", AudioIn::default()).unwrap();
-    let pa_alt = ca.port_by_name(pa.name()).unwrap();
-    let pb_alt = ca.port_by_name(pb.name()).unwrap();
+    let pa_alt = ca.port_by_name(pa.name().unwrap()).unwrap();
+    let pb_alt = ca.port_by_name(pb.name().unwrap()).unwrap();
     assert!(ca.is_mine(&pa));
     assert!(ca.is_mine(&pa_alt));
     assert!(!ca.is_mine(&pb));
@@ -191,11 +191,13 @@ fn client_port_cant_connect_inactive_client() {
         .register_port("inp", AudioIn::default())
         .unwrap()
         .name()
+        .unwrap()
         .to_string();
     let out_p = other
         .register_port("outp", AudioOut::default())
         .unwrap()
         .name()
+        .unwrap()
         .to_string();
 
     // Normally we start a client before we begin connecting, but in this case
@@ -226,8 +228,8 @@ fn client_port_recognizes_already_connected_ports() {
     assert_eq!(
         client.as_client().connect_ports(&out_p, &in_p),
         Err(Error::PortAlreadyConnected(
-            out_p.name().to_string(),
-            in_p.name().to_string(),
+            out_p.name().unwrap().to_string(),
+            in_p.name().unwrap().to_string(),
         ))
     );
 }
@@ -294,11 +296,11 @@ fn client_port_can_disconnect_ports_by_name() {
     // connect and disconnect
     client
         .as_client()
-        .connect_ports_by_name(out_p.name(), in_p.name())
+        .connect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
         .unwrap();
     client
         .as_client()
-        .disconnect_ports_by_name(out_p.name(), in_p.name())
+        .disconnect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
         .unwrap();
 }
 
@@ -317,10 +319,10 @@ fn client_port_can_disconnect_unowned_ports() {
     // connect and disconnect
     client
         .as_client()
-        .connect_ports_by_name(out_p.name(), in_p.name())
+        .connect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
         .unwrap();
     disconnector
-        .disconnect_ports_by_name(out_p.name(), in_p.name())
+        .disconnect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
         .unwrap();
 }
 
@@ -336,8 +338,8 @@ fn client_port_can_get_existing_ports() {
     // retrieve
     use std::collections::HashSet;
     let known_ports = [
-        in_p.name().to_string(),
-        out_p.name().to_string(),
+        in_p.name().unwrap().to_string(),
+        out_p.name().unwrap().to_string(),
         "system:playback_2".to_string(),
         "system:playback_1".to_string(),
         "system:capture_1".to_string(),
