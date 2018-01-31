@@ -86,8 +86,20 @@ impl<N, P> AsyncClient<N, P> {
     ///
     /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
     /// therefore unsafe to continue using.
-    pub fn deactivate(mut self) -> Result<(Client, N, P), Error> {
+    pub fn deactivate(self) -> Result<(Client, N, P), Error> {
+        let mut c = self;
+        c.maybe_deactivate().map(|c| {
+            (c.client, c.notification, c.process)
+        })
+    }
+
+    // Helper function for deactivating. Any function that calls this should no
+    // longer use self.
+    fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        if self.callback.is_none() {
+            return Err(Error::ClientIsNoLongerAlive);
+        }
         unsafe {
             let callback = *self.callback.take().unwrap();
 
@@ -101,13 +113,8 @@ impl<N, P> AsyncClient<N, P> {
             sleep_on_test();
             clear_callbacks(callback.client.raw())?;
 
-            // done, take ownership of pointer
-            let CallbackContext {
-                client,
-                notification,
-                process,
-            } = callback;
-            Ok((client, notification, process))
+            // done, take ownership of callback
+            Ok(callback)
         }
     }
 }
@@ -116,16 +123,7 @@ impl<N, P> AsyncClient<N, P> {
 impl<N, P> Drop for AsyncClient<N, P> {
     /// Deactivate and close the client.
     fn drop(&mut self) {
-        let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        unsafe {
-            // Deactivate the handler
-            sleep_on_test();
-            if self.callback.is_some() {
-                j::jack_deactivate(self.as_client().raw()); // result doesn't matter
-            }
-            sleep_on_test();
-            // The client will close itself once it goes out of scope.
-        }
+        let _ = self.maybe_deactivate();
     }
 }
 
