@@ -1,5 +1,6 @@
 use jack_sys as j;
 use std::fmt;
+use std::mem;
 
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use super::callbacks::clear_callbacks;
@@ -63,7 +64,10 @@ where
                 0 => Ok(AsyncClient {
                     callback: Some(callback_context),
                 }),
-                _ => Err(Error::ClientActivationError),
+                _ => {
+                    mem::forget(callback_context);
+                    Err(Error::ClientActivationError)
+                }
             }
         }
     }
@@ -88,13 +92,15 @@ impl<N, P> AsyncClient<N, P> {
     /// therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, N, P), Error> {
         let mut c = self;
-        c.maybe_deactivate()
-            .map(|c| (c.client, c.notification, c.process))
+        unsafe {
+            c.maybe_deactivate()
+                .map(|c| (c.client, c.notification, c.process))
+        }
     }
 
-    // Helper function for deactivating. Any function that calls this should no
-    // longer use self.
-    fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
+    // Helper function for deactivating. Any function that calls this should
+    // have ownership of self and no longer use it after this call.
+    unsafe fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
@@ -123,7 +129,7 @@ impl<N, P> AsyncClient<N, P> {
 impl<N, P> Drop for AsyncClient<N, P> {
     /// Deactivate and close the client.
     fn drop(&mut self) {
-        let _ = self.maybe_deactivate();
+        let _ = unsafe { self.maybe_deactivate() };
     }
 }
 
