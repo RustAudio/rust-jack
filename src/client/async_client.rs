@@ -88,9 +88,8 @@ impl<N, P> AsyncClient<N, P> {
     /// therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, N, P), Error> {
         let mut c = self;
-        c.maybe_deactivate().map(|c| {
-            (c.client, c.notification, c.process)
-        })
+        c.maybe_deactivate()
+            .map(|c| (c.client, c.notification, c.process))
     }
 
     // Helper function for deactivating. Any function that calls this should no
@@ -107,16 +106,16 @@ impl<N, P> AsyncClient<N, P> {
 
         // deactivate
         sleep_on_test();
-        if j::jack_deactivate(client) != 0 {
+        if unsafe { j::jack_deactivate(client) != 0 } {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
         sleep_on_test();
-        clear_callbacks(client)?;
+        unsafe { clear_callbacks(client)? };
 
         // done, take ownership of callback
-        Ok(*unsafe{Box::from_raw(callback)})
+        Ok(*unsafe { Box::from_raw(callback) })
     }
 }
 
