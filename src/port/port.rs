@@ -139,12 +139,16 @@ impl<PS> Port<PS> {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
             j::jack_port_get_aliases(self.raw(), ptrs.as_mut_ptr());
         };
-        Ok([a, b]
-            .iter()
-            .map(|p| p.as_ptr())
-            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
-            .filter(|s| s.len() > 0)
-            .collect())
+        Ok(
+            [a, b]
+                .iter()
+                .map(|p| p.as_ptr())
+                .map(|p| unsafe {
+                    ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
+                })
+                .filter(|s| s.len() > 0)
+                .collect(),
+        )
     }
 
     /// Returns `true` if monitoring has been requested for `self`.

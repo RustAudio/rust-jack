@@ -160,23 +160,13 @@ pub trait ProcessHandler: Send {
     fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
 }
 
-unsafe fn handler_and_ptr_from_void<'a, N, P>(ptr: *mut libc::c_void) -> &'a mut (N, P, Client)
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
-{
-    assert!(!ptr.is_null());
-    let obj_ptr: *mut (N, P, Client) = mem::transmute(ptr);
-    &mut *obj_ptr
-}
-
 unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
 where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    obj.0.thread_init(&obj.2)
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    ctx.notification.thread_init(&ctx.client)
 }
 
 unsafe extern "C" fn shutdown<N, P>(
@@ -187,13 +177,13 @@ unsafe extern "C" fn shutdown<N, P>(
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, _) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let cstr = ffi::CStr::from_ptr(reason);
     let reason_str = match cstr.to_str() {
         Ok(s) => s,
         Err(_) => "Failed to interpret error.",
     };
-    obj.0.shutdown(
+    ctx.notification.shutdown(
         ClientStatus::from_bits(code).unwrap_or(ClientStatus::empty()),
         reason_str,
     )
@@ -204,9 +194,9 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    let scope = ProcessScope::from_raw(n_frames, obj.2.raw());
-    obj.1.process(&obj.2, &scope).to_ffi()
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
+    ctx.process.process(&ctx.client, &scope).to_ffi()
 }
 
 unsafe extern "C" fn freewheel<N, P>(starting: libc::c_int, data: *mut libc::c_void)
@@ -214,12 +204,12 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let is_starting = match starting {
         0 => false,
         _ => true,
     };
-    obj.0.freewheel(&obj.2, is_starting)
+    ctx.notification.freewheel(&ctx.client, is_starting)
 }
 
 unsafe extern "C" fn buffer_size<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
@@ -227,8 +217,8 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    obj.0.buffer_size(&obj.2, n_frames).to_ffi()
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    ctx.notification.buffer_size(&ctx.client, n_frames).to_ffi()
 }
 
 unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
@@ -236,8 +226,8 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    obj.0.sample_rate(&obj.2, n_frames).to_ffi()
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    ctx.notification.sample_rate(&ctx.client, n_frames).to_ffi()
 }
 
 unsafe extern "C" fn client_registration<N, P>(
@@ -248,13 +238,14 @@ unsafe extern "C" fn client_registration<N, P>(
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
     let register = match register {
         0 => false,
         _ => true,
     };
-    obj.0.client_registration(&obj.2, name, register)
+    ctx.notification
+        .client_registration(&ctx.client, name, register)
 }
 
 unsafe extern "C" fn port_registration<N, P>(
@@ -265,12 +256,13 @@ unsafe extern "C" fn port_registration<N, P>(
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let register = match register {
         0 => false,
         _ => true,
     };
-    obj.0.port_registration(&obj.2, port_id, register)
+    ctx.notification
+        .port_registration(&ctx.client, port_id, register)
 }
 
 #[allow(dead_code)] // TODO: remove once it can be registered
@@ -284,11 +276,11 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
     let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
-    obj.0
-        .port_rename(&obj.2, port_id, old_name, new_name)
+    ctx.notification
+        .port_rename(&ctx.client, port_id, old_name, new_name)
         .to_ffi()
 }
 
@@ -301,13 +293,13 @@ unsafe extern "C" fn port_connect<N, P>(
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let are_connected = match connect {
         0 => false,
         _ => true,
     };
-    obj.0
-        .ports_connected(&obj.2, port_id_a, port_id_b, are_connected)
+    ctx.notification
+        .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected)
 }
 
 unsafe extern "C" fn graph_order<N, P>(data: *mut libc::c_void) -> libc::c_int
@@ -315,8 +307,8 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    obj.0.graph_reorder(&obj.2).to_ffi()
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    ctx.notification.graph_reorder(&ctx.client).to_ffi()
 }
 
 unsafe extern "C" fn xrun<N, P>(data: *mut libc::c_void) -> libc::c_int
@@ -324,8 +316,8 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
-    obj.0.xrun(&obj.2).to_ffi()
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    ctx.notification.xrun(&ctx.client).to_ffi()
 }
 
 unsafe extern "C" fn latency<N, P>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
@@ -333,13 +325,13 @@ where
     N: NotificationHandler,
     P: ProcessHandler,
 {
-    let obj: &mut (N, P, Client) = handler_and_ptr_from_void(data);
+    let ctx = CallbackContext::<N, P>::from_raw(data);
     let mode = match mode {
         j::JackCaptureLatency => LatencyType::Capture,
         j::JackPlaybackLatency => LatencyType::Playback,
         _ => unreachable!(),
     };
-    obj.0.latency(&obj.2, mode)
+    ctx.notification.latency(&ctx.client, mode)
 }
 
 /// Unsafe ffi wrapper that clears the callbacks registered to `client`.
@@ -361,57 +353,71 @@ pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Erro
     Ok(())
 }
 
-/// Registers methods from `handler` to be used by JACK with `client`.
-///
-/// This is mostly for use within the jack crate itself.
-///
-/// Returns `Ok(handler_ptr)` on success, or
-/// `Err(Error::CallbackRegistrationError)` on failure.
-///
-/// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut
-/// j::jack_client_t)`.
-///
-/// Registers `handler` with JACK. All JACK calls to `client` will be handled by
-/// `handler`. `handler` is consumed, but it is not deallocated. `handler`
-/// should be manually
-/// deallocated when JACK will no longer make calls to it, such as when
-/// registering new callbacks
-/// with the same client, or dropping the client.
-///
-/// # TODO
-///
-/// * Handled failed registrations
-/// * Fix `jack_set_port_rename_callback`
-///
-/// # Unsafe
-///
-/// * makes ffi calls
-/// * `handler` will not be automatically deallocated.
-pub unsafe fn register_callbacks<N, P>(
-    notification_handler: N,
-    process_handler: P,
-    client: *mut j::jack_client_t,
-) -> Result<*mut (N, P, *mut j::jack_client_t), Error>
-where
-    N: NotificationHandler,
-    P: ProcessHandler,
-{
-    let handler_ptr: *mut (N, P, *mut j::jack_client_t) =
-        Box::into_raw(Box::new((notification_handler, process_handler, client)));
-    let data_ptr = mem::transmute(handler_ptr);
-    j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
-    j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
-    j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
-    j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
-    j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
-    j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
-    j::jack_set_client_registration_callback(client, Some(client_registration::<N, P>), data_ptr);
-    j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
-    // doesn't compile for testing since it is a weak export
-    // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
-    j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
-    j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
-    j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
-    j::jack_set_latency_callback(client, Some(latency::<N, P>), data_ptr);
-    Ok(handler_ptr)
+pub struct CallbackContext<N, P> {
+    pub client: Client,
+    pub notification: N,
+    pub process: P,
+}
+
+impl<N: NotificationHandler, P: ProcessHandler> CallbackContext<N, P> {
+    pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
+        debug_assert!(!ptr.is_null());
+        let obj_ptr: *mut CallbackContext<N, P> = mem::transmute(ptr);
+        &mut *obj_ptr
+    }
+
+    fn raw(b: &mut Box<Self>) -> *mut libc::c_void {
+        let ptr: *mut Self = b.as_mut();
+        unsafe { mem::transmute(ptr) }
+    }
+
+    /// Registers methods from `handler` to be used by JACK with `client`.
+    ///
+    /// This is mostly for use within the jack crate itself.
+    ///
+    /// Returns `Ok(handler_ptr)` on success, or
+    /// `Err(Error::CallbackRegistrationError)` on failure.
+    ///
+    /// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut
+    /// j::jack_client_t)`.
+    ///
+    /// Registers `handler` with JACK. All JACK calls to `client` will be handled by
+    /// `handler`. `handler` is consumed, but it is not deallocated. `handler`
+    /// should be manually
+    /// deallocated when JACK will no longer make calls to it, such as when
+    /// registering new callbacks
+    /// with the same client, or dropping the client.
+    ///
+    /// # TODO
+    ///
+    /// * Handled failed registrations
+    /// * Fix `jack_set_port_rename_callback`
+    ///
+    /// # Unsafe
+    ///
+    /// * makes ffi calls
+    /// * `handler` will not be automatically deallocated.
+    pub unsafe fn register_callbacks(b: &mut Box<Self>) -> Result<(), Error> {
+        let data_ptr = CallbackContext::raw(b);
+        let client = b.client.raw();
+        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
+        j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
+        j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
+        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
+        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
+        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
+        j::jack_set_client_registration_callback(
+            client,
+            Some(client_registration::<N, P>),
+            data_ptr,
+        );
+        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
+        // doesn't compile for testing since it is a weak export
+        // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
+        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
+        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
+        j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
+        j::jack_set_latency_callback(client, Some(latency::<N, P>), data_ptr);
+        Ok(())
+    }
 }
