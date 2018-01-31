@@ -100,22 +100,23 @@ impl<N, P> AsyncClient<N, P> {
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
         }
-        unsafe {
-            let callback = *self.callback.take().unwrap();
+        let client = self.callback.take().unwrap().client.raw();
+        // Prevent the callback from being deallocated in case deactivation
+        // fails.
+        let callback = Box::into_raw(self.callback.take().unwrap());
 
-            // deactivate
-            sleep_on_test();
-            if j::jack_deactivate(callback.client.raw()) != 0 {
-                return Err(Error::ClientDeactivationError);
-            }
-
-            // clear the callbacks
-            sleep_on_test();
-            clear_callbacks(callback.client.raw())?;
-
-            // done, take ownership of callback
-            Ok(callback)
+        // deactivate
+        sleep_on_test();
+        if j::jack_deactivate(client) != 0 {
+            return Err(Error::ClientDeactivationError);
         }
+
+        // clear the callbacks
+        sleep_on_test();
+        clear_callbacks(client)?;
+
+        // done, take ownership of callback
+        Ok(*unsafe{Box::from_raw(callback)})
     }
 }
 
