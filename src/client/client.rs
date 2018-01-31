@@ -224,7 +224,9 @@ impl Client {
         if pp.is_null() {
             Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
-            Ok(unsafe { Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Ok(unsafe {
+                Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1))
+            })
         }
     }
 
@@ -234,7 +236,9 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Some(unsafe {
+                Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1))
+            })
         }
     }
 
@@ -245,7 +249,9 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Some(unsafe {
+                Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1))
+            })
         }
     }
 

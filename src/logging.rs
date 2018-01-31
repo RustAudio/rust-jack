@@ -59,7 +59,9 @@ static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
 /// crate](https://cratse.io/crates/log).
 pub fn set_error_callback(error: fn(&str)) {
     *ERROR_FN.lock().unwrap() = Some(error);
-    IS_ERROR_CALLBACK_SET.call_once(|| unsafe { j::jack_set_error_function(Some(error_wrapper)) })
+    IS_ERROR_CALLBACK_SET.call_once(|| unsafe {
+        j::jack_set_error_function(Some(error_wrapper))
+    })
 }
 
 /// Get the error callback that was set using `set_error_callback`. This corresponds to the one set
