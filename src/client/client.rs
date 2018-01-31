@@ -1,6 +1,7 @@
 use jack_sys as j;
 use libc;
 use std::{ffi, fmt, ptr};
+use std::sync::Arc;
 
 use AsyncClient;
 use ClientOptions;
@@ -33,7 +34,7 @@ use jack_utils::collect_strs;
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
 /// ```
-pub struct Client(*mut j::jack_client_t);
+pub struct Client(*mut j::jack_client_t, Arc<()>);
 
 unsafe impl Send for Client {}
 
@@ -57,7 +58,7 @@ impl Client {
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            Ok((Client(client), status))
+            Ok((Client(client, Arc::default()), status))
         }
     }
 
@@ -223,7 +224,7 @@ impl Client {
         if pp.is_null() {
             Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
-            Ok(unsafe { Port::from_raw(port_spec, self.raw(), pp) })
+            Ok(unsafe { Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -233,7 +234,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp) })
+            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -244,7 +245,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp) })
+            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -391,7 +392,7 @@ impl Client {
         destination_port: &Port<B>,
     ) -> Result<(), Error> {
         let _ = *CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        self.connect_ports_by_name(source_port.name(), destination_port.name())
+        self.connect_ports_by_name(source_port.name()?, destination_port.name()?)
     }
 
     /// Remove all connections to/from the port.
@@ -417,7 +418,7 @@ impl Client {
         source: &Port<A>,
         destination: &Port<B>,
     ) -> Result<(), Error> {
-        self.disconnect_ports_by_name(source.name(), destination.name())
+        self.disconnect_ports_by_name(source.name()?, destination.name()?)
     }
 
     /// Remove a connection between two ports.
@@ -460,7 +461,7 @@ impl Client {
     ///
     /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
-        Client(p)
+        Client(p, Arc::default())
     }
 }
 

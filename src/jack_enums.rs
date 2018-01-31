@@ -23,6 +23,7 @@ pub enum Error {
     SetBufferSizeError,
     TimeError,
     WeakFunctionNotFound,
+    ClientIsNoLongerAlive,
     UnknownError,
 }
 

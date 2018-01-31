@@ -2,6 +2,7 @@ use jack_sys as j;
 use libc;
 use std::{ffi, fmt, iter};
 use std::marker::Sized;
+use std::sync::Weak;
 
 use Error;
 use Frames;
@@ -41,6 +42,7 @@ pub struct Port<PS> {
     spec: PS,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
+    client_life: Weak<()>,
 }
 
 unsafe impl<PS: PortSpec + Send> Send for Port<PS> {}
@@ -59,26 +61,31 @@ impl<PS> Port<PS> {
             spec: Unowned,
             client_ptr: self.client_ptr(),
             port_ptr: self.raw(),
+            client_life: self.client_life.clone(),
         }
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.
-    pub fn name<'a>(&'a self) -> &'a str {
-        unsafe {
+    pub fn name<'a>(&'a self) -> Result<&'a str, Error> {
+        self.check_client_life()?;
+        let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_name(self.raw()))
                 .to_str()
                 .unwrap()
-        }
+        };
+        Ok(s)
     }
 
     /// Returns the short name of the port, it excludes the "client_name:"
     /// prefix.
-    pub fn short_name<'a>(&'a self) -> &'a str {
-        unsafe {
+    pub fn short_name<'a>(&'a self) -> Result<&'a str, Error> {
+        self.check_client_life()?;
+        let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_short_name(self.raw()))
                 .to_str()
                 .unwrap()
-        }
+        };
+        Ok(s)
     }
 
     /// The flags for the port. These are set when the port is registered with
@@ -90,56 +97,62 @@ impl<PS> Port<PS> {
 
     /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
-    pub fn port_type<'a>(&self) -> &'a str {
-        unsafe {
+    pub fn port_type<'a>(&self) -> Result<&'a str, Error> {
+        self.check_client_life()?;
+        let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_type(self.raw()))
                 .to_str()
                 .unwrap()
-        }
+        };
+        Ok(s)
     }
 
     /// Number of ports connected to/from `&self`.
-    pub fn connected_count(&self) -> usize {
+    pub fn connected_count(&self) -> Result<usize, Error> {
+        self.check_client_life()?;
         let n = unsafe { j::jack_port_connected(self.raw()) };
-        n as usize
+        Ok(n as usize)
     }
 
     /// Returns `true` if the port is directly connected to a port with the
     /// name `port_name`.
-    pub fn is_connected_to(&self, port_name: &str) -> bool {
+    pub fn is_connected_to(&self, port_name: &str) -> Result<bool, Error> {
+        self.check_client_life()?;
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
             j::jack_port_connected_to(self.raw(), port_name.as_ptr())
         };
         match res {
-            0 => false,
-            _ => true,
+            0 => Ok(false),
+            _ => Ok(true),
         }
     }
 
     /// Get the alias names for `self`.
     ///
     /// Will return up to 2 strings.
-    pub fn aliases(&self) -> Vec<String> {
+    pub fn aliases(&self) -> Result<Vec<String>, Error> {
+        self.check_client_life()?;
         let mut a: Vec<libc::c_char> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
             j::jack_port_get_aliases(self.raw(), ptrs.as_mut_ptr());
         };
-        [a, b]
+        Ok([a, b]
             .iter()
             .map(|p| p.as_ptr())
             .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
             .filter(|s| s.len() > 0)
-            .collect()
+            .collect())
     }
 
     /// Returns `true` if monitoring has been requested for `self`.
-    pub fn is_monitoring_input(&self) -> bool {
+    pub fn is_monitoring_input(&self) -> Result<bool, Error> {
+        self.check_client_life()?;
         match unsafe { j::jack_port_monitoring_input(self.raw()) } {
-            0 => false,
-            _ => true,
+            0 => Ok(false),
+            _ => Ok(true),
         }
     }
 
@@ -147,6 +160,7 @@ impl<PS> Port<PS> {
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
+        self.check_client_life()?;
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -162,6 +176,7 @@ impl<PS> Port<PS> {
     /// off, and turns it off if only one request has been made to turn it on.  Otherwise it does
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
+        self.check_client_life()?;
         let onoff = match enable_monitor {
             true => 1,
             false => 0,
@@ -176,6 +191,7 @@ impl<PS> Port<PS> {
     /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
+        self.check_client_life()?;
         let short_name = ffi::CString::new(short_name).unwrap();
         let res = unsafe { j::jack_port_set_name(self.raw(), short_name.as_ptr()) };
         match res {
@@ -195,6 +211,7 @@ impl<PS> Port<PS> {
     /// Ports can have up to two aliases - if both are already set, this function will return an
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
+        self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_set_alias(self.raw(), alias.as_ptr()) };
         match res {
@@ -207,6 +224,7 @@ impl<PS> Port<PS> {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
+        self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
         match res {
@@ -222,11 +240,13 @@ impl<PS> Port<PS> {
         spec: PS,
         client_ptr: *mut j::jack_client_t,
         port_ptr: *mut j::jack_port_t,
+        client_life: Weak<()>,
     ) -> Self {
         Port {
             spec: spec,
             port_ptr: port_ptr,
             client_ptr: client_ptr,
+            client_life: client_life,
         }
     }
 
@@ -252,7 +272,16 @@ impl<PS> Port<PS> {
     /// method.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
+        // We don't check for life to improve performance in a very hot codepath.
+        // self.check_client_life()?;
         j::jack_port_get_buffer(self.port_ptr, n_frames)
+    }
+
+    fn check_client_life(&self) -> Result<(), Error> {
+        self.client_life
+            .upgrade()
+            .map(|_| ())
+            .ok_or(Error::ClientIsNoLongerAlive)
     }
 }
 
@@ -291,11 +320,11 @@ impl PortInfo {
     fn new<PS: PortSpec>(p: &Port<PS>) -> PortInfo {
         let s = p.spec();
         PortInfo {
-            name: p.name().into(),
-            connections: p.connected_count(),
-            port_type: s.jack_port_type().to_string(),
+            name: p.name().unwrap_or("client not alive").into(),
+            connections: p.connected_count().unwrap_or(0),
+            port_type: s.jack_port_type().to_owned(),
             port_flags: s.jack_flags(),
-            aliases: p.aliases(),
+            aliases: p.aliases().unwrap_or(Vec::new()),
         }
     }
 }

@@ -1,11 +1,11 @@
-use Client;
-use Unowned;
-use PortFlags;
-use PortSpec;
 use AudioIn;
 use AudioOut;
-use Port;
+use Client;
 use ClientOptions;
+use Port;
+use PortFlags;
+use PortSpec;
+use Unowned;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
@@ -28,8 +28,8 @@ fn port_can_be_cast_to_unowned() {
 #[test]
 fn port_created_with_proper_names() {
     let (_c, p) = open_client_with_port("port_cwpn", "the_port_name");
-    assert_eq!(p.short_name(), "the_port_name");
-    assert_eq!(p.name(), "port_cwpn:the_port_name");
+    assert_eq!(p.short_name().unwrap(), "the_port_name");
+    assert_eq!(p.name().unwrap(), "port_cwpn:the_port_name");
 }
 
 #[test]
@@ -40,13 +40,16 @@ fn port_can_rename() {
 
     // initial port
     let (_c, mut p) = open_client_with_port(client_name, original_name);
-    assert_eq!(p.name(), format!("{}:{}", client_name, original_name));
-    assert_eq!(p.short_name(), original_name);
+    assert_eq!(
+        p.name().unwrap(),
+        format!("{}:{}", client_name, original_name)
+    );
+    assert_eq!(p.short_name().unwrap(), original_name);
 
     // renamed port
     p.set_name(new_name).unwrap();
-    assert_eq!(p.name(), format!("{}:{}", client_name, new_name));
-    assert_eq!(p.short_name(), new_name);
+    assert_eq!(p.name().unwrap(), format!("{}:{}", client_name, new_name));
+    assert_eq!(p.short_name().unwrap(), new_name);
 }
 
 #[test]
@@ -59,10 +62,10 @@ fn port_connected_count() {
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
-    assert_eq!(pa.connected_count(), 2);
-    assert_eq!(pb.connected_count(), 1);
-    assert_eq!(pc.connected_count(), 1);
-    assert_eq!(pd.connected_count(), 0);
+    assert_eq!(pa.connected_count().unwrap(), 2);
+    assert_eq!(pb.connected_count().unwrap(), 1);
+    assert_eq!(pc.connected_count().unwrap(), 1);
+    assert_eq!(pd.connected_count().unwrap(), 0);
 }
 
 #[test]
@@ -77,24 +80,24 @@ fn port_knows_connections() {
     c.as_client().connect_ports(&pc, &pa).unwrap();
 
     // pa
-    assert!(pa.is_connected_to(pb.name()));
-    assert!(pa.is_connected_to(pc.name()));
-    assert!(!pa.is_connected_to(pd.name()));
+    assert!(pa.is_connected_to(pb.name().unwrap()).unwrap());
+    assert!(pa.is_connected_to(pc.name().unwrap()).unwrap());
+    assert!(!pa.is_connected_to(pd.name().unwrap()).unwrap());
 
     // pb
-    assert!(pb.is_connected_to(pa.name()));
-    assert!(!pb.is_connected_to(pc.name()));
-    assert!(!pb.is_connected_to(pd.name()));
+    assert!(pb.is_connected_to(pa.name().unwrap()).unwrap());
+    assert!(!pb.is_connected_to(pc.name().unwrap()).unwrap());
+    assert!(!pb.is_connected_to(pd.name().unwrap()).unwrap());
 
     // pc
-    assert!(pc.is_connected_to(pa.name()));
-    assert!(!pc.is_connected_to(pb.name()));
-    assert!(!pc.is_connected_to(pd.name()));
+    assert!(pc.is_connected_to(pa.name().unwrap()).unwrap());
+    assert!(!pc.is_connected_to(pb.name().unwrap()).unwrap());
+    assert!(!pc.is_connected_to(pd.name().unwrap()).unwrap());
 
     // pd
-    assert!(!pd.is_connected_to(pa.name()));
-    assert!(!pd.is_connected_to(pb.name()));
-    assert!(!pd.is_connected_to(pc.name()));
+    assert!(!pd.is_connected_to(pa.name().unwrap()).unwrap());
+    assert!(!pd.is_connected_to(pb.name().unwrap()).unwrap());
+    assert!(!pd.is_connected_to(pc.name().unwrap()).unwrap());
 }
 
 #[test]
@@ -103,7 +106,7 @@ fn port_can_ensure_monitor() {
 
     for should_monitor in [true, false].into_iter().cycle().take(10) {
         p.ensure_monitor(should_monitor.clone()).unwrap();
-        assert_eq!(p.is_monitoring_input(), should_monitor.clone());
+        assert_eq!(p.is_monitoring_input().unwrap(), should_monitor.clone());
     }
 }
 
@@ -113,7 +116,7 @@ fn port_can_request_monitor() {
 
     for should_monitor in [true, false].into_iter().cycle().take(10) {
         p.request_monitor(should_monitor.clone()).unwrap();
-        assert_eq!(p.is_monitoring_input(), should_monitor.clone());
+        assert_eq!(p.is_monitoring_input().unwrap(), should_monitor.clone());
     }
 }
 
@@ -122,16 +125,16 @@ fn port_can_set_alias() {
     let (_c, mut p) = open_client_with_port("port_can_set_alias", "will_get_alias");
 
     // no alias
-    assert!(p.aliases().is_empty());
+    assert!(p.aliases().unwrap().is_empty());
 
     // 1 alias
     p.set_alias("first_alias").unwrap();
-    assert_eq!(p.aliases(), vec!["first_alias".to_string()]);
+    assert_eq!(p.aliases().unwrap(), vec!["first_alias".to_string()]);
 
     // 2 alias
     p.set_alias("second_alias").unwrap();
     assert_eq!(
-        p.aliases(),
+        p.aliases().unwrap(),
         vec!["first_alias".to_string(), "second_alias".to_string()]
     );
 }
@@ -144,13 +147,13 @@ fn port_can_unset_alias() {
     p.set_alias("first_alias").unwrap();
     p.set_alias("second_alias").unwrap();
     assert_eq!(
-        p.aliases(),
+        p.aliases().unwrap(),
         vec!["first_alias".to_string(), "second_alias".to_string()]
     );
 
     // unset alias
     p.unset_alias("first_alias").unwrap();
-    assert_eq!(p.aliases(), vec!["second_alias".to_string()]);
+    assert_eq!(p.aliases().unwrap(), vec!["second_alias".to_string()]);
 }
 
 #[test]
