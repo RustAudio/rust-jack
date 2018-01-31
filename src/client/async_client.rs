@@ -105,7 +105,7 @@ impl<N, P> AsyncClient<N, P> {
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
         }
-        let client = self.callback.take().unwrap().client.raw();
+        let client = self.callback.as_ref().unwrap().client.raw();
         // Prevent the callback from being deallocated in case deactivation
         // fails.
         let callback = Box::into_raw(self.callback.take().unwrap());
@@ -118,7 +118,7 @@ impl<N, P> AsyncClient<N, P> {
 
         // clear the callbacks
         sleep_on_test();
-        unsafe  clear_callbacks(client)? ;
+        clear_callbacks(client)?;
 
         // done, take ownership of callback
         Ok(*Box::from_raw(callback))
