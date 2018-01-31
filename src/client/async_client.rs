@@ -112,16 +112,16 @@ impl<N, P> AsyncClient<N, P> {
 
         // deactivate
         sleep_on_test();
-        if unsafe { j::jack_deactivate(client) != 0 } {
+        if  j::jack_deactivate(client) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
         sleep_on_test();
-        unsafe { clear_callbacks(client)? };
+        unsafe  clear_callbacks(client)? ;
 
         // done, take ownership of callback
-        Ok(*unsafe { Box::from_raw(callback) })
+        Ok(*Box::from_raw(callback))
     }
 }
 
