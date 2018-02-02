@@ -80,24 +80,24 @@ fn port_knows_connections() {
     c.as_client().connect_ports(&pc, &pa).unwrap();
 
     // pa
-    assert!(pa.is_connected_to(pb.name().unwrap()).unwrap());
-    assert!(pa.is_connected_to(pc.name().unwrap()).unwrap());
-    assert!(!pa.is_connected_to(pd.name().unwrap()).unwrap());
+    assert!(pa.is_connected_to(&pb.name().unwrap()).unwrap());
+    assert!(pa.is_connected_to(&pc.name().unwrap()).unwrap());
+    assert!(!pa.is_connected_to(&pd.name().unwrap()).unwrap());
 
     // pb
-    assert!(pb.is_connected_to(pa.name().unwrap()).unwrap());
-    assert!(!pb.is_connected_to(pc.name().unwrap()).unwrap());
-    assert!(!pb.is_connected_to(pd.name().unwrap()).unwrap());
+    assert!(pb.is_connected_to(&pa.name().unwrap()).unwrap());
+    assert!(!pb.is_connected_to(&pc.name().unwrap()).unwrap());
+    assert!(!pb.is_connected_to(&pd.name().unwrap()).unwrap());
 
     // pc
-    assert!(pc.is_connected_to(pa.name().unwrap()).unwrap());
-    assert!(!pc.is_connected_to(pb.name().unwrap()).unwrap());
-    assert!(!pc.is_connected_to(pd.name().unwrap()).unwrap());
+    assert!(pc.is_connected_to(&pa.name().unwrap()).unwrap());
+    assert!(!pc.is_connected_to(&pb.name().unwrap()).unwrap());
+    assert!(!pc.is_connected_to(&pd.name().unwrap()).unwrap());
 
     // pd
-    assert!(!pd.is_connected_to(pa.name().unwrap()).unwrap());
-    assert!(!pd.is_connected_to(pb.name().unwrap()).unwrap());
-    assert!(!pd.is_connected_to(pc.name().unwrap()).unwrap());
+    assert!(!pd.is_connected_to(&pa.name().unwrap()).unwrap());
+    assert!(!pd.is_connected_to(&pb.name().unwrap()).unwrap());
+    assert!(!pd.is_connected_to(&pc.name().unwrap()).unwrap());
 }
 
 #[test]
