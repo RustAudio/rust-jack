@@ -20,7 +20,7 @@ Check out the `examples` directory for usage.
 ### Stable
 ```toml
 [dependencies]
-jack = "0.5.7"
+jack = "0.6"
 ```
 
 ### Master
