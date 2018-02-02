@@ -47,15 +47,15 @@ fn client_port_register_port_enforces_name_length() {
 fn client_port_can_request_monitor_by_name() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
-    c.request_monitor_by_name(p.name().unwrap(), true).unwrap();
-    c.request_monitor_by_name(p.name().unwrap(), false).unwrap();
+    c.request_monitor_by_name(&p.name().unwrap(), true).unwrap();
+    c.request_monitor_by_name(&p.name().unwrap(), false).unwrap();
 }
 
 #[test]
 fn client_port_can_get_port_by_name() {
     let c = open_test_client("cp_can_get_port_by_name");
     let p = c.register_port("named_port", AudioIn::default()).unwrap();
-    let _p = c.port_by_name(p.name().unwrap()).unwrap();
+    let _p = c.port_by_name(&p.name().unwrap()).unwrap();
 }
 
 pub struct PortIdHandler {
@@ -113,7 +113,7 @@ fn client_port_can_get_port_by_id() {
 fn client_port_fails_to_nonexistant_port() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
-    let _p = c.port_by_name(p.name().unwrap()).unwrap();
+    let _p = c.port_by_name(&p.name().unwrap()).unwrap();
 }
 
 #[test]
@@ -122,8 +122,8 @@ fn client_port_recognizes_my_ports() {
     let cb = open_test_client("cp_cprmp_cb");
     let pa = ca.register_port("cpcprmp_pa", AudioIn::default()).unwrap();
     let pb = cb.register_port("cpcprmp_pb", AudioIn::default()).unwrap();
-    let pa_alt = ca.port_by_name(pa.name().unwrap()).unwrap();
-    let pb_alt = ca.port_by_name(pb.name().unwrap()).unwrap();
+    let pa_alt = ca.port_by_name(&pa.name().unwrap()).unwrap();
+    let pb_alt = ca.port_by_name(&pb.name().unwrap()).unwrap();
     assert!(ca.is_mine(&pa));
     assert!(ca.is_mine(&pa_alt));
     assert!(!ca.is_mine(&pb));
@@ -296,11 +296,11 @@ fn client_port_can_disconnect_ports_by_name() {
     // connect and disconnect
     client
         .as_client()
-        .connect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
+        .connect_ports_by_name(&out_p.name().unwrap(), &in_p.name().unwrap())
         .unwrap();
     client
         .as_client()
-        .disconnect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
+        .disconnect_ports_by_name(&out_p.name().unwrap(), &in_p.name().unwrap())
         .unwrap();
 }
 
@@ -319,10 +319,10 @@ fn client_port_can_disconnect_unowned_ports() {
     // connect and disconnect
     client
         .as_client()
-        .connect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
+        .connect_ports_by_name(&out_p.name().unwrap(), &in_p.name().unwrap())
         .unwrap();
     disconnector
-        .disconnect_ports_by_name(out_p.name().unwrap(), in_p.name().unwrap())
+        .disconnect_ports_by_name(&out_p.name().unwrap(), &in_p.name().unwrap())
         .unwrap();
 }
 
