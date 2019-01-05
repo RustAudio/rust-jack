@@ -2,6 +2,8 @@ use jack_sys as j;
 use libc;
 use std::{ffi, fmt, iter};
 use std::marker::Sized;
+use std::cmp::{Eq, PartialEq, Ord, PartialOrd, Ordering};
+use std::hash::{Hash, Hasher};
 use std::sync::Weak;
 
 use Error;
@@ -38,6 +40,8 @@ pub unsafe trait PortSpec: Sized {
 ///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
+/// 
+/// Also, ports can be compared and hashed using their raw pointers.
 pub struct Port<PS> {
     spec: PS,
     client_ptr: *mut j::jack_client_t,
@@ -336,5 +340,44 @@ impl PortInfo {
 impl<PS: PortSpec> fmt::Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{:?}", PortInfo::new(self))
+    }
+}
+
+impl<PS> PartialEq for Port<PS> {
+    fn eq(&self, other: &Self) -> bool {
+        self.port_ptr == other.port_ptr
+    }
+}
+
+impl<PS> Eq for Port<PS> {
+}
+
+impl<PS> PartialOrd for Port<PS> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<PS> Ord for Port<PS> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.port_ptr < other.port_ptr {
+            Ordering::Less
+        } else if self.port_ptr > other.port_ptr {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
+}
+
+impl<PS> Hash for Port<PS> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.port_ptr.hash(state);
+    }
+}
+
+impl Clone for Port<Unowned> {
+    fn clone(&self) -> Self {
+        self.clone_unowned()
     }
 }
