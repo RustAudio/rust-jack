@@ -232,6 +232,7 @@ mod test {
     use jack_enums::Control;
     use primitive_types::Frames;
     use std::iter::Iterator;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::mpsc::channel;
     use std::sync::Mutex;
     use std::{thread, time};
@@ -373,9 +374,7 @@ mod test {
         ac.deactivate().unwrap();
     }
 
-    lazy_static! {
-        static ref PMCGMES_MAX_EVENT_SIZE: Mutex<usize> = Mutex::new(0);
-    }
+    static PMCGMES_MAX_EVENT_SIZE: AtomicUsize = AtomicUsize::new(0);
 
     #[test]
     fn port_midi_can_get_max_event_size() {
@@ -386,7 +385,7 @@ mod test {
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let out_p = out_p.writer(ps);
-            *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
+            PMCGMES_MAX_EVENT_SIZE.fetch_add(out_p.max_event_size(), Ordering::Relaxed);
             Control::Continue
         };
 
@@ -396,7 +395,7 @@ mod test {
             .unwrap();
 
         // check correctness
-        assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
+        assert!(PMCGMES_MAX_EVENT_SIZE.load(Ordering::Relaxed) > 0);
         ac.deactivate().unwrap();
     }
 
@@ -413,9 +412,10 @@ mod test {
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let mut out_p = out_p.writer(ps);
-            *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
+            let event_size = out_p.max_event_size();
+            PMCGMES_MAX_EVENT_SIZE.store(event_size, Ordering::Relaxed);
 
-            let bytes: Vec<u8> = (0..out_p.max_event_size() + 1).map(|_| 0).collect();
+            let bytes: Vec<u8> = (0..=out_p.max_event_size()).map(|_| 0).collect();
             let msg = RawMidi {
                 time: 0,
                 bytes: &bytes,
@@ -439,10 +439,10 @@ mod test {
         ac.deactivate().unwrap();
     }
 
+    static PMI_COUNT: AtomicUsize = AtomicUsize::new(0);
     lazy_static! {
         static ref PMI_NEXT: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
         static ref PMI_SIZE_HINT: Mutex<(usize, Option<usize>)> = Mutex::new((0, None));
-        static ref PMI_COUNT: Mutex<usize> = Mutex::default();
         static ref PMI_LAST: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
         static ref PMI_THIRD: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
     }
@@ -470,7 +470,7 @@ mod test {
             let rm_to_owned = |m: &RawMidi| (m.time, m.bytes.to_vec());
             *PMI_NEXT.lock().unwrap() = in_p.clone().next().map(|m| rm_to_owned(&m));
             *PMI_SIZE_HINT.lock().unwrap() = in_p.size_hint();
-            *PMI_COUNT.lock().unwrap() = in_p.clone().count();
+            PMI_COUNT.store(in_p.clone().count(), Ordering::Relaxed);
             *PMI_LAST.lock().unwrap() = in_p.clone().last().map(|m| rm_to_owned(&m));
             *PMI_THIRD.lock().unwrap() = in_p.clone().nth(2).map(|m| rm_to_owned(&m));
 
@@ -490,7 +490,7 @@ mod test {
         // check correctness
         assert_eq!(*PMI_NEXT.lock().unwrap(), Some((10, [10].to_vec())));
         assert_eq!(*PMI_SIZE_HINT.lock().unwrap(), (4, Some(4)));
-        assert_eq!(*PMI_COUNT.lock().unwrap(), 4);
+        assert_eq!(PMI_COUNT.load(Ordering::Relaxed), 4);
         assert_eq!(*PMI_LAST.lock().unwrap(), Some((13, [13].to_vec())));
         assert_eq!(*PMI_THIRD.lock().unwrap(), Some((12, [12].to_vec())));
     }

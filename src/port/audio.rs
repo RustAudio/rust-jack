@@ -120,8 +120,8 @@ mod test {
         let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
         let (signal_succeed, did_succeed) = channel();
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let exp_a = 0.312_443_52;
-            let exp_b = -0.61212;
+            let exp_a = 0.312_443;
+            let exp_b = -0.612_120;
             let in_a = in_a.as_slice(ps);
             let in_b = in_b.as_slice(ps);
             let out_a = out_a.as_mut_slice(ps);
@@ -132,7 +132,9 @@ mod test {
             for v in out_b.iter_mut() {
                 *v = exp_b;
             }
-            if in_a.iter().all(|v| *v == exp_a) && in_b.iter().all(|v| *v == exp_b) {
+            if in_a.iter().all(|v| (*v - exp_a).abs() < 1E-5)
+                && in_b.iter().all(|v| (*v - exp_b).abs() < 1E-5)
+            {
                 let s = signal_succeed.clone();
                 let _ = s.send(true);
             }

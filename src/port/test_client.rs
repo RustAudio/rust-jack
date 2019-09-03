@@ -33,7 +33,7 @@ fn client_port_register_port_enforces_unique_names() {
 #[test]
 fn client_port_register_port_enforces_name_length() {
     let c = open_test_client("cp_can_register_port");
-    let pname = (0..*PORT_NAME_SIZE + 1)
+    let pname = (0..=*PORT_NAME_SIZE)
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");
@@ -65,9 +65,8 @@ pub struct PortIdHandler {
 
 impl NotificationHandler for PortIdHandler {
     fn port_registration(&mut self, _: &Client, pid: PortId, is_registered: bool) {
-        match is_registered {
-            true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
-            _ => (),
+        if is_registered {
+            self.reg_tx.lock().unwrap().send(pid).unwrap()
         }
     }
 }
@@ -347,7 +346,7 @@ fn client_port_can_get_existing_ports() {
         "system:capture_1".to_string(),
         "system:capture_2".to_string(),
     ];
-    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
+    let exp: HashSet<String> = known_ports.iter().cloned().collect();
     let got: HashSet<String> = port_getter
         .ports(None, None, PortFlags::empty())
         .into_iter()
@@ -366,7 +365,7 @@ fn client_port_can_get_port_by_name_pattern() {
         "system:playback_2".to_string(),
         "system:capture_2".to_string(),
     ];
-    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
+    let exp: HashSet<String> = known_ports.iter().cloned().collect();
     let got: HashSet<String> = client
         .ports(Some("2"), None, PortFlags::empty())
         .into_iter()

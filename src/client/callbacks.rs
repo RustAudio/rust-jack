@@ -359,8 +359,10 @@ pub struct CallbackContext<N, P> {
     pub process: P,
 }
 
-impl<N: 'static + NotificationHandler + Send, P: 'static + ProcessHandler + Send>
-    CallbackContext<N, P>
+impl<N, P> CallbackContext<N, P>
+where
+    N: 'static + Send + NotificationHandler,
+    P: 'static + Send + ProcessHandler,
 {
     pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
         debug_assert!(!ptr.is_null());
