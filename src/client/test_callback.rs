@@ -1,5 +1,5 @@
-use std::{mem, ptr, thread, time};
 use std::sync::Mutex;
+use std::{mem, ptr, thread, time};
 
 use super::*;
 use AudioIn;
@@ -76,7 +76,8 @@ fn open_test_client(name: &str) -> Client {
 
 fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
     let c = open_test_client(name);
-    let ac = c.activate_async(Counter::default(), Counter::default())
+    let ac = c
+        .activate_async(Counter::default(), Counter::default())
         .unwrap();
     ac
 }
@@ -154,11 +155,9 @@ fn client_cback_calls_after_client_registered() {
     let ac = active_test_client("client_cback_cacr");
     let _other_client = open_test_client("client_cback_cacr_other");
     let counter = ac.deactivate().unwrap().1;
-    assert!(
-        counter
-            .registered_client_history
-            .contains(&"client_cback_cacr_other".to_string(),)
-    );
+    assert!(counter
+        .registered_client_history
+        .contains(&"client_cback_cacr_other".to_string(),));
     assert!(!counter
         .unregistered_client_history
         .contains(&"client_cback_cacr_other".to_string(),));
@@ -170,16 +169,12 @@ fn client_cback_calls_after_client_unregistered() {
     let other_client = open_test_client("client_cback_cacu_other");
     drop(other_client);
     let counter = ac.deactivate().unwrap().1;
-    assert!(
-        counter
-            .registered_client_history
-            .contains(&"client_cback_cacu_other".to_string(),)
-    );
-    assert!(
-        counter
-            .unregistered_client_history
-            .contains(&"client_cback_cacu_other".to_string(),)
-    );
+    assert!(counter
+        .registered_client_history
+        .contains(&"client_cback_cacu_other".to_string(),));
+    assert!(counter
+        .unregistered_client_history
+        .contains(&"client_cback_cacu_other".to_string(),));
 }
 
 #[test]
@@ -195,10 +190,12 @@ fn client_cback_reports_xruns() {
 #[test]
 fn client_cback_calls_port_registered() {
     let ac = active_test_client("client_cback_cpr");
-    let _pa = ac.as_client()
+    let _pa = ac
+        .as_client()
         .register_port("pa", AudioIn::default())
         .unwrap();
-    let _pb = ac.as_client()
+    let _pb = ac
+        .as_client()
         .register_port("pb", AudioIn::default())
         .unwrap();
     let counter = ac.deactivate().unwrap().1;
@@ -216,10 +213,12 @@ fn client_cback_calls_port_registered() {
 #[test]
 fn client_cback_calls_port_unregistered() {
     let ac = active_test_client("client_cback_cpr");
-    let pa = ac.as_client()
+    let pa = ac
+        .as_client()
         .register_port("pa", AudioIn::default())
         .unwrap();
-    let pb = ac.as_client()
+    let pb = ac
+        .as_client()
         .register_port("pb", AudioIn::default())
         .unwrap();
     ac.as_client().unregister_port(pa).unwrap();

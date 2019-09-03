@@ -2,11 +2,11 @@ use jack_sys as j;
 use std::fmt;
 use std::mem;
 
-use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use super::callbacks::clear_callbacks;
-use Error;
+use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use client::client::Client;
 use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
@@ -48,7 +48,7 @@ where
         unsafe {
             sleep_on_test();
             let mut callback_context = Box::new(CallbackContext {
-                client: client,
+                client,
                 notification: notification_handler,
                 process: process_handler,
             });
@@ -71,11 +71,10 @@ where
     }
 }
 
-
 impl<N, P> AsyncClient<N, P> {
     /// Return the underlying `jack::Client`.
     #[inline(always)]
-    pub fn as_client<'a>(&'a self) -> &'a Client {
+    pub fn as_client(&self) -> &Client {
         let callback = self.callback.as_ref().unwrap();
         &callback.client
     }
@@ -110,7 +109,7 @@ impl<N, P> AsyncClient<N, P> {
 
         // deactivate
         sleep_on_test();
-        if  j::jack_deactivate(client) != 0 {
+        if j::jack_deactivate(client) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 

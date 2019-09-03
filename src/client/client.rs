@@ -1,8 +1,10 @@
 use jack_sys as j;
 use libc;
-use std::{ffi, fmt, ptr};
 use std::sync::Arc;
+use std::{ffi, fmt, ptr};
 
+use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use jack_utils::collect_strs;
 use AsyncClient;
 use ClientOptions;
 use ClientStatus;
@@ -16,8 +18,6 @@ use PortSpec;
 use ProcessHandler;
 use Time;
 use Unowned;
-use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use jack_utils::collect_strs;
 
 /// A client to interact with a JACK server.
 ///
@@ -54,7 +54,7 @@ impl Client {
             j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
         };
         sleep_on_test();
-        let status = ClientStatus::from_bits(status_bits).unwrap_or(ClientStatus::empty());
+        let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
@@ -97,7 +97,7 @@ impl Client {
     /// as JACK will may rename a client if necessary (ie: name collision, name too long). The name
     /// will only the be different than the one passed to `Client::new` if the `ClientStatus` was
     /// `NAME_NOT_UNIQUE`.
-    pub fn name<'a>(&'a self) -> &'a str {
+    pub fn name(&self) -> &str {
         unsafe {
             let ptr = j::jack_get_client_name(self.raw());
             let cstr = ffi::CStr::from_ptr(ptr);
@@ -183,7 +183,7 @@ impl Client {
     ) -> Vec<String> {
         let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
         let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
-        let flags = flags.bits() as libc::c_ulong;
+        let flags = libc::c_ulong::from(flags.bits());
         unsafe {
             let ports = j::jack_get_ports(self.raw(), pnp.as_ptr(), tnp.as_ptr(), flags);
             collect_strs(ports)
@@ -217,16 +217,14 @@ impl Client {
                 self.raw(),
                 port_name_c.as_ptr(),
                 port_type_c.as_ptr(),
-                port_flags as libc::c_ulong,
+                libc::c_ulong::from(port_flags),
                 buffer_size,
             )
         };
         if pp.is_null() {
             Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
-            Ok(unsafe {
-                Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1))
-            })
+            Ok(unsafe { Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -236,9 +234,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe {
-                Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1))
-            })
+            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -249,9 +245,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe {
-                Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1))
-            })
+            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
         }
     }
 
@@ -451,8 +445,7 @@ impl Client {
     /// * This function may only be called in a buffer size callback.
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         let port_type = ffi::CString::new(port_type).unwrap();
-        let n = j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr());
-        n
+        j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr())
     }
 
     /// Expose the underlying ffi pointer.
@@ -553,10 +546,10 @@ impl ProcessScope {
         };
         match res {
             0 => Ok(CycleTimes {
-                current_frames: current_frames,
-                current_usecs: current_usecs,
-                next_usecs: next_usecs,
-                period_usecs: period_usecs,
+                current_frames,
+                current_usecs,
+                next_usecs,
+                period_usecs,
             }),
             _ => Err(Error::TimeError),
         }
@@ -576,8 +569,8 @@ impl ProcessScope {
     /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(n_frames: Frames, client_ptr: *mut j::jack_client_t) -> Self {
         ProcessScope {
-            n_frames: n_frames,
-            client_ptr: client_ptr,
+            n_frames,
+            client_ptr,
         }
     }
 }

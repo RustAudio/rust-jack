@@ -75,13 +75,12 @@ impl Port<AudioIn> {
     /// Read the received audio data.
     pub fn as_slice<'a>(&'a self, ps: &'a ProcessScope) -> &'a [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
-        let buff = unsafe {
+        unsafe {
             slice::from_raw_parts(
                 self.buffer(ps.n_frames()) as *const f32,
                 ps.n_frames() as usize,
             )
-        };
-        buff
+        }
     }
 }
 
@@ -89,13 +88,12 @@ impl Port<AudioOut> {
     /// Get a slice to write audio data to.
     pub fn as_mut_slice<'a>(&'a mut self, ps: &'a ProcessScope) -> &'a mut [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
-        let buff = unsafe {
+        unsafe {
             slice::from_raw_parts_mut(
                 self.buffer(ps.n_frames()) as *mut f32,
                 ps.n_frames() as usize,
             )
-        };
-        buff
+        }
     }
 }
 
@@ -122,7 +120,7 @@ mod test {
         let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
         let (signal_succeed, did_succeed) = channel();
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let exp_a = 0.31244352;
+            let exp_a = 0.312_443_52;
             let exp_b = -0.61212;
             let in_a = in_a.as_slice(ps);
             let in_b = in_b.as_slice(ps);
@@ -140,7 +138,8 @@ mod test {
             }
             Control::Continue
         };
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c
+            .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")

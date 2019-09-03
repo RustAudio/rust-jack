@@ -26,8 +26,9 @@ fn main() {
             .write(&jack::RawMidi {
                 time: 0,
                 bytes: &[
-                    0b10010000 /* Note On, channel 1 */, 0b01000000 /* Key number */,
-                    0b01111111 /* Velocity */,
+                    0b10010000, /* Note On, channel 1 */
+                    0b01000000, /* Key number */
+                    0b01111111, /* Velocity */
                 ],
             })
             .unwrap();
@@ -35,8 +36,9 @@ fn main() {
             .write(&jack::RawMidi {
                 time: ps.n_frames() / 2,
                 bytes: &[
-                    0b10000000 /* Note Off, channel 1 */, 0b01000000 /* Key number */,
-                    0b01111111 /* Velocity */,
+                    0b10000000, /* Note Off, channel 1 */
+                    0b01000000, /* Key number */
+                    0b01111111, /* Velocity */
                 ],
             })
             .unwrap();

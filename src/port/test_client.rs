@@ -1,13 +1,13 @@
-use std::sync::Mutex;
 use std::sync::mpsc;
+use std::sync::Mutex;
 
 use super::*;
 use Client;
 use ClientOptions;
 use Error;
 use NotificationHandler;
-use PORT_NAME_SIZE;
 use PortId;
+use PORT_NAME_SIZE;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
@@ -48,7 +48,8 @@ fn client_port_can_request_monitor_by_name() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
     c.request_monitor_by_name(&p.name().unwrap(), true).unwrap();
-    c.request_monitor_by_name(&p.name().unwrap(), false).unwrap();
+    c.request_monitor_by_name(&p.name().unwrap(), false)
+        .unwrap();
 }
 
 #[test]
@@ -86,7 +87,8 @@ fn client_port_can_get_port_by_id() {
     let ac = c.activate_async(h, ()).unwrap();
 
     // Register port
-    let _pa = ac.as_client()
+    let _pa = ac
+        .as_client()
         .register_port(port_name, AudioIn::default())
         .unwrap();
 

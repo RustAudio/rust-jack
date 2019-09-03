@@ -1,6 +1,6 @@
 mod async_client;
-mod client;
 mod callbacks;
+mod client;
 mod common;
 mod handler_impls;
 
