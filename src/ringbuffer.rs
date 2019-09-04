@@ -1,6 +1,5 @@
 use jack_sys as j;
 use libc;
-use std;
 
 /// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be safely accessed by
 /// two threads simultaneously, one reading from the buffer and the other writing to it - without
@@ -87,7 +86,7 @@ impl Drop for RingBuffer {
         if !self.0.is_null() {
             unsafe { j::jack_ringbuffer_free(self.0) };
         }
-        self.0 = 0 as *mut j::jack_ringbuffer_t;
+        self.0 = std::ptr::null_mut();
     }
 }
 
@@ -125,7 +124,7 @@ impl RingBufferReader {
     /// data to be read may be split across the end of the ringbuffer. The first slice represents
     /// the bytes ready to be read. If the second slice is not empty, it is the continuation of the
     /// data that ended in the first slices. For convenience, consider using peek_iter instead.
-    pub fn get_vector<'a>(&'a self) -> (&'a [u8], &'a [u8]) {
+    pub fn get_vector(&self) -> (&[u8], &[u8]) {
         let mut vec = [
             j::jack_ringbuffer_data_t::default(),
             j::jack_ringbuffer_data_t::default(),
@@ -156,7 +155,7 @@ impl RingBufferReader {
     /// Read data from the ringbuffer.  Returns: the number of bytes read, which may range from 0 to
     /// buf.len().
     pub fn read_buffer(&mut self, buf: &mut [u8]) -> usize {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return 0;
         }
 
@@ -173,7 +172,7 @@ impl RingBufferReader {
     /// non-copy inspection of the data in the ringbuffer use get_vector() or peek_iter.  Returns:
     /// the number of bytes read, which may range from 0 to buf.len()
     pub fn peek(&self, buf: &mut [u8]) -> usize {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return 0;
         }
 
@@ -226,7 +225,7 @@ impl RingBufferWriter {
     /// Write data into the ringbuffer.  Returns: The number of bytes written, which may range from
     /// 0 to buf.len()
     pub fn write_buffer(&mut self, buf: &[u8]) -> usize {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return 0;
         }
 
@@ -252,7 +251,7 @@ impl RingBufferWriter {
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
     /// needed because the space available for writing may be split across the end of the
     /// ringbuffer.  consider using peek_iter for convenience.
-    pub fn get_vector<'a>(&'a mut self) -> (&'a mut [u8], &'a mut [u8]) {
+    pub fn get_vector(&mut self) -> (&mut [u8], &mut [u8]) {
         let mut vec = [
             j::jack_ringbuffer_data_t::default(),
             j::jack_ringbuffer_data_t::default(),
@@ -355,7 +354,7 @@ mod test {
         let buf = [0u8, 1, 2, 3];
         writer.write_buffer(&buf);
 
-        let data: Vec<u8> = reader.peek_iter().map(|x| *x).collect();
+        let data: Vec<u8> = reader.peek_iter().copied().collect();
 
         assert_eq!(data.len(), buf.len());
         assert_eq!(data[..], buf[..]);
@@ -384,7 +383,7 @@ mod test {
             assert_ne!(v1.len(), 0);
         }
 
-        let data: Vec<u8> = reader.peek_iter().map(|x| *x).collect();
+        let data: Vec<u8> = reader.peek_iter().copied().collect();
 
         assert_eq!(data.len(), buf.len());
         assert_eq!(data[..], buf[..]);

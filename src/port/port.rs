@@ -1,10 +1,10 @@
 use jack_sys as j;
 use libc;
-use std::{ffi, fmt, iter};
-use std::marker::Sized;
-use std::cmp::{Eq, PartialEq, Ord, PartialOrd, Ordering};
+use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::hash::{Hash, Hasher};
+use std::marker::Sized;
 use std::sync::Weak;
+use std::{ffi, fmt, iter};
 
 use Error;
 use Frames;
@@ -40,7 +40,7 @@ pub unsafe trait PortSpec: Sized {
 ///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
-/// 
+///
 /// Also, ports can be compared and hashed using their raw pointers.
 pub struct Port<PS> {
     spec: PS,
@@ -143,16 +143,12 @@ impl<PS> Port<PS> {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
             j::jack_port_get_aliases(self.raw(), ptrs.as_mut_ptr());
         };
-        Ok(
-            [a, b]
-                .iter()
-                .map(|p| p.as_ptr())
-                .map(|p| unsafe {
-                    ffi::CStr::from_ptr(p).to_string_lossy().into_owned()
-                })
-                .filter(|s| s.len() > 0)
-                .collect(),
-        )
+        Ok([a, b]
+            .iter()
+            .map(|p| p.as_ptr())
+            .map(|p| unsafe { ffi::CStr::from_ptr(p).to_string_lossy().into_owned() })
+            .filter(|s| !s.is_empty())
+            .collect())
     }
 
     /// Returns `true` if monitoring has been requested for `self`.
@@ -169,10 +165,7 @@ impl<PS> Port<PS> {
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = match enable_monitor {
-            true => 1,
-            false => 0,
-        };
+        let onoff = if enable_monitor { 1 } else { 0 };
         let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
@@ -185,10 +178,7 @@ impl<PS> Port<PS> {
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = match enable_monitor {
-            true => 1,
-            false => 0,
-        };
+        let onoff = if enable_monitor { 1 } else { 0 };
         let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
@@ -251,10 +241,10 @@ impl<PS> Port<PS> {
         client_life: Weak<()>,
     ) -> Self {
         Port {
-            spec: spec,
-            port_ptr: port_ptr,
-            client_ptr: client_ptr,
-            client_life: client_life,
+            spec,
+            port_ptr,
+            client_ptr,
+            client_life,
         }
     }
 
@@ -328,11 +318,13 @@ impl PortInfo {
     fn new<PS: PortSpec>(p: &Port<PS>) -> PortInfo {
         let s = p.spec();
         PortInfo {
-            name: p.name().unwrap_or("client not alive".to_owned()).into(),
+            name: p
+                .name()
+                .unwrap_or_else(|_| String::from("client not alive")),
             connections: p.connected_count().unwrap_or(0),
             port_type: s.jack_port_type().to_owned(),
             port_flags: s.jack_flags(),
-            aliases: p.aliases().unwrap_or(Vec::new()),
+            aliases: p.aliases().unwrap_or_else(|_| Vec::new()),
         }
     }
 }
@@ -349,8 +341,7 @@ impl<PS> PartialEq for Port<PS> {
     }
 }
 
-impl<PS> Eq for Port<PS> {
-}
+impl<PS> Eq for Port<PS> {}
 
 impl<PS> PartialOrd for Port<PS> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

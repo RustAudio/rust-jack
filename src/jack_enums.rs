@@ -28,13 +28,12 @@ pub enum Error {
 }
 
 impl std::fmt::Display for Error {
-	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "JackError: {:?}", &self) // FIXME
-	}
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "JackError: {:?}", &self) // FIXME
+    }
 }
 
-impl std::error::Error for Error {
-}
+impl std::error::Error for Error {}
 
 /// Used by `NotificationHandler::latency()`.
 #[derive(Clone, Copy, Debug)]

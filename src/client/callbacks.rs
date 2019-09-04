@@ -1,6 +1,6 @@
 use jack_sys as j;
 use libc;
-use std::{ffi, mem};
+use std::ffi;
 
 use Client;
 use ClientStatus;
@@ -184,7 +184,7 @@ unsafe extern "C" fn shutdown<N, P>(
         Err(_) => "Failed to interpret error.",
     };
     ctx.notification.shutdown(
-        ClientStatus::from_bits(code).unwrap_or(ClientStatus::empty()),
+        ClientStatus::from_bits(code).unwrap_or_else(ClientStatus::empty),
         reason_str,
     )
 }
@@ -359,16 +359,20 @@ pub struct CallbackContext<N, P> {
     pub process: P,
 }
 
-impl<N: 'static + NotificationHandler + Send, P: 'static + ProcessHandler + Send> CallbackContext<N, P> {
+impl<N, P> CallbackContext<N, P>
+where
+    N: 'static + Send + NotificationHandler,
+    P: 'static + Send + ProcessHandler,
+{
     pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
         debug_assert!(!ptr.is_null());
-        let obj_ptr: *mut CallbackContext<N, P> = mem::transmute(ptr);
+        let obj_ptr = ptr as *mut CallbackContext<N, P>;
         &mut *obj_ptr
     }
 
     fn raw(b: &mut Box<Self>) -> *mut libc::c_void {
         let ptr: *mut Self = b.as_mut();
-        unsafe { mem::transmute(ptr) }
+        ptr as *mut libc::c_void
     }
 
     /// Registers methods from `handler` to be used by JACK with `client`.
