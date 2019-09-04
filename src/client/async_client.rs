@@ -30,12 +30,10 @@ pub struct AsyncClient<N, P> {
     callback: Option<Box<CallbackContext<N, P>>>,
 }
 
-unsafe impl<N: Send, P: Send> Send for AsyncClient<N, P> {}
-
 impl<N, P> AsyncClient<N, P>
 where
-    N: NotificationHandler,
-    P: ProcessHandler,
+    N: 'static + Send + NotificationHandler,
+    P: 'static + Send + ProcessHandler,
 {
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
