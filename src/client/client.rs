@@ -70,8 +70,8 @@ impl Client {
         process_handler: P,
     ) -> Result<AsyncClient<N, P>, Error>
     where
-        N: 'static + Send + NotificationHandler,
-        P: 'static + Send + ProcessHandler,
+        N: 'static + Send + Sync + NotificationHandler,
+        P: 'static + Send + Sync + ProcessHandler,
     {
         AsyncClient::new(self, notification_handler, process_handler)
     }
