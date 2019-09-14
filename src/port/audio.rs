@@ -99,7 +99,7 @@ impl Port<AudioOut> {
 
 #[cfg(test)]
 mod test {
-    use std::sync::mpsc::channel;
+    use crossbeam_channel::bounded;
 
     use super::*;
     use Client;
@@ -118,7 +118,7 @@ mod test {
         let in_b = c.register_port("ib", AudioIn::default()).unwrap();
         let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
         let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
-        let (signal_succeed, did_succeed) = channel();
+        let (signal_succeed, did_succeed) = bounded(1_000);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.312_443;
             let exp_b = -0.612_120;
