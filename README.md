@@ -49,35 +49,24 @@ Missing categories include, JACK threading, synchronous processing, transport an
 
 ## Testing
 
-Testing is a little awkward to setup since it relies on a JACK server.
-
-### Setting Up JACK Dummy Server
+Testing requires setting up a dummy server and running the tests using a single
+thread.
 
 ```bash
+$ # Set up a dummy server for tests.
 $ ./dummy_jack_server.sh
+$ # Run tests with limited concurrency.
+$ RUST_TEST_THREADS=1 cargo test
 ```
 
-which runs the command
-
-```bash
-$ jackd -r -ddummy -r44100 -p1024 & # Start the dummy JACK server
-```
-
-Testing expects there to be an available JACK server running at a sample rate of
-44.1kHz and a buffer size of 1024 samples.
-
-### Running the tests
-
-```bash
-$ cargo test
-```
+**Note:** We use a single thread for tests since too multiple client
+instantiations in short periods of time cause the JACK server to become flaky.
 
 #### Possible Issues
 
 If the tests are failing, a possible gotcha may be timing issues.
 
-1. Rust runs tests in parallel, it may be possible that the JACK server is not keeping up. Set the environment variable `RUST_TEST_THREADS` to 1.
-2. Increase the value used by `sleep_on_test` in `client/common.rs`.
+1. Increase the value used by `sleep_on_test` in `client/common.rs`.
 
 Another case is that libjack may be broken on your setup.  Try switching between
 libjack and libjack2 (they have the same API and libjack2 isn't necessarily
