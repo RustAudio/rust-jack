@@ -229,11 +229,11 @@ mod test {
     use client::Client;
     use client::ClosureProcessHandler;
     use client::ProcessHandler;
+    use crossbeam_channel::bounded;
     use jack_enums::Control;
     use primitive_types::Frames;
     use std::iter::Iterator;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::mpsc::channel;
     use std::sync::Mutex;
     use std::{thread, time};
     use ClientOptions;
@@ -327,7 +327,7 @@ mod test {
         let mut out_b = c.register_port("ob", MidiOut::default()).unwrap();
 
         // set callback routine
-        let (signal_succeed, did_succeed) = channel();
+        let (signal_succeed, did_succeed) = bounded(1_000);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = RawMidi {
                 time: 0,

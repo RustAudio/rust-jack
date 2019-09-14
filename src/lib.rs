@@ -37,6 +37,8 @@ extern crate bitflags;
 extern crate jack_sys;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(test)]
+extern crate crossbeam_channel;
 extern crate libc;
 
 pub use client::{
