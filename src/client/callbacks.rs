@@ -162,8 +162,8 @@ pub trait ProcessHandler: Send {
 
 unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     ctx.notification.thread_init(&ctx.client)
@@ -174,8 +174,8 @@ unsafe extern "C" fn shutdown<N, P>(
     reason: *const libc::c_char,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let cstr = ffi::CStr::from_ptr(reason);
@@ -191,8 +191,8 @@ unsafe extern "C" fn shutdown<N, P>(
 
 unsafe extern "C" fn process<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
@@ -201,8 +201,8 @@ where
 
 unsafe extern "C" fn freewheel<N, P>(starting: libc::c_int, data: *mut libc::c_void)
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let is_starting = match starting {
@@ -214,8 +214,8 @@ where
 
 unsafe extern "C" fn buffer_size<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     ctx.notification.buffer_size(&ctx.client, n_frames).to_ffi()
@@ -223,8 +223,8 @@ where
 
 unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     ctx.notification.sample_rate(&ctx.client, n_frames).to_ffi()
@@ -235,8 +235,8 @@ unsafe extern "C" fn client_registration<N, P>(
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
@@ -253,8 +253,8 @@ unsafe extern "C" fn port_registration<N, P>(
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let register = match register {
@@ -273,8 +273,8 @@ unsafe extern "C" fn port_rename<N, P>(
     data: *mut libc::c_void,
 ) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
@@ -290,8 +290,8 @@ unsafe extern "C" fn port_connect<N, P>(
     connect: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let are_connected = match connect {
@@ -304,8 +304,8 @@ unsafe extern "C" fn port_connect<N, P>(
 
 unsafe extern "C" fn graph_order<N, P>(data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     ctx.notification.graph_reorder(&ctx.client).to_ffi()
@@ -313,8 +313,8 @@ where
 
 unsafe extern "C" fn xrun<N, P>(data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     ctx.notification.xrun(&ctx.client).to_ffi()
@@ -322,8 +322,8 @@ where
 
 unsafe extern "C" fn latency<N, P>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let mode = match mode {
@@ -361,8 +361,8 @@ pub struct CallbackContext<N, P> {
 
 impl<N, P> CallbackContext<N, P>
 where
-    N: 'static + Send + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + Sync + ProcessHandler,
 {
     pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
         debug_assert!(!ptr.is_null());
