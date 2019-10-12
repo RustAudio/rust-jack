@@ -86,4 +86,4 @@ newer than libjack), or using a different version.
 
 ## C JACK API
 
-[Main Page](http://jackaudio.org/files/docs/html/index.html)
+[API documentation](https://jackaudio.org/api/)
