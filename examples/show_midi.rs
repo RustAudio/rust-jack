@@ -2,33 +2,41 @@
 //! out all values sent to it through the input port. It also sends a
 //! Note On and Off event, once every cycle, on the output port.
 extern crate jack;
+use std::convert::From;
 use std::io;
 use std::sync::mpsc::sync_channel;
 
 const MAX_MIDI: usize = 8;
+
 //a fixed size container to copy data out of real-time thread
 struct MidiCopy {
     len: usize,
     data: [u8; MAX_MIDI],
-    time: jack::Frames
+    time: jack::Frames,
 }
 
-impl MidiCopy {
-    fn from_raw(midi: &jack::RawMidi) -> Self {
+impl From<jack::RawMidi<'_>> for MidiCopy {
+    fn from(midi: jack::RawMidi<'_>) -> Self {
         let len = std::cmp::min(MAX_MIDI, midi.bytes.len());
         let mut data = [0; MAX_MIDI];
         data[..len].clone_from_slice(&midi.bytes[..len]);
         MidiCopy {
             len,
             data,
-            time: midi.time
+            time: midi.time,
         }
     }
 }
 
 impl std::fmt::Debug for MidiCopy {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Midi {{ time: {}, len: {}, data: {:?} }}", self.time, self.len, &self.data[..self.len])
+        write!(
+            f,
+            "Midi {{ time: {}, len: {}, data: {:?} }}",
+            self.time,
+            self.len,
+            &self.data[..self.len]
+        )
     }
 }
 
@@ -51,7 +59,7 @@ fn main() {
     let cback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let show_p = shower.iter(ps);
         for e in show_p {
-            let c = MidiCopy::from_raw(&e);
+            let c: MidiCopy = e.into();
             let _ = sender.try_send(c);
         }
         let mut put_p = maker.writer(ps);
