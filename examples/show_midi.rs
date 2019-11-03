@@ -19,7 +19,7 @@ impl From<jack::RawMidi<'_>> for MidiCopy {
     fn from(midi: jack::RawMidi<'_>) -> Self {
         let len = std::cmp::min(MAX_MIDI, midi.bytes.len());
         let mut data = [0; MAX_MIDI];
-        data[..len].clone_from_slice(&midi.bytes[..len]);
+        data[..len].copy_from_slice(&midi.bytes[..len]);
         MidiCopy {
             len,
             data,
