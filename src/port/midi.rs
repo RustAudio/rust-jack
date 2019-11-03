@@ -1,7 +1,7 @@
 use jack_sys as j;
 use libc;
-use std::{mem, slice};
 use std::marker::PhantomData;
+use std::{mem, slice};
 
 use Error;
 use Frames;
@@ -79,7 +79,7 @@ pub struct MidiIter<'a> {
 impl<'a> MidiIter<'a> {
     /// Return the next element without advancing the iterator.
     pub fn peek(&self) -> Option<RawMidi<'a>> {
-        self.absolute_nth(self.index as libc::uint32_t)
+        self.absolute_nth(self.index as u32)
     }
 
     /// Return the next element only if the message passes the predicate.
@@ -94,7 +94,7 @@ impl<'a> MidiIter<'a> {
         }
     }
 
-    fn absolute_nth(&self, n: libc::uint32_t) -> Option<RawMidi<'a>> {
+    fn absolute_nth(&self, n: u32) -> Option<RawMidi<'a>> {
         let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
         let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer, n) };
         if res != 0 {
@@ -109,7 +109,7 @@ impl<'a> MidiIter<'a> {
 
     fn absolute_len(&self) -> usize {
         if self.buffer.is_null() {
-            return 0;
+            0
         } else {
             unsafe { j::jack_midi_get_event_count(self.buffer) as usize }
         }
@@ -135,7 +135,7 @@ impl<'a> Iterator for MidiIter<'a> {
     }
 
     fn last(self) -> Option<Self::Item> {
-        let len = self.absolute_len() as libc::uint32_t;
+        let len = self.absolute_len() as u32;
         if len == 0 || self.index >= len as usize {
             None
         } else {
@@ -172,7 +172,7 @@ impl Port<MidiOut> {
         let buffer = unsafe { self.buffer(ps.n_frames()) };
         unsafe { j::jack_midi_clear_buffer(buffer) };
         MidiWriter {
-            buffer: buffer,
+            buffer,
             _phantom: PhantomData,
         }
     }
@@ -226,16 +226,17 @@ impl<'a> MidiWriter<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ClientOptions;
     use client::Client;
     use client::ClosureProcessHandler;
     use client::ProcessHandler;
+    use crossbeam_channel::bounded;
     use jack_enums::Control;
     use primitive_types::Frames;
-    use std::{thread, time};
     use std::iter::Iterator;
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
-    use std::sync::mpsc::channel;
+    use std::{thread, time};
+    use ClientOptions;
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
@@ -266,7 +267,7 @@ mod test {
             }
         }
 
-        fn unowned<'a>(&'a self) -> RawMidi<'a> {
+        fn unowned(&self) -> RawMidi<'_> {
             RawMidi {
                 time: self.time,
                 bytes: &self.bytes,
@@ -285,9 +286,9 @@ mod test {
     impl<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> IterTest<F> {
         fn new(client: &Client, stream: Vec<OwnedRawMidi>, collector: F) -> IterTest<F> {
             IterTest {
-                stream: stream,
+                stream,
                 collected: Vec::new(),
-                collector: collector,
+                collector,
                 midi_in: client.register_port("in", MidiIn::default()).unwrap(),
                 midi_out: client.register_port("out", MidiOut::default()).unwrap(),
             }
@@ -326,15 +327,15 @@ mod test {
         let mut out_b = c.register_port("ob", MidiOut::default()).unwrap();
 
         // set callback routine
-        let (signal_succeed, did_succeed) = channel();
+        let (signal_succeed, did_succeed) = bounded(1_000);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = RawMidi {
                 time: 0,
-                bytes: &[0b10010000, 0b01000000],
+                bytes: &[0b1001_0000, 0b0100_0000],
             };
             let exp_b = RawMidi {
                 time: 64,
-                bytes: &[0b10000000, 0b01000000],
+                bytes: &[0b1000_0000, 0b0100_0000],
             };
             let in_a = in_a.iter(ps);
             let in_b = in_b.iter(ps);
@@ -342,16 +343,18 @@ mod test {
             let mut out_b = out_b.writer(ps);
             out_a.write(&exp_a).unwrap();
             out_b.write(&exp_b).unwrap();
-            if in_a.clone().next().is_some() && in_a.clone().all(|m| m == exp_a)
+            if in_a.clone().next().is_some()
+                && in_a.clone().all(|m| m == exp_a)
                 && in_b.clone().all(|m| m == exp_b)
             {
-                let _ = signal_succeed.send(true).unwrap();
+                signal_succeed.send(true).unwrap();
             }
             Control::Continue
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c
+            .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
 
         // connect ports to each other
@@ -371,9 +374,7 @@ mod test {
         ac.deactivate().unwrap();
     }
 
-    lazy_static! {
-        static ref PMCGMES_MAX_EVENT_SIZE: Mutex<usize> = Mutex::new(0);
-    }
+    static PMCGMES_MAX_EVENT_SIZE: AtomicUsize = AtomicUsize::new(0);
 
     #[test]
     fn port_midi_can_get_max_event_size() {
@@ -384,16 +385,17 @@ mod test {
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let out_p = out_p.writer(ps);
-            *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
+            PMCGMES_MAX_EVENT_SIZE.fetch_add(out_p.max_event_size(), Ordering::Relaxed);
             Control::Continue
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c
+            .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
 
         // check correctness
-        assert!(*PMCGMES_MAX_EVENT_SIZE.lock().unwrap() > 0);
+        assert!(PMCGMES_MAX_EVENT_SIZE.load(Ordering::Relaxed) > 0);
         ac.deactivate().unwrap();
     }
 
@@ -410,9 +412,10 @@ mod test {
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let mut out_p = out_p.writer(ps);
-            *PMCGMES_MAX_EVENT_SIZE.lock().unwrap() = out_p.max_event_size();
+            let event_size = out_p.max_event_size();
+            PMCGMES_MAX_EVENT_SIZE.store(event_size, Ordering::Relaxed);
 
-            let bytes: Vec<u8> = (0..out_p.max_event_size() + 1).map(|_| 0).collect();
+            let bytes: Vec<u8> = (0..=out_p.max_event_size()).map(|_| 0).collect();
             let msg = RawMidi {
                 time: 0,
                 bytes: &bytes,
@@ -424,7 +427,8 @@ mod test {
         };
 
         // activate
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c
+            .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
 
         // check correctness
@@ -435,10 +439,10 @@ mod test {
         ac.deactivate().unwrap();
     }
 
+    static PMI_COUNT: AtomicUsize = AtomicUsize::new(0);
     lazy_static! {
         static ref PMI_NEXT: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
         static ref PMI_SIZE_HINT: Mutex<(usize, Option<usize>)> = Mutex::new((0, None));
-        static ref PMI_COUNT: Mutex<usize> = Mutex::default();
         static ref PMI_LAST: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
         static ref PMI_THIRD: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
     }
@@ -466,7 +470,7 @@ mod test {
             let rm_to_owned = |m: &RawMidi| (m.time, m.bytes.to_vec());
             *PMI_NEXT.lock().unwrap() = in_p.clone().next().map(|m| rm_to_owned(&m));
             *PMI_SIZE_HINT.lock().unwrap() = in_p.size_hint();
-            *PMI_COUNT.lock().unwrap() = in_p.clone().count();
+            PMI_COUNT.store(in_p.clone().count(), Ordering::Relaxed);
             *PMI_LAST.lock().unwrap() = in_p.clone().last().map(|m| rm_to_owned(&m));
             *PMI_THIRD.lock().unwrap() = in_p.clone().nth(2).map(|m| rm_to_owned(&m));
 
@@ -474,7 +478,8 @@ mod test {
         };
 
         // run
-        let ac = c.activate_async((), ClosureProcessHandler::new(process_callback))
+        let ac = c
+            .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
         ac.as_client()
             .connect_ports_by_name("port_midi_iter:op", "port_midi_iter:ip")
@@ -485,7 +490,7 @@ mod test {
         // check correctness
         assert_eq!(*PMI_NEXT.lock().unwrap(), Some((10, [10].to_vec())));
         assert_eq!(*PMI_SIZE_HINT.lock().unwrap(), (4, Some(4)));
-        assert_eq!(*PMI_COUNT.lock().unwrap(), 4);
+        assert_eq!(PMI_COUNT.load(Ordering::Relaxed), 4);
         assert_eq!(*PMI_LAST.lock().unwrap(), Some((13, [13].to_vec())));
         assert_eq!(*PMI_THIRD.lock().unwrap(), Some((12, [12].to_vec())));
     }

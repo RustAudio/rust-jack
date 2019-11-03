@@ -1,13 +1,13 @@
-use std::sync::Mutex;
 use std::sync::mpsc;
+use std::sync::Mutex;
 
 use super::*;
 use Client;
 use ClientOptions;
 use Error;
 use NotificationHandler;
-use PORT_NAME_SIZE;
 use PortId;
+use PORT_NAME_SIZE;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
@@ -33,7 +33,7 @@ fn client_port_register_port_enforces_unique_names() {
 #[test]
 fn client_port_register_port_enforces_name_length() {
     let c = open_test_client("cp_can_register_port");
-    let pname = (0..*PORT_NAME_SIZE + 1)
+    let pname = (0..=*PORT_NAME_SIZE)
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");
@@ -48,7 +48,8 @@ fn client_port_can_request_monitor_by_name() {
     let c = open_test_client("cp_can_request_monitor_by_name");
     let p = c.register_port("cpcrmbn_a", AudioIn::default()).unwrap();
     c.request_monitor_by_name(&p.name().unwrap(), true).unwrap();
-    c.request_monitor_by_name(&p.name().unwrap(), false).unwrap();
+    c.request_monitor_by_name(&p.name().unwrap(), false)
+        .unwrap();
 }
 
 #[test]
@@ -64,9 +65,8 @@ pub struct PortIdHandler {
 
 impl NotificationHandler for PortIdHandler {
     fn port_registration(&mut self, _: &Client, pid: PortId, is_registered: bool) {
-        match is_registered {
-            true => self.reg_tx.lock().unwrap().send(pid).unwrap(),
-            _ => (),
+        if is_registered {
+            self.reg_tx.lock().unwrap().send(pid).unwrap()
         }
     }
 }
@@ -86,7 +86,8 @@ fn client_port_can_get_port_by_id() {
     let ac = c.activate_async(h, ()).unwrap();
 
     // Register port
-    let _pa = ac.as_client()
+    let _pa = ac
+        .as_client()
         .register_port(port_name, AudioIn::default())
         .unwrap();
 
@@ -345,7 +346,7 @@ fn client_port_can_get_existing_ports() {
         "system:capture_1".to_string(),
         "system:capture_2".to_string(),
     ];
-    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
+    let exp: HashSet<String> = known_ports.iter().cloned().collect();
     let got: HashSet<String> = port_getter
         .ports(None, None, PortFlags::empty())
         .into_iter()
@@ -364,7 +365,7 @@ fn client_port_can_get_port_by_name_pattern() {
         "system:playback_2".to_string(),
         "system:capture_2".to_string(),
     ];
-    let exp: HashSet<String> = known_ports.into_iter().cloned().collect();
+    let exp: HashSet<String> = known_ports.iter().cloned().collect();
     let got: HashSet<String> = client
         .ports(Some("2"), None, PortFlags::empty())
         .into_iter()

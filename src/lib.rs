@@ -37,15 +37,23 @@ extern crate bitflags;
 extern crate jack_sys;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(test)]
+extern crate crossbeam_channel;
 extern crate libc;
 
-pub use client::{AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler,
-                 CycleTimes, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE};
+pub use client::{
+    AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,
+    NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
+};
 pub use jack_enums::{Control, Error, LatencyType};
-pub use logging::{error_callback, info_callback, reset_error_callback, reset_info_callback,
-                  set_error_callback, set_info_callback};
-pub use port::{AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags,
-               PortSpec, RawMidi, Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE};
+pub use logging::{
+    error_callback, info_callback, reset_error_callback, reset_info_callback, set_error_callback,
+    set_info_callback,
+};
+pub use port::{
+    AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
+    Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
+};
 pub use primitive_types::{Frames, PortId, Time};
 pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 

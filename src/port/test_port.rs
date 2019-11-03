@@ -104,7 +104,7 @@ fn port_knows_connections() {
 fn port_can_ensure_monitor() {
     let (_c, p) = open_client_with_port("port_can_ensure_monitor", "maybe_monitor");
 
-    for should_monitor in [true, false].into_iter().cycle().take(10) {
+    for should_monitor in [true, false].iter().cycle().take(10) {
         p.ensure_monitor(should_monitor.clone()).unwrap();
         assert_eq!(p.is_monitoring_input().unwrap(), should_monitor.clone());
     }
@@ -114,7 +114,7 @@ fn port_can_ensure_monitor() {
 fn port_can_request_monitor() {
     let (_c, p) = open_client_with_port("port_can_ensure_monitor", "maybe_monitor");
 
-    for should_monitor in [true, false].into_iter().cycle().take(10) {
+    for should_monitor in [true, false].iter().cycle().take(10) {
         p.request_monitor(should_monitor.clone()).unwrap();
         assert_eq!(p.is_monitoring_input().unwrap(), should_monitor.clone());
     }

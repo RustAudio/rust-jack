@@ -1,9 +1,11 @@
 //! Sine wave generator with frequency configuration exposed through standard
 //! input.
+extern crate crossbeam_channel;
 extern crate jack;
+
+use crossbeam_channel::bounded;
 use std::io;
 use std::str::FromStr;
-use std::sync::mpsc::channel;
 
 fn main() {
     // 1. open a client
@@ -20,7 +22,7 @@ fn main() {
     let sample_rate = client.sample_rate();
     let frame_t = 1.0 / sample_rate as f64;
     let mut time = 0.0;
-    let (tx, rx) = channel();
+    let (tx, rx) = bounded(1_000_000);
     let process = jack::ClosureProcessHandler::new(
         move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
             // Get output buffer

@@ -2,8 +2,7 @@ use client::*;
 use jack_enums::Error;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
-    let ret = Client::new(name, ClientOptions::NO_START_SERVER).unwrap();
-    ret
+    Client::new(name, ClientOptions::NO_START_SERVER).unwrap()
 }
 
 #[test]
@@ -19,7 +18,7 @@ fn client_can_open() {
 #[test]
 #[should_panic]
 fn client_fails_to_open_with_large_name() {
-    let name = (0..*CLIENT_NAME_SIZE + 1)
+    let name = (0..=*CLIENT_NAME_SIZE)
         .map(|_| "a")
         .collect::<Vec<&str>>()
         .join("_");
@@ -94,8 +93,8 @@ fn client_knows_cpu_load() {
 fn client_can_estimate_frame_times() {
     let (c, _) = open_test_client("client_knows_frame_times");
     let current_frame_time = c.frame_time();
-    let time = c.frames_to_time(44100);
-    let frames = c.time_to_frames(1000000);
+    let time = c.frames_to_time(44_100);
+    let frames = c.time_to_frames(1_000_000);
     assert!(current_frame_time > 0);
     assert!(time > 0);
     assert!(frames > 0);
