@@ -6,9 +6,10 @@ use std::convert::From;
 use std::io;
 use std::sync::mpsc::sync_channel;
 
-const MAX_MIDI: usize = 8;
+const MAX_MIDI: usize = 3;
 
 //a fixed size container to copy data out of real-time thread
+#[derive(Copy, Clone)]
 struct MidiCopy {
     len: usize,
     data: [u8; MAX_MIDI],
