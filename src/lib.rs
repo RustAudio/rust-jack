@@ -41,21 +41,21 @@ extern crate lazy_static;
 extern crate crossbeam_channel;
 extern crate libc;
 
-pub use client::{
+pub use crate::client::{
     AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,
     NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
-pub use jack_enums::{Control, Error, LatencyType};
-pub use logging::{
+pub use crate::jack_enums::{Control, Error, LatencyType};
+pub use crate::logging::{
     error_callback, info_callback, reset_error_callback, reset_info_callback, set_error_callback,
     set_info_callback,
 };
-pub use port::{
+pub use crate::port::{
     AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
     Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
 };
-pub use primitive_types::{Frames, PortId, Time};
-pub use ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
+pub use crate::primitive_types::{Frames, PortId, Time};
+pub use crate::ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 
 /// Create and manage client connections to a JACK server.
 mod client;

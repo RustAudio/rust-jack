@@ -2,12 +2,12 @@ use std::sync::mpsc;
 use std::sync::Mutex;
 
 use super::*;
-use Client;
-use ClientOptions;
-use Error;
-use NotificationHandler;
-use PortId;
-use PORT_NAME_SIZE;
+use crate::Client;
+use crate::ClientOptions;
+use crate::Error;
+use crate::NotificationHandler;
+use crate::PortId;
+use crate::PORT_NAME_SIZE;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0

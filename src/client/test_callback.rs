@@ -2,14 +2,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{mem, ptr, thread, time};
 
 use super::*;
-use AudioIn;
-use Client;
-use Control;
-use Frames;
-use LatencyType;
-use NotificationHandler;
-use PortId;
-use ProcessHandler;
+use crate::{
+    AudioIn, Client, Control, Frames, LatencyType, NotificationHandler, PortId, ProcessHandler,
+};
 
 #[derive(Debug, Default)]
 pub struct Counter {
@@ -76,7 +71,7 @@ fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
 
-fn active_test_client(name: &str) -> (AsyncClient<Counter, Counter>) {
+fn active_test_client(name: &str) -> AsyncClient<Counter, Counter> {
     let c = open_test_client(name);
     c.activate_async(Counter::default(), Counter::default())
         .unwrap()

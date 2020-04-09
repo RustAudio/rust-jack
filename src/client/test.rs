@@ -1,5 +1,5 @@
-use client::*;
-use jack_enums::Error;
+use crate::client::*;
+use crate::jack_enums::Error;
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap()

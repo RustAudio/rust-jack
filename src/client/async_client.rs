@@ -4,9 +4,9 @@ use std::mem;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
-use client::client::Client;
-use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use Error;
+use crate::client::client::Client;
+use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///

@@ -1,11 +1,11 @@
-use AudioIn;
-use AudioOut;
-use Client;
-use ClientOptions;
-use Port;
-use PortFlags;
-use PortSpec;
-use Unowned;
+use crate::AudioIn;
+use crate::AudioOut;
+use crate::Client;
+use crate::ClientOptions;
+use crate::Port;
+use crate::PortFlags;
+use crate::PortSpec;
+use crate::Unowned;
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0

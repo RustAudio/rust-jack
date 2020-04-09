@@ -1,8 +1,4 @@
-use Client;
-use Control;
-use NotificationHandler;
-use ProcessHandler;
-use ProcessScope;
+use crate::{Client, Control, NotificationHandler, ProcessHandler, ProcessScope};
 
 /// A trivial handler that does nothing.
 impl NotificationHandler for () {}

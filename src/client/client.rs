@@ -3,21 +3,12 @@ use libc;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
-use client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
-use jack_utils::collect_strs;
-use AsyncClient;
-use ClientOptions;
-use ClientStatus;
-use Error;
-use Frames;
-use NotificationHandler;
-use Port;
-use PortFlags;
-use PortId;
-use PortSpec;
-use ProcessHandler;
-use Time;
-use Unowned;
+use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::jack_utils::collect_strs;
+use crate::{
+    AsyncClient, ClientOptions, ClientStatus, Error, Frames, NotificationHandler, Port, PortFlags,
+    PortId, PortSpec, ProcessHandler, Time, Unowned,
+};
 
 /// A client to interact with a JACK server.
 ///

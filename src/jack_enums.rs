@@ -1,6 +1,6 @@
 use libc;
 
-use ClientStatus;
+use crate::ClientStatus;
 
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]
