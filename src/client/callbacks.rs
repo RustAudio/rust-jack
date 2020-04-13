@@ -2,14 +2,7 @@ use jack_sys as j;
 use libc;
 use std::ffi;
 
-use Client;
-use ClientStatus;
-use Control;
-use Error;
-use Frames;
-use LatencyType;
-use PortId;
-use ProcessScope;
+use crate::{Client, ClientStatus, Control, Error, Frames, LatencyType, PortId, ProcessScope};
 
 /// Specifies callbacks for JACK.
 pub trait NotificationHandler: Send {

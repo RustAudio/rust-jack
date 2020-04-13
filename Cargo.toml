@@ -1,6 +1,7 @@
 [package]
 name = "jack"
 version = "0.6.2"
+edition = "2018"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi using safe JACK bindings."
 documentation = "https://RustAudio.github.io/rust-jack/jack/index.html"
@@ -10,10 +11,10 @@ readme = "README.md"
 keywords = ["jack", "realtime", "audio", "midi"]
 
 [dependencies]
-bitflags = "1.1"
+bitflags = "1.2"
 jack-sys = { path = "./jack-sys", version = "0.2" }
 lazy_static = "1.4"
 libc = "0.2"
 
 [dev-dependencies]
-crossbeam-channel = "0.3"
+crossbeam-channel = "0.4"

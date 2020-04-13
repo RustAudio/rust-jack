@@ -3,12 +3,7 @@ use libc;
 use std::marker::PhantomData;
 use std::{mem, slice};
 
-use Error;
-use Frames;
-use Port;
-use PortFlags;
-use PortSpec;
-use ProcessScope;
+use crate::{Error, Frames, Port, PortFlags, PortSpec, ProcessScope};
 
 /// Contains 8bit raw midi information along with a timestamp relative to the
 /// process cycle.
@@ -95,16 +90,15 @@ impl<'a> MidiIter<'a> {
     }
 
     fn absolute_nth(&self, n: u32) -> Option<RawMidi<'a>> {
-        let mut ev: j::jack_midi_event_t = unsafe { mem::MaybeUninit::uninit().assume_init() };
-        let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer, n) };
+        let mut ev = mem::MaybeUninit::<j::jack_midi_event_t>::uninit();
+        let res = unsafe { j::jack_midi_event_get(ev.as_mut_ptr(), self.buffer, n) };
         if res != 0 {
             return None;
         }
-        let bytes_slice: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
-        Some(RawMidi {
-            time: ev.time,
-            bytes: bytes_slice,
-        })
+        let ev = unsafe { ev.assume_init() };
+        let time = ev.time;
+        let bytes: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
+        Some(RawMidi { time, bytes })
     }
 
     fn absolute_len(&self) -> usize {
@@ -226,17 +220,17 @@ impl<'a> MidiWriter<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use client::Client;
-    use client::ClosureProcessHandler;
-    use client::ProcessHandler;
+    use crate::client::Client;
+    use crate::client::ClosureProcessHandler;
+    use crate::client::ProcessHandler;
+    use crate::jack_enums::Control;
+    use crate::primitive_types::Frames;
+    use crate::ClientOptions;
     use crossbeam_channel::bounded;
-    use jack_enums::Control;
-    use primitive_types::Frames;
     use std::iter::Iterator;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     use std::{thread, time};
-    use ClientOptions;
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0

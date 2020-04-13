@@ -6,9 +6,7 @@ use std::marker::Sized;
 use std::sync::Weak;
 use std::{ffi, fmt, iter};
 
-use Error;
-use Frames;
-use PortFlags;
+use crate::{Error, Frames, PortFlags};
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -351,13 +349,7 @@ impl<PS> PartialOrd for Port<PS> {
 
 impl<PS> Ord for Port<PS> {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.port_ptr < other.port_ptr {
-            Ordering::Less
-        } else if self.port_ptr > other.port_ptr {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
+        self.port_ptr.cmp(&other.port_ptr)
     }
 }
 

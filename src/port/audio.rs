@@ -2,10 +2,7 @@ use jack_sys as j;
 use libc;
 use std::slice;
 
-use Port;
-use PortFlags;
-use PortSpec;
-use ProcessScope;
+use crate::{Port, PortFlags, PortSpec, ProcessScope};
 
 /// `AudioIn` implements the `PortSpec` trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
@@ -102,10 +99,7 @@ mod test {
     use crossbeam_channel::bounded;
 
     use super::*;
-    use Client;
-    use ClientOptions;
-    use ClosureProcessHandler;
-    use Control;
+    use crate::{Client, ClientOptions, ClosureProcessHandler, Control};
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
