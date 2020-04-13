@@ -95,7 +95,7 @@ impl<'a> MidiIter<'a> {
     }
 
     fn absolute_nth(&self, n: u32) -> Option<RawMidi<'a>> {
-        let mut ev: j::jack_midi_event_t = unsafe { mem::uninitialized() };
+        let mut ev: j::jack_midi_event_t = unsafe { mem::MaybeUninit::uninit().assume_init() };
         let res = unsafe { j::jack_midi_event_get(&mut ev, self.buffer, n) };
         if res != 0 {
             return None;

@@ -2,7 +2,7 @@ use jack_sys as j;
 use libc;
 use std::ffi;
 use std::io::{stderr, Write};
-use std::sync::{Mutex, Once, ONCE_INIT};
+use std::sync::{Mutex, Once};
 
 lazy_static! {
     static ref INFO_FN: Mutex<Option<fn(&str)>> = Mutex::new(None);
@@ -31,7 +31,7 @@ unsafe extern "C" fn info_wrapper(msg: *const libc::c_char) {
     }
 }
 
-static IS_INFO_CALLBACK_SET: Once = ONCE_INIT;
+static IS_INFO_CALLBACK_SET: Once = Once::new();
 /// Set the global JACK info callback. It is recommended to specify a callback that uses the [log
 /// crate](https://cratse.io/crates/log).
 pub fn set_info_callback(info: fn(&str)) {
@@ -54,7 +54,7 @@ pub fn reset_info_callback() {
     *INFO_FN.lock().unwrap() = None;
 }
 
-static IS_ERROR_CALLBACK_SET: Once = ONCE_INIT;
+static IS_ERROR_CALLBACK_SET: Once = Once::new();
 /// Set the global JACK info callback. It is recommended to specify a callback that uses the [log
 /// crate](https://cratse.io/crates/log).
 pub fn set_error_callback(error: fn(&str)) {
