@@ -1076,18 +1076,14 @@ type jack_get_cycle_times_t = unsafe extern "C" fn(
 ) -> ::libc::c_int;
 
 lazy_static! {
-pub static ref jack_get_cycle_times : Option<jack_get_cycle_times_t> = {
-        if let Ok(lib) = libloading::Library::new(jack_lib) {
+    pub static ref jack_get_cycle_times : Option<jack_get_cycle_times_t> = {
+        libloading::Library::new(jack_lib).ok().and_then(|lib|
             unsafe {
-                if let Ok(sym) = lib.get::<jack_get_cycle_times_t>(b"jack_get_cycle_times\0") {
-                    let sym = sym.into_raw();
-                    Some(*sym.deref() as jack_get_cycle_times_t)
-                } else {
-                    None
-                }
+                lib.get::<jack_get_cycle_times_t>(b"jack_get_cycle_times\0")
+                    .ok()
+                    .map(|sym| sym.into_raw())
+                    .map(|sym| *sym.deref() as jack_get_cycle_times_t)
             }
-        } else {
-            None
-        }
+        )
     };
 }
