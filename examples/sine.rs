@@ -1,7 +1,5 @@
 //! Sine wave generator with frequency configuration exposed through standard
 //! input.
-extern crate crossbeam_channel;
-extern crate jack;
 
 use crossbeam_channel::bounded;
 use std::io;

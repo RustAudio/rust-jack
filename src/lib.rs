@@ -32,14 +32,6 @@
 //! To access the data of registered ports, use their specialized methods within a `ProcessHandler`
 //! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
 //! to.
-#[macro_use]
-extern crate bitflags;
-extern crate jack_sys;
-#[macro_use]
-extern crate lazy_static;
-#[cfg(test)]
-extern crate crossbeam_channel;
-extern crate libc;
 
 pub use crate::client::{
     AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,

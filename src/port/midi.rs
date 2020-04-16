@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 use std::marker::PhantomData;
 use std::{mem, slice};
 
@@ -227,6 +226,7 @@ mod test {
     use crate::primitive_types::Frames;
     use crate::ClientOptions;
     use crossbeam_channel::bounded;
+    use lazy_static::lazy_static;
     use std::iter::Iterator;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;

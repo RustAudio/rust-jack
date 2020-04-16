@@ -1,5 +1,3 @@
-use libc;
-
 use crate::ClientStatus;
 
 /// An error that can occur in JACK.

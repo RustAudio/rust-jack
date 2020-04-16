@@ -1,9 +1,6 @@
 #![allow(non_camel_case_types, non_upper_case_globals)]
 
-#[macro_use]
-extern crate lazy_static;
-extern crate libc;
-extern crate libloading;
+use lazy_static::lazy_static;
 
 /// JACK port type for 8 bit raw midi
 pub static RAW_MIDI_TYPE: &str = "8 bit raw midi";

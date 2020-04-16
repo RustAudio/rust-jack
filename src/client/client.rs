@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 

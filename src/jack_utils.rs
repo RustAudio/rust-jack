@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 use std::ffi;
 
 /// Collects strings from an array of c-strings into a Rust vector of strings
