@@ -1,6 +1,7 @@
 [package]
 name = "jack-sys"
 version = "0.2.0"
+edition = "2018"
 authors = ["Patrick Reisert"]
 description = "Low-level binding to the JACK audio API."
 repository = "https://github.com/RustAudio/rust-jack/tree/master/jack-sys"

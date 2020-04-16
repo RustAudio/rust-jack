@@ -1,3 +1,4 @@
+use bitflags::bitflags;
 use jack_sys as j;
 
 bitflags! {

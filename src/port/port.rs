@@ -1,5 +1,5 @@
 use jack_sys as j;
-use libc;
+use lazy_static::lazy_static;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::hash::{Hash, Hasher};
 use std::marker::Sized;

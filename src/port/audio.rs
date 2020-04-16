@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 use std::slice;
 
 use crate::{Port, PortFlags, PortSpec, ProcessScope};

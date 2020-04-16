@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 use std::ffi;
 
 use crate::{Client, ClientStatus, Control, Error, Frames, LatencyType, PortId, ProcessScope};

@@ -1,5 +1,5 @@
 use jack_sys as j;
-use libc;
+use lazy_static::lazy_static;
 use std::ffi;
 use std::io::{stderr, Write};
 use std::sync::{Mutex, Once};

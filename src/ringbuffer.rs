@@ -1,5 +1,4 @@
 use jack_sys as j;
-use libc;
 
 /// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be safely accessed by
 /// two threads simultaneously, one reading from the buffer and the other writing to it - without
