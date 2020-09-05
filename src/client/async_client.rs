@@ -33,7 +33,7 @@ pub struct AsyncClient<N, P> {
 impl<N, P> AsyncClient<N, P>
 where
     N: 'static + Send + Sync + NotificationHandler,
-    P: 'static + Send + Sync + ProcessHandler,
+    P: 'static + Send + ProcessHandler,
 {
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.

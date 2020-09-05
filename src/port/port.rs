@@ -6,7 +6,7 @@ use std::marker::Sized;
 use std::sync::Weak;
 use std::{ffi, fmt, iter};
 
-use crate::{Error, Frames, PortFlags};
+use crate::{Error, Frames, LatencyType, PortFlags};
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -271,6 +271,33 @@ impl<PS> Port<PS> {
         // We don't check for life to improve performance in a very hot codepath.
         // self.check_client_life()?;
         j::jack_port_get_buffer(self.port_ptr, n_frames)
+    }
+
+    /// Set the minimum and maximum latencies defined by mode for port, in frames.
+    /// The `range` argument is a tuple of `(min, max)`.
+    ///
+    /// See [Managing and determining latency](https://jackaudio.org/api/group__LatencyFunctions.html)
+    /// for a description of what the latency values mean and some best practices. This function should
+    /// **only** be used inside a latency callback.
+    #[inline(always)]
+    pub fn set_latency_range(&self, mode: LatencyType, range: (Frames, Frames)) {
+        let mut ffi_range = j::Struct__jack_latency_range {
+            min: range.0,
+            max: range.1,
+        };
+        unsafe { j::jack_port_set_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
+    }
+
+    /// Returns a tuple of the minimum and maximum latencies defined by mode for port, in frames.
+    ///
+    /// See [Managing and determining latency](https://jackaudio.org/api/group__LatencyFunctions.html)
+    /// for a description of what the latency values mean and some best practices. This is normally
+    /// used in the LatencyCallback. and therefore safe to execute from callbacks.
+    #[inline(always)]
+    pub fn get_latency_range(&self, mode: LatencyType) -> (Frames, Frames) {
+        let mut ffi_range = j::Struct__jack_latency_range { min: 0, max: 0 };
+        unsafe { j::jack_port_get_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
+        return (ffi_range.min, ffi_range.max);
     }
 
     fn check_client_life(&self) -> Result<(), Error> {

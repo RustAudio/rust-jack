@@ -40,6 +40,15 @@ pub enum LatencyType {
     Playback,
 }
 
+impl LatencyType {
+    pub fn to_ffi(self) -> libc::c_uint {
+        match self {
+            LatencyType::Playback => jack_sys::JackPlaybackLatency,
+            LatencyType::Capture => jack_sys::JackCaptureLatency,
+        }
+    }
+}
+
 /// Specify an option, either to continue processing, or to stop.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Control {
