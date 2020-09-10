@@ -117,3 +117,40 @@ fn client_debug_printing() {
         assert!(got.contains(&p), "Expected {} to contain {}.", got, p);
     }
 }
+
+#[test]
+fn client_can_use_ringbuffer() {
+    use crate::{ClosureProcessHandler, Control, RingBuffer};
+    let (c, _) = open_test_client("client_can_use_ringbuffer");
+
+    let ringbuf = RingBuffer::new(1024).unwrap();
+    let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+    let buf = [0u8, 1, 2, 3];
+    let mut sent = false;
+    let _a = c
+        .activate_async(
+            (),
+            ClosureProcessHandler::new(move |_, _| {
+                if !sent {
+                    for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
+                        *item = *bufitem;
+                    }
+
+                    writer.advance(buf.len());
+                    sent = true;
+                }
+                Control::Continue
+            }),
+        )
+        .unwrap();
+
+    // spin until realtime closure has been run
+    while reader.space() == 0 {}
+
+    let mut outbuf = [0u8; 8];
+    let num = reader.read_buffer(&mut outbuf);
+    assert_eq!(num, buf.len());
+
+    assert_eq!(outbuf[..num], buf[..]);
+}

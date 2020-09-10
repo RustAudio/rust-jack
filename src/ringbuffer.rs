@@ -1,4 +1,6 @@
 use jack_sys as j;
+use std::mem;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be safely accessed by
 /// two threads simultaneously, one reading from the buffer and the other writing to it - without
@@ -38,21 +40,16 @@ impl RingBuffer {
         unsafe { j::jack_ringbuffer_mlock(self.0) };
     }
 
-    /// Resets the ring buffer, making an empty buffer. Not thread safe.
+    /// Resets the ring buffer, making an empty buffer.
     pub fn reset(&mut self) {
         unsafe { j::jack_ringbuffer_reset(self.0) };
     }
 
     /// Create a reader and writer, to use the ring buffer.
     pub fn into_reader_writer(self) -> (RingBufferReader, RingBufferWriter) {
-        let handle = std::sync::Arc::new(self);
-
-        unsafe {
-            (
-                RingBufferReader::new(handle.clone()),
-                RingBufferWriter::new(handle),
-            )
-        }
+        let out = unsafe { (RingBufferReader::new(self.0), RingBufferWriter::new(self.0)) };
+        mem::forget(self);
+        out
     }
 
     /// Re-create the ring buffer object from reader and writer. useful if you need to call reset.
@@ -62,20 +59,18 @@ impl RingBuffer {
     ///
     /// panics if the reader and the writer were created from different RingBuffer objects.
     pub fn from_reader_writer(r: RingBufferReader, w: RingBufferWriter) -> Self {
-        let mut handle_r = r.into_handle();
-        let handle_w = w.into_handle();
-
-        if handle_r.0 != handle_w.0 {
+        if r.ringbuffer_handle != w.ringbuffer_handle {
+            // drops will be valid during unwinding - assuming that all reader/writer pairs are
+            // consisitent.
             panic!("mismatching read and write handles!")
         }
 
-        let handle = RingBuffer(handle_r.0);
+        // The next 3 lines transfer ownership of the ringbuffer from both reader and writer to the
+        // new buffer object.
+        let handle = RingBuffer(r.ringbuffer_handle);
+        mem::forget(r);
+        mem::forget(w);
 
-        // make sure that get_mut works
-        std::mem::drop(handle_w);
-        let muthandle = std::sync::Arc::get_mut(&mut handle_r).unwrap();
-        // make sure they don't close when they are dropped.
-        muthandle.0 = std::ptr::null_mut();
         handle
     }
 }
@@ -89,33 +84,39 @@ impl Drop for RingBuffer {
     }
 }
 
+unsafe impl Send for RingBuffer {}
+unsafe impl Sync for RingBuffer {}
+
 /// Read end of the ring buffer. Can only be used from one thread (can be different from the write
 /// thread).
 pub struct RingBufferReader {
-    ringbuffer_handle: std::sync::Arc<RingBuffer>,
+    ringbuffer_handle: *mut j::jack_ringbuffer_t,
+    /// A marker to check if both halves of the ringbuffer are live. Destroying a ringbuffer is not
+    /// a realtime operation.
+    both_live: AtomicBool,
 }
 
 unsafe impl Send for RingBufferReader {}
-// impl !Sync for RingBufferReader{ }
+unsafe impl Sync for RingBufferReader {}
 
 /// Write end of the ring buffer. Can only be used from one thread (can be a different from the read
 /// thread).
 pub struct RingBufferWriter {
-    ringbuffer_handle: std::sync::Arc<RingBuffer>,
+    ringbuffer_handle: *mut j::jack_ringbuffer_t,
+    both_live: AtomicBool,
 }
 
 unsafe impl Send for RingBufferWriter {}
-// impl !Sync for RingBufferWriter{ }
+unsafe impl Sync for RingBufferWriter {}
 
 impl RingBufferReader {
-    unsafe fn new(handle: std::sync::Arc<RingBuffer>) -> Self {
+    // safety: this method must be called as part of the splitting of the ringbuffer into 2
+    // channels.
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
         RingBufferReader {
-            ringbuffer_handle: handle,
+            ringbuffer_handle: raw,
+            both_live: AtomicBool::new(true),
         }
-    }
-
-    fn into_handle(self) -> std::sync::Arc<RingBuffer> {
-        self.ringbuffer_handle
     }
 
     /// Fill a data structure with a description of the current readable data held in the
@@ -130,7 +131,7 @@ impl RingBufferReader {
         ];
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe { j::jack_ringbuffer_get_read_vector(self.ringbuffer_handle.0, vecstart) };
+        unsafe { j::jack_ringbuffer_get_read_vector(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];
@@ -161,7 +162,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle.0, bufstart, insize) };
+        let read = unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -178,7 +179,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle.0, bufstart, insize) };
+        let read = unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -186,12 +187,12 @@ impl RingBufferReader {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle.0, incnt) };
+        unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
-        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle.0) as usize }
+        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle) as usize }
     }
 
     /// Iterator that goes over all the data available to read.
@@ -210,15 +211,25 @@ impl std::io::Read for RingBufferReader {
     }
 }
 
-impl RingBufferWriter {
-    unsafe fn new(handle: std::sync::Arc<RingBuffer>) -> Self {
-        RingBufferWriter {
-            ringbuffer_handle: handle,
+impl Drop for RingBufferReader {
+    fn drop(&mut self) {
+        if !self
+            .both_live
+            .compare_and_swap(true, false, Ordering::SeqCst)
+        {
+            drop(RingBuffer(self.ringbuffer_handle));
         }
     }
+}
 
-    fn into_handle(self) -> std::sync::Arc<RingBuffer> {
-        self.ringbuffer_handle
+impl RingBufferWriter {
+    // safety: this method must be called as part of the splitting of the ringbuffer into 2
+    // channels.
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
+        RingBufferWriter {
+            ringbuffer_handle: raw,
+            both_live: AtomicBool::new(true),
+        }
     }
 
     /// Write data into the ringbuffer.  Returns: The number of bytes written, which may range from
@@ -231,7 +242,7 @@ impl RingBufferWriter {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &buf[0] as *const _ as *const libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle.0, bufstart, insize) };
+        let read = unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -239,12 +250,12 @@ impl RingBufferWriter {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle.0, incnt) };
+        unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for writing.
     pub fn space(&mut self) -> usize {
-        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle.0) as usize }
+        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle) as usize }
     }
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
@@ -257,7 +268,7 @@ impl RingBufferWriter {
         ];
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe { j::jack_ringbuffer_get_write_vector(self.ringbuffer_handle.0, vecstart) };
+        unsafe { j::jack_ringbuffer_get_write_vector(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];
@@ -295,6 +306,17 @@ impl std::io::Write for RingBufferWriter {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+impl Drop for RingBufferWriter {
+    fn drop(&mut self) {
+        if !self
+            .both_live
+            .compare_and_swap(true, false, Ordering::SeqCst)
+        {
+            drop(RingBuffer(self.ringbuffer_handle));
+        }
     }
 }
 
@@ -399,6 +421,31 @@ mod test {
         }
 
         writer.advance(buf.len());
+
+        let mut outbuf = [0u8; 8];
+        let num = reader.read_buffer(&mut outbuf);
+        assert_eq!(num, buf.len());
+
+        assert_eq!(outbuf[..num], buf[..]);
+    }
+
+    #[test]
+    fn ringbuffer_threaded() {
+        use std::thread;
+
+        let ringbuf = RingBuffer::new(1024).unwrap();
+        let (mut reader, mut writer) = ringbuf.into_reader_writer();
+
+        let buf = [0u8, 1, 2, 3];
+        thread::spawn(move || {
+            for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
+                *item = *bufitem;
+            }
+
+            writer.advance(buf.len());
+        })
+        .join()
+        .unwrap();
 
         let mut outbuf = [0u8; 8];
         let num = reader.read_buffer(&mut outbuf);
