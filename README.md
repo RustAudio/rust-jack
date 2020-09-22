@@ -8,8 +8,7 @@
 [![Build Status](https://travis-ci.org/RustAudio/rust-jack.svg?branch=master)](https://travis-ci.org/RustAudio/rust-jack)
 
 
-Nice Rust bindings for
-[JACK Audio Connection Kit](https://www.jackaudio.org)
+Rust bindings for [JACK Audio Connection Kit](https://www.jackaudio.org).
 
 [Documentation for Master](https://RustAudio.github.io/rust-jack/jack/index.html)
 
