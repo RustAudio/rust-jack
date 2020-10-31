@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install JACK
+      run: sudo apt-get install libjack-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
