@@ -1,12 +1,22 @@
+///! JACK transport wrappers.
+///! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
+use crate::{Frames, Time};
 use jack_sys as j;
+use std::sync::Weak;
 
+type Result<T> = ::std::result::Result<T, crate::Error>;
+
+/// A structure for querying and manipulating the JACK transport.
 pub struct Transport {
-    client_ptr: *mut j::jack_client_t,
+    pub(crate) client_ptr: *mut j::jack_client_t,
+    pub(crate) client_life: Weak<()>,
 }
 
+/// A structure representing the transport position.
 #[repr(transparent)]
 pub struct TransportPosition(j::jack_position_t);
 
+/// A representation of transport state.
 #[derive(Debug, Clone, Copy)]
 pub enum TransportState {
     Stopped,
@@ -14,11 +24,13 @@ pub enum TransportState {
     Starting,
 }
 
+/// A helper struct encapsulating both `TransportState` and `TransportPosition`.
 pub struct TransportStatePosition {
     pub pos: TransportPosition,
     pub state: TransportState,
 }
 
+/// Transport Bar Beat Tick data.
 pub struct TransportBBT {
     /// Time signature bar, 1 or more.
     pub bar: usize,
@@ -40,12 +52,19 @@ pub struct TransportBBT {
     /// the BPM value should adapted to compensate for this. This is different from most fields in
     /// this struct, which specify the value at the beginning of the block rather than an average.
     pub bpm: f64,
-
     /// Number of ticks that have elapsed between frame 0 and the first beat of the current measure.
     pub bar_start_tick: f64,
 }
 
 impl Transport {
+    fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
+        if let Some(_) = self.client_life.upgrade() {
+            Ok(func(self.client_ptr))
+        } else {
+            Err(crate::Error::ClientIsNoLongerAlive)
+        }
+    }
+
     /// Start the JACK transport rolling.
     ///
     /// # Remarks
@@ -54,10 +73,10 @@ impl Transport {
     /// * It takes effect no sooner than the next process cycle, perhaps later if there are
     /// slow-sync clients.
     /// * This function is realtime-safe.
-    pub fn start(&self) {
-        unsafe {
-            j::jack_transport_start(self.client_ptr);
-        }
+    pub fn start(&self) -> Result<()> {
+        self.with_client(|ptr| unsafe {
+            j::jack_transport_start(ptr);
+        })
     }
 
     /// Stop the JACK transport.
@@ -67,10 +86,10 @@ impl Transport {
     /// * Any client can make this request at any time.
     /// * It takes effect on the next process cycle.
     /// * This function is realtime-safe.
-    pub fn stop(&self) {
-        unsafe {
-            j::jack_transport_stop(self.client_ptr);
-        }
+    pub fn stop(&self) -> Result<()> {
+        self.with_client(|ptr| unsafe {
+            j::jack_transport_stop(ptr);
+        })
     }
 
     /// Request a new transport position.
@@ -85,13 +104,16 @@ impl Transport {
     /// * The new position takes effect in two process cycles.
     /// * If there are slow-sync clients and the transport is already rolling, it will enter the `TransportState::Starting` state and begin invoking their sync_callbacks until ready.
     /// * This function is realtime-safe.
-    pub fn reposition(&self, pos: &TransportPosition) -> Result<(), ()> {
-        Self::to_result(unsafe {
-            j::jack_transport_reposition(
-                self.client_ptr,
-                std::mem::transmute::<&TransportPosition, *const j::jack_position_t>(pos),
-            )
-        })
+    pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
+        Self::to_result(
+            self.with_client(|ptr| unsafe {
+                j::jack_transport_reposition(
+                    ptr,
+                    std::mem::transmute::<&TransportPosition, *const j::jack_position_t>(pos),
+                )
+            }),
+            (),
+        )
     }
 
     /// Reposition the transport to a new frame number.
@@ -106,8 +128,11 @@ impl Transport {
     /// * The new position takes effect in two process cycles.
     /// * If there are slow-sync clients and the transport is already rolling, it will enter the JackTransportStarting state and begin invoking their sync_callbacks until ready.
     /// * This function is realtime-safe.
-    pub fn locate(&self, frame: crate::Frames) -> Result<(), ()> {
-        Self::to_result(unsafe { j::jack_transport_locate(self.client_ptr, frame) })
+    pub fn locate(&self, frame: Frames) -> Result<()> {
+        Self::to_result(
+            self.with_client(|ptr| unsafe { j::jack_transport_locate(ptr, frame) }),
+            (),
+        )
     }
 
     //helper to convert to TransportState
@@ -120,11 +145,16 @@ impl Transport {
     }
 
     //helper to create generic error from jack response
-    fn to_result(v: ::libc::c_int) -> Result<(), ()> {
-        if v == 0 {
-            Ok(())
-        } else {
-            Err(())
+    fn to_result<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
+        match v {
+            Ok(v) => {
+                if v == 0 {
+                    Ok(r)
+                } else {
+                    Err(crate::Error::UnknownError)
+                }
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -134,20 +164,22 @@ impl Transport {
     ///
     /// * This function is realtime-safe, and can be called from any thread.
     /// * If called from the process thread, `pos` corresponds to the first frame of the current cycle and the state returned is valid for the entire cycle.
-    pub fn query(&self) -> TransportStatePosition {
-        let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
-        let state = Self::to_state(unsafe {
-            j::jack_transport_query(
-                self.client_ptr,
-                std::mem::transmute::<*mut TransportPosition, *mut j::jack_position_t>(
-                    pos.as_mut_ptr(),
-                ),
-            )
-        });
-        TransportStatePosition {
-            pos: unsafe { pos.assume_init() },
-            state,
-        }
+    pub fn query(&self) -> Result<TransportStatePosition> {
+        self.with_client(|ptr| {
+            let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
+            let state = Self::to_state(unsafe {
+                j::jack_transport_query(
+                    ptr,
+                    std::mem::transmute::<*mut TransportPosition, *mut j::jack_position_t>(
+                        pos.as_mut_ptr(),
+                    ),
+                )
+            });
+            TransportStatePosition {
+                pos: unsafe { pos.assume_init() },
+                state,
+            }
+        })
     }
 
     /// Query the current transport state.
@@ -156,8 +188,10 @@ impl Transport {
     ///
     /// * This function is realtime-safe, and can be called from any thread.
     /// * If called from the process thread, the state returned is valid for the entire cycle.
-    pub fn query_state(&self) -> TransportState {
-        Self::to_state(unsafe { j::jack_transport_query(self.client_ptr, std::ptr::null_mut()) })
+    pub fn query_state(&self) -> Result<TransportState> {
+        self.with_client(|ptr| {
+            Self::to_state(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
+        })
     }
 }
 
@@ -193,8 +227,43 @@ impl TransportPosition {
     ///
     /// # Remarks
     /// * This is not the same as what jack_frame_time returns.
-    pub fn frame(&self) -> crate::Frames {
+    pub fn frame(&self) -> Frames {
         self.0.frame
+    }
+
+    /// Set the frame number on the transport timeline.
+    pub fn set_frame(&mut self, frame: Frames) {
+        self.0.frame = frame;
+    }
+
+    /// Get the current frame rate, in frames per second.
+    ///
+    /// # Remarks
+    /// * This is only set by the server so it will be `None` if this struct hasn't come from the
+    /// sever.
+    pub fn frame_rate(&self) -> Option<Frames> {
+        if self.0.frame_rate > 0 {
+            Some(self.0.frame_rate)
+        } else {
+            None
+        }
+    }
+
+    /// Get a microsecond timestamp.
+    ///
+    /// # Remarks
+    /// * This is only set by the server so it will be `None` if this struct hasn't come from the
+    /// sever.
+    /// * Guaranteed to be monotonic, but not neccessarily linear.
+    /// * The absolute value is implementation-dependent (i.e. it could be wall-clock, time since
+    /// jack started, uptime, etc).
+    pub fn usecs(&self) -> Option<Time> {
+        //NOTE could it actually be 0 and come from the server?
+        if self.0.usecs > 0 {
+            Some(self.0.usecs)
+        } else {
+            None
+        }
     }
 
     /// Get the BarBeatsTick data if it is valid.
@@ -215,18 +284,86 @@ impl TransportPosition {
         }
     }
 
+    /// Set the BarBeatsTick data in this position.
+    ///
+    /// # Arguments
+    /// * `bbt` - The data to set in the position. `None` will invalidate the BarBeatsTick data.
+    ///
+    /// # Remarks
+    /// * On failure this will leave the pre-existing data intact.
+    pub fn set_bbt(&mut self, bbt: Option<TransportBBT>) -> std::result::Result<(), TransportBBT> {
+        match bbt {
+            None => {
+                self.0.valid = self.0.valid & !j::JackPositionBBT;
+                Ok(())
+            }
+            Some(bbt) => {
+                if bbt.bar < 1
+                    || bbt.beat < 1
+                    || bbt.sig_num <= 0.
+                    || bbt.sig_denom <= 0.
+                    || bbt.ticks_per_beat <= 0.
+                    || bbt.bpm < 0.
+                {
+                    Err(bbt)
+                } else {
+                    self.0.bar = bbt.bar as _;
+                    self.0.beat = bbt.beat as _;
+                    self.0.tick = bbt.tick as _;
+                    self.0.beats_per_bar = bbt.sig_num;
+                    self.0.beat_type = bbt.sig_denom;
+                    self.0.ticks_per_beat = bbt.ticks_per_beat;
+                    self.0.beats_per_minute = bbt.bpm;
+                    self.0.bar_start_tick = bbt.bar_start_tick;
+                    self.0.valid |= j::JackPositionBBT;
+                    Ok(())
+                }
+            }
+        }
+    }
+
     /// Get the frame offset for the BBT fields.
     ///
     /// # Remarks
     ///
     /// * Should be assumed to be 0 if `None`.
     /// * If this value is Some(0), the bbt time refers to the first frame of this cycle.
-    /// * If the value is positive, the bbt time refers to a frame that many frames **before** the start of the cycle.
-    pub fn bbt_offset(&self) -> Option<crate::Frames> {
+    /// * Otherwise, the bbt time refers to a frame that many frames **before** the start of the cycle.
+    pub fn bbt_offset(&self) -> Option<Frames> {
         if self.valid_bbt_frame_offset() {
             Some(self.0.bbt_offset)
         } else {
             None
         }
+    }
+
+    /// Set the frame offset for the BBT fields.
+    ///
+    /// # Arguments
+    /// * `frame` - The value to set to the offset. `None` will invalidate the offset data.
+    ///
+    /// # Remarks
+    ///
+    /// * If this value is 0, the bbt time refers to the first frame of this cycle.
+    /// * Otherwise, the bbt time refers to a frame that many frames **before** the start of the cycle.
+    pub fn set_bbt_offset(&mut self, frame: Option<Frames>) -> std::result::Result<(), Frames> {
+        match frame {
+            None => {
+                self.0.valid = self.0.valid & !j::JackBBTFrameOffset;
+                Ok(())
+            }
+            Some(frame) => {
+                self.0.bbt_offset = frame;
+                self.0.valid |= j::JackBBTFrameOffset;
+                Ok(())
+            }
+        }
+    }
+}
+
+impl Default for TransportPosition {
+    fn default() -> Self {
+        //safe to zero
+        unsafe { std::mem::MaybeUninit::zeroed().assume_init() }
     }
 }
