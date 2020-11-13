@@ -1,6 +1,7 @@
 # Rust JACK
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/RustAudio/rust-jack/workflows/Rust/badge.svg)](https://github.com/RustAudio/rust-jack/actions)
 
 [![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
