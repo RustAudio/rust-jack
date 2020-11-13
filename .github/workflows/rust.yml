@@ -16,6 +16,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install dependencies
+      run: sudo apt-get install jackd libjack0 libjack-dev
+    - name: Start dummy JACK server
+      run: jackd -r -ddummy -r44100 -p1024 &
     - name: Build
       run: cargo build --verbose
     - name: Run tests
