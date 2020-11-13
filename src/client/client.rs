@@ -4,6 +4,7 @@ use std::{ffi, fmt, ptr};
 
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use crate::jack_utils::collect_strs;
+use crate::transport::Transport;
 use crate::{
     AsyncClient, ClientOptions, ClientStatus, Error, Frames, NotificationHandler, Port, PortFlags,
     PortId, PortSpec, ProcessHandler, Time, Unowned,
@@ -451,6 +452,17 @@ impl Client {
     /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
         Client(p, Arc::default())
+    }
+
+    /// Get a `Transport` object associated with this client.
+    ///
+    /// # Remarks
+    /// * The transport methods will only work during this client's lifetime.
+    pub fn transport(&self) -> Transport {
+        Transport {
+            client_ptr: self.0,
+            client_life: Arc::downgrade(&self.1),
+        }
     }
 }
 
