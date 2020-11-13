@@ -31,6 +31,7 @@ pub struct TransportStatePosition {
 }
 
 /// Transport Bar Beat Tick data.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TransportBBT {
     /// Time signature bar, 1 or more.
     pub bar: usize,
@@ -365,5 +366,47 @@ impl Default for TransportPosition {
     fn default() -> Self {
         //safe to zero
         unsafe { std::mem::MaybeUninit::zeroed().assume_init() }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    mod position {
+        use crate::TransportPosition;
+        #[test]
+        fn default() {
+            let p: TransportPosition = Default::default();
+            assert!(!p.valid_bbt());
+            assert!(!p.valid_bbt_frame_offset());
+            assert_eq!(p.frame(), 0);
+            assert_eq!(p.bbt(), None);
+            assert_eq!(p.bbt_offset(), None);
+            assert_eq!(p.frame_rate(), None);
+            assert_eq!(p.usecs(), None);
+        }
+
+        #[test]
+        fn usecs() {
+            let mut p: TransportPosition = Default::default();
+            assert_eq!(p.usecs(), None);
+            p.0.usecs = 1;
+            assert_eq!(p.usecs(), Some(1));
+            p.0.usecs = 0;
+            assert_eq!(p.usecs(), None);
+            p.0.usecs = 2084;
+            assert_eq!(p.usecs(), Some(2084));
+        }
+
+        #[test]
+        fn frame_rate() {
+            let mut p: TransportPosition = Default::default();
+            assert_eq!(p.frame_rate(), None);
+            p.0.frame_rate = 44100;
+            assert_eq!(p.frame_rate(), Some(44100));
+            p.0.frame_rate = 0;
+            assert_eq!(p.frame_rate(), None);
+            p.0.frame_rate = 48000;
+            assert_eq!(p.frame_rate(), Some(48000));
+        }
     }
 }
