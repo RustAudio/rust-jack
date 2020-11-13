@@ -5,12 +5,8 @@
 [![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
-[![Build Status](https://travis-ci.org/RustAudio/rust-jack.svg?branch=master)](https://travis-ci.org/RustAudio/rust-jack)
-
 
 Rust bindings for [JACK Audio Connection Kit](https://www.jackaudio.org).
-
-[Documentation for Master](https://RustAudio.github.io/rust-jack/jack/index.html)
 
 Check out the `examples` directory for usage.
 
@@ -53,7 +49,7 @@ thread.
 
 ```bash
 $ # Set up a dummy server for tests.
-$ ./dummy_jack_server.sh
+$ ./dummy_jack_server.sh &
 $ # Run tests with limited concurrency.
 $ RUST_TEST_THREADS=1 cargo test
 ```

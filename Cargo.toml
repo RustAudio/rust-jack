@@ -17,4 +17,4 @@ lazy_static = "1.4"
 libc = "0.2"
 
 [dev-dependencies]
-crossbeam-channel = "0.4"
+crossbeam-channel = "0.5"
