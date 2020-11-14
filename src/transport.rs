@@ -141,6 +141,7 @@ impl Transport {
         match state {
             j::JackTransportStopped => TransportState::Stopped,
             j::JackTransportStarting => TransportState::Starting,
+            //the JackTransportLooping state is no longer used
             _ => TransportState::Rolling,
         }
     }
