@@ -17,7 +17,7 @@ pub struct Transport {
 pub struct TransportPosition(j::jack_position_t);
 
 /// A representation of transport state.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TransportState {
     Stopped,
     Rolling,
