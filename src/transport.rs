@@ -272,7 +272,7 @@ impl TransportPosition {
         if self.valid_bbt() && self.0.bar > 0 && self.0.beat > 0 && self.0.tick >= 0 {
             Some(TransportBBT {
                 bar: self.0.bar as _,
-                beat: self.0.bar as _,
+                beat: self.0.beat as _,
                 tick: self.0.tick as _,
                 sig_num: self.0.beats_per_bar,
                 sig_denom: self.0.beat_type,
@@ -299,17 +299,7 @@ impl TransportPosition {
                 Ok(())
             }
             Some(bbt) => {
-                if bbt.bar < 1
-                    || bbt.beat < 1
-                    || bbt.sig_num <= 0.
-                    || bbt.sig_denom <= 0.
-                    || bbt.ticks_per_beat <= 0.
-                    || bbt.bpm < 0.
-                    || bbt.beat > bbt.sig_num.ceil() as _
-                    || bbt.tick >= bbt.ticks_per_beat.ceil() as _
-                {
-                    Err(bbt)
-                } else {
+                if bbt.valid() {
                     self.0.bar = bbt.bar as _;
                     self.0.beat = bbt.beat as _;
                     self.0.tick = bbt.tick as _;
@@ -320,6 +310,8 @@ impl TransportPosition {
                     self.0.bar_start_tick = bbt.bar_start_tick;
                     self.0.valid |= j::JackPositionBBT;
                     Ok(())
+                } else {
+                    Err(bbt)
                 }
             }
         }
@@ -361,6 +353,71 @@ impl TransportPosition {
                 Ok(())
             }
         }
+    }
+}
+
+impl TransportBBT {
+    /// Set bar, beat, tick
+    ///
+    /// # Example
+    /// ```
+    /// use jack::TransportBBT;
+    /// let bbt = TransportBBT::default().with_bbt(4, 2, 14).validated();
+    /// assert!(bbt.is_ok());
+    /// assert_eq!(bbt.unwrap().bar, 4);
+    /// assert_eq!(bbt.unwrap().beat, 2);
+    /// assert_eq!(bbt.unwrap().tick, 14);
+    /// ```
+    pub fn with_bbt<'a>(&'a mut self, bar: usize, beat: usize, tick: usize) -> &'a mut Self {
+        self.bar = bar;
+        self.beat = beat;
+        self.tick = tick;
+        self
+    }
+
+    /// Set Beats Per Minute.
+    pub fn with_bpm<'a>(&'a mut self, bpm: f64) -> &'a mut Self {
+        self.bpm = bpm;
+        self
+    }
+
+    /// Set the time signature.
+    pub fn with_timesig<'a>(&'a mut self, num: f32, denom: f32) -> &'a mut Self {
+        self.sig_num = num;
+        self.sig_denom = denom;
+        self
+    }
+
+    /// Set ticks per beat.
+    pub fn with_ticks_per_beat<'a>(&'a mut self, ticks_per_beat: f64) -> &'a mut Self {
+        self.ticks_per_beat = ticks_per_beat;
+        self
+    }
+
+    /// Set bar start tick.
+    pub fn with_bar_start_tick<'a>(&'a mut self, tick: f64) -> &'a mut Self {
+        self.bar_start_tick = tick;
+        self
+    }
+
+    /// Validate contents.
+    pub fn validated<'a>(&'a self) -> std::result::Result<Self, Self> {
+        if self.valid() {
+            Ok(*self)
+        } else {
+            Err(*self)
+        }
+    }
+
+    pub fn valid(&self) -> bool {
+        !(self.bar < 1
+            || self.beat < 1
+            || self.sig_num <= 0.
+            || self.sig_denom <= 0.
+            || self.ticks_per_beat <= 0.
+            || self.bpm < 0.
+            || self.beat > self.sig_num.ceil() as _
+            || self.tick >= self.ticks_per_beat.ceil() as _)
     }
 }
 
@@ -487,12 +544,77 @@ mod test {
             t(bbt);
             bbt.sig_denom = -1.0;
             t(bbt);
+
+            bbt = Default::default();
+            bbt.sig_num = 7.0;
+            bbt.beat = 8;
+            t(bbt);
+
+            bbt = Default::default();
+            bbt.ticks_per_beat = 96.0;
+            bbt.tick = 96;
+            t(bbt);
+        }
+
+        #[test]
+        fn bbt_valid() {
+            let mut p: TransportPosition = Default::default();
+            let mut b: TransportBBT = Default::default();
+            let mut i: TransportBBT = Default::default();
+            i.beat = 5; //invalid
+
+            assert!(!i.valid());
+
+            assert!(!p.valid_bbt());
+            assert_eq!(p.set_bbt(Some(b)), Ok(()));
+            assert!(p.valid_bbt());
+            assert_eq!(p.bbt(), Some(b));
+
+            let mut t = |b: TransportBBT| {
+                assert!(b.valid());
+                assert_eq!(p.set_bbt(Some(b)), Ok(()));
+                assert_eq!(p.bbt(), Some(b));
+                //setting to something invalid keeps the old valid data
+                assert_eq!(p.set_bbt(Some(i)), Err(i));
+                assert_eq!(p.bbt(), Some(b));
+            };
+
+            for i in 1..10 {
+                b.bar = i;
+                t(b);
+            }
+
+            for i in 1..=4 {
+                b.beat = i;
+                t(b);
+            }
+
+            b.sig_num = 7.;
+            for i in 1..=7 {
+                b.beat = i;
+                t(b);
+            }
+
+            b.beat = 1;
+            b.sig_num = 4.;
+            b.ticks_per_beat = 96.0;
+            for i in 0..96 {
+                b.tick = i;
+                t(b);
+            }
+
+            for i in (10..300).step_by(7) {
+                b.bpm = i as _;
+                t(b);
+            }
         }
     }
     mod bbt {
+        use crate::TransportBBT;
+
         #[test]
         fn default() {
-            let bbt: crate::TransportBBT = Default::default();
+            let bbt: TransportBBT = Default::default();
             assert_eq!(bbt.bar, 1);
             assert_eq!(bbt.beat, 1);
             assert_eq!(bbt.tick, 0);
@@ -501,6 +623,109 @@ mod test {
             assert_eq!(bbt.ticks_per_beat, 1920.0);
             assert_eq!(bbt.bpm, 120.0);
             assert_eq!(bbt.bar_start_tick, 0.0);
+        }
+
+        #[test]
+        fn builder_valid() {
+            let mut bbt = TransportBBT::default();
+            assert_eq!(
+                TransportBBT::default().with_bbt(1, 1, 0).validated(),
+                Ok(bbt)
+            );
+
+            bbt.bar = 100;
+            bbt.beat = 2;
+            bbt.tick = 230;
+            assert_eq!(
+                TransportBBT::default().with_bbt(100, 2, 230).validated(),
+                Ok(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.sig_num = 7.0;
+            bbt.sig_denom = 8.0;
+            assert_eq!(
+                TransportBBT::default().with_timesig(7.0, 8.0).validated(),
+                Ok(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.ticks_per_beat = 2000.0;
+            assert_eq!(
+                TransportBBT::default()
+                    .with_ticks_per_beat(2000.0)
+                    .validated(),
+                Ok(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.bar_start_tick = 1023.0;
+            assert_eq!(
+                TransportBBT::default()
+                    .with_bar_start_tick(1023.0)
+                    .validated(),
+                Ok(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.bar = 2;
+            bbt.beat = 3;
+            bbt.tick = 20;
+            bbt.bpm = 23.0;
+            bbt.ticks_per_beat = 96.0;
+            bbt.sig_num = 12.0;
+            bbt.sig_denom = 5.0;
+            bbt.bar_start_tick = 4.3;
+
+            assert_eq!(
+                TransportBBT::default()
+                    .with_bbt(bbt.bar, bbt.beat, bbt.tick)
+                    .with_bpm(bbt.bpm)
+                    .with_ticks_per_beat(bbt.ticks_per_beat)
+                    .with_timesig(bbt.sig_num, bbt.sig_denom)
+                    .with_bar_start_tick(bbt.bar_start_tick)
+                    .validated(),
+                Ok(bbt)
+            );
+
+            //can simply use setters, could create invalid data..
+            bbt = TransportBBT::default();
+            bbt.with_bpm(120.0);
+            assert_eq!(bbt.bpm, 120.0);
+        }
+
+        #[test]
+        fn builder_invalid() {
+            let mut bbt = TransportBBT::default();
+
+            bbt.bpm = -1023.0;
+            assert_eq!(
+                TransportBBT::default().with_bpm(bbt.bpm).validated(),
+                Err(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.bar = 0;
+            assert_eq!(
+                TransportBBT::default().with_bbt(0, 1, 0).validated(),
+                Err(bbt)
+            );
+
+            bbt = Default::default();
+            bbt.tick = bbt.ticks_per_beat as usize;
+            assert_eq!(
+                TransportBBT::default().with_bbt(1, 1, bbt.tick).validated(),
+                Err(bbt)
+            );
+
+            for beat in &[0, 7] {
+                bbt = Default::default();
+                bbt.beat = *beat;
+                assert_eq!(
+                    TransportBBT::default().with_bbt(1, bbt.beat, 0).validated(),
+                    Err(bbt)
+                );
+            }
         }
     }
 }
