@@ -197,6 +197,10 @@ impl Transport {
     }
 }
 
+//all exposed methods are realtime safe
+unsafe impl Send for Transport {}
+unsafe impl Sync for Transport {}
+
 impl TransportPosition {
     /// Query to see if the BarBeatsTick data is valid.
     pub fn valid_bbt(&self) -> bool {
