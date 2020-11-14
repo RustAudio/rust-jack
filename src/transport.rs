@@ -4,7 +4,7 @@ use crate::{Frames, Time};
 use jack_sys as j;
 use std::sync::Weak;
 
-type Result<T> = ::std::result::Result<T, crate::Error>;
+pub type Result<T> = ::std::result::Result<T, crate::Error>;
 
 /// A structure for querying and manipulating the JACK transport.
 pub struct Transport {
