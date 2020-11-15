@@ -149,13 +149,8 @@ impl Transport {
     //helper to create generic error from jack response
     fn to_result<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
         match v {
-            Ok(v) => {
-                if v == 0 {
-                    Ok(r)
-                } else {
-                    Err(crate::Error::UnknownError)
-                }
-            }
+            Ok(0) => Ok(r),
+            Ok(_) => Err(crate::Error::UnknownError),
             Err(e) => Err(e),
         }
     }
