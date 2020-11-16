@@ -2,25 +2,24 @@ name: Rust
 
 on:
   push:
-    branches: [ master ]
+    branches: [main]
   pull_request:
-    branches: [ master ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Install dependencies
-      run: sudo apt-get install jackd libjack0 libjack-dev
-    - name: Start dummy JACK server
-      run: jackd -r -ddummy -r44100 -p1024 &
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: RUST_TEST_THREADS=1 cargo test --verbose
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt-get install jackd libjack0 libjack-dev
+      - name: Start dummy JACK server
+        run: jackd -r -ddummy -r44100 -p1024 &
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: RUST_TEST_THREADS=1 cargo test --verbose

@@ -19,7 +19,7 @@ Check out the `examples` directory for usage.
 jack = "0.6"
 ```
 
-### Master
+### Main
 ```toml
 [dependencies]
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
