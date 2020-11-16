@@ -25,6 +25,7 @@ pub enum TransportState {
 }
 
 /// A helper struct encapsulating both `TransportState` and `TransportPosition`.
+#[derive(Debug)]
 pub struct TransportStatePosition {
     pub pos: TransportPosition,
     pub state: TransportState,
