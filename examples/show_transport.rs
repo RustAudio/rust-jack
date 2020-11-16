@@ -19,12 +19,14 @@ fn main() {
             while !stop.load(Ordering::Relaxed) {
                 std::thread::sleep(std::time::Duration::from_millis(10));
                 if let Ok(state) = transport.query() {
+                    //print if state has changed
                     if state_last
                         .as_ref()
                         .map_or_else(|| true, |l| l.state != state.state)
                     {
                         println!("{:?}", state.state);
                     };
+                    //print if bbt structure changes (ignoring tick and bar_start_tick)
                     if let Some(mut bbt) = state.pos.bbt() {
                         let print = if let Some(last) = &state_last {
                             if let Some(mut last) = last.pos.bbt() {
