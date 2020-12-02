@@ -6,7 +6,6 @@
 [![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
-
 Rust bindings for [JACK Audio Connection Kit](https://www.jackaudio.org).
 
 Check out the `examples` directory for usage.
@@ -14,25 +13,30 @@ Check out the `examples` directory for usage.
 ## Crates
 
 ### Stable
+
 ```toml
 [dependencies]
 jack = "0.6"
 ```
 
 ### Main
+
 ```toml
 [dependencies]
 jack = { git = "https://github.com/RustAudio/rust-jack.git" }
 ```
 
 
-## Completeness
+### Windows
 
-For details on which functions from the JACK headers have been implemented, see `ffi_completeness.md`.
+Install `JACK` from the [official website](http://www.jackaudio.org/downloads/).
+Link the installed library in your rust code. For example:
 
-More high-level, creating clients, creating/reading/writing/connecting ports, audio, and midi are supported.
-
-Missing categories include, JACK threading, synchronous processing, transport and control functionality.
+```rust
+#[cfg(target_os = "windows")]
+#[link(name = "C:/Program Files/Jack2/lib/libjack")]
+extern "C" {}
+```
 
 ## Running
 
@@ -42,23 +46,22 @@ Missing categories include, JACK threading, synchronous processing, transport an
 
 * [JACK FAQ](http://www.jackaudio.org/faq/)
 
-
 ## Testing
 
 Testing requires setting up a dummy server and running the tests using a single
 thread.
 
 ```bash
-$ # Set up a dummy server for tests.
-$ ./dummy_jack_server.sh &
-$ # Run tests with limited concurrency.
-$ RUST_TEST_THREADS=1 cargo test
+# Set up a dummy server for tests.
+./dummy_jack_server.sh &
+# Run tests with limited concurrency.
+RUST_TEST_THREADS=1 cargo test
 ```
 
 **Note:** We use a single thread for tests since too multiple client
 instantiations in short periods of time cause the JACK server to become flaky.
 
-#### Possible Issues
+### Possible Issues
 
 If the tests are failing, a possible gotcha may be timing issues.
 
@@ -68,8 +71,8 @@ Another case is that libjack may be broken on your setup.  Try switching between
 libjack and libjack2 (they have the same API and libjack2 isn't necessarily
 newer than libjack), or using a different version.
 
-
 ## "C" & Rust API differences
+
 * String lengths in the "C" API include the `NULL` character while these Rust
   bindings do not. generally `rust_size(x) = c_size(x) - 1`.
 * "C" bindings require functions to be registered while Rust bindings register
@@ -79,6 +82,13 @@ newer than libjack), or using a different version.
 * Rust bitflags vs C integers used as flags
 * deprecated JACK functions are not used/implemented in Rust bindings
 
+## Completeness
+
+For details on which functions from the JACK headers have been implemented, see `ffi_completeness.md`.
+
+More high-level, creating clients, creating/reading/writing/connecting ports, audio, and midi are supported.
+
+Missing categories include, JACK threading, synchronous processing, transport and control functionality.
 
 ## C JACK API
 
