@@ -12,20 +12,10 @@ Check out the `examples` directory for usage.
 
 ## Crates
 
-### Stable
-
 ```toml
 [dependencies]
 jack = "0.6"
 ```
-
-### Main
-
-```toml
-[dependencies]
-jack = { git = "https://github.com/RustAudio/rust-jack.git" }
-```
-
 
 ### Windows
 
@@ -34,7 +24,7 @@ Link the installed library in your rust code. For example:
 
 ```rust
 #[cfg(target_os = "windows")]
-#[link(name = "C:/Program Files/Jack2/lib/libjack")]
+#[link(name = "C:/Program Files/JACK2/lib/libjack64")]
 extern "C" {}
 ```
 
