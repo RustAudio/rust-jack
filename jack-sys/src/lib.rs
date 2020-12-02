@@ -499,7 +499,10 @@ extern "C" {
     pub static mut JACK_METADATA_ICON_LARGE: *const ::libc::c_char;
 }
 
+#[cfg(not(target_os = "windows"))]
 #[link(name = "jack")]
+extern "C" {}
+
 extern "C" {
     pub fn jack_release_timebase(client: *mut jack_client_t) -> ::libc::c_int;
     pub fn jack_set_sync_callback(
