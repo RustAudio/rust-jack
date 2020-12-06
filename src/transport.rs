@@ -58,6 +58,33 @@ pub struct TransportBBT {
     pub bar_start_tick: f64,
 }
 
+/// An error validating a TransportBBT
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TransportBBTValidationError {
+    ///`bar` must be greater than zero
+    BarZero,
+    ///`beat` must be greater than zero and less than `sig_num`
+    BeatRange,
+    ///There must more than zero ticks per beat
+    TicksPerBeatRange,
+    ///Time signature numerator, `sig_num` must be greater than zero
+    SigNumRange,
+    ///Time signature denominator, `sig_denom` must be greater than zero
+    SigDenomRange,
+    ///`bpm` must be greater than or equal to zero
+    BPMRange,
+    ///`tick` must be less than `ticks_per_beat`
+    TickRange,
+}
+
+impl std::fmt::Display for TransportBBTValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "TransportBBTValidationError: {:?}", &self)
+    }
+}
+
+impl std::error::Error for TransportBBTValidationError {}
+
 impl Transport {
     fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
         if let Some(_) = self.client_life.upgrade() {
@@ -418,23 +445,28 @@ impl TransportBBT {
     }
 
     /// Validate contents.
-    pub fn validated<'a>(&'a self) -> std::result::Result<Self, Self> {
-        if self.valid() {
-            Ok(*self)
+    pub fn validated<'a>(&'a self) -> std::result::Result<Self, TransportBBTValidationError> {
+        if self.bar == 0 {
+            Err(TransportBBTValidationError::BarZero)
+        } else if self.beat == 0 || self.beat > self.sig_num.ceil() as _ {
+            Err(TransportBBTValidationError::BeatRange)
+        } else if self.ticks_per_beat <= 0. {
+            Err(TransportBBTValidationError::TicksPerBeatRange)
+        } else if self.sig_num <= 0. {
+            Err(TransportBBTValidationError::SigNumRange)
+        } else if self.sig_denom <= 0. {
+            Err(TransportBBTValidationError::SigDenomRange)
+        } else if self.bpm < 0. {
+            Err(TransportBBTValidationError::BPMRange)
+        } else if self.tick >= self.ticks_per_beat.ceil() as _ {
+            Err(TransportBBTValidationError::TickRange)
         } else {
-            Err(*self)
+            Ok(*self)
         }
     }
 
     pub fn valid(&self) -> bool {
-        !(self.bar < 1
-            || self.beat < 1
-            || self.sig_num <= 0.
-            || self.sig_denom <= 0.
-            || self.ticks_per_beat <= 0.
-            || self.bpm < 0.
-            || self.beat > self.sig_num.ceil() as _
-            || self.tick >= self.ticks_per_beat.ceil() as _)
+        self.validated().is_ok()
     }
 }
 
@@ -627,7 +659,7 @@ mod test {
         }
     }
     mod bbt {
-        use crate::TransportBBT;
+        use crate::{TransportBBT, TransportBBTValidationError};
 
         #[test]
         fn default() {
@@ -718,21 +750,21 @@ mod test {
             bbt.bpm = -1023.0;
             assert_eq!(
                 TransportBBT::default().with_bpm(bbt.bpm).validated(),
-                Err(bbt)
+                Err(TransportBBTValidationError::BPMRange)
             );
 
             bbt = Default::default();
             bbt.bar = 0;
             assert_eq!(
                 TransportBBT::default().with_bbt(0, 1, 0).validated(),
-                Err(bbt)
+                Err(TransportBBTValidationError::BarZero)
             );
 
             bbt = Default::default();
             bbt.tick = bbt.ticks_per_beat as usize;
             assert_eq!(
                 TransportBBT::default().with_bbt(1, 1, bbt.tick).validated(),
-                Err(bbt)
+                Err(TransportBBTValidationError::TickRange)
             );
 
             for beat in &[0, 7] {
@@ -740,7 +772,7 @@ mod test {
                 bbt.beat = *beat;
                 assert_eq!(
                     TransportBBT::default().with_bbt(1, bbt.beat, 0).validated(),
-                    Err(bbt)
+                    Err(TransportBBTValidationError::BeatRange)
                 );
             }
         }
