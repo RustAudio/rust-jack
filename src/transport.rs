@@ -319,15 +319,18 @@ impl TransportPosition {
     /// * `bbt` - The data to set in the position. `None` will invalidate the BarBeatsTick data.
     ///
     /// # Remarks
-    /// * On failure this will leave the pre-existing data intact.
-    pub fn set_bbt(&mut self, bbt: Option<TransportBBT>) -> std::result::Result<(), TransportBBT> {
+    /// * If the bbt does not validate, will leave the pre-existing data intact.
+    pub fn set_bbt(
+        &mut self,
+        bbt: Option<TransportBBT>,
+    ) -> std::result::Result<(), TransportBBTValidationError> {
         match bbt {
             None => {
                 self.0.valid = self.0.valid & !j::JackPositionBBT;
                 Ok(())
             }
-            Some(bbt) => {
-                if bbt.valid() {
+            Some(bbt) => match bbt.validated() {
+                Ok(bbt) => {
                     self.0.bar = bbt.bar as _;
                     self.0.beat = bbt.beat as _;
                     self.0.tick = bbt.tick as _;
@@ -338,10 +341,9 @@ impl TransportPosition {
                     self.0.bar_start_tick = bbt.bar_start_tick;
                     self.0.valid |= j::JackPositionBBT;
                     Ok(())
-                } else {
-                    Err(bbt)
                 }
-            }
+                Err(e) => Err(e),
+            },
         }
     }
 
@@ -623,8 +625,7 @@ mod test {
                 assert!(b.valid());
                 assert_eq!(p.set_bbt(Some(b)), Ok(()));
                 assert_eq!(p.bbt(), Some(b));
-                //setting to something invalid keeps the old valid data
-                assert_eq!(p.set_bbt(Some(i)), Err(i));
+                assert!(p.set_bbt(Some(i)).is_err());
                 assert_eq!(p.bbt(), Some(b));
             };
 
