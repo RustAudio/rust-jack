@@ -297,8 +297,8 @@ impl TransportPosition {
 
     /// Get the BarBeatsTick data if it is valid.
     pub fn bbt(&self) -> Option<TransportBBT> {
-        if self.valid_bbt() && self.0.bar > 0 && self.0.beat > 0 && self.0.tick >= 0 {
-            Some(TransportBBT {
+        if self.valid_bbt() {
+            TransportBBT {
                 bar: self.0.bar as _,
                 beat: self.0.beat as _,
                 tick: self.0.tick as _,
@@ -307,7 +307,9 @@ impl TransportPosition {
                 ticks_per_beat: self.0.ticks_per_beat,
                 bpm: self.0.beats_per_minute,
                 bar_start_tick: self.0.bar_start_tick,
-            })
+            }
+            .validated()
+            .ok()
         } else {
             None
         }
