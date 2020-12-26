@@ -412,9 +412,10 @@ impl TransportBBT {
     /// use jack::TransportBBT;
     /// let bbt = TransportBBT::default().with_bbt(4, 2, 14).validated();
     /// assert!(bbt.is_ok());
-    /// assert_eq!(bbt.unwrap().bar, 4);
-    /// assert_eq!(bbt.unwrap().beat, 2);
-    /// assert_eq!(bbt.unwrap().tick, 14);
+    /// let bbt = bbt.unwrap();
+    /// assert_eq!(bbt.bar, 4);
+    /// assert_eq!(bbt.beat, 2);
+    /// assert_eq!(bbt.tick, 14);
     /// ```
     pub fn with_bbt<'a>(&'a mut self, bar: usize, beat: usize, tick: usize) -> &'a mut Self {
         self.bar = bar;
