@@ -80,6 +80,11 @@
 `jack_set_thread_init_callback`
 `jack_set_xrun_callback`
 `jack_time_to_frames`
+`jack_transport_locate`
+`jack_transport_query`
+`jack_transport_reposition`
+`jack_transport_start`
+`jack_transport_stop`
 
 # FFI Unused
 `jack_acquire_real_time_scheduling`
@@ -145,11 +150,6 @@
 `jack_set_timebase_callback`
 `jack_set_transport_info`
 `jack_thread_wait`
-`jack_transport_locate`
-`jack_transport_query`
-`jack_transport_reposition`
-`jack_transport_start`
-`jack_transport_stop`
 `jackctl_driver_get_name`
 `jackctl_driver_get_parameters`
 `jackctl_driver_get_type`

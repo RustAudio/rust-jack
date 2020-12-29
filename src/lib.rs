@@ -48,6 +48,10 @@ pub use crate::port::{
 };
 pub use crate::primitive_types::{Frames, PortId, Time};
 pub use crate::ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
+pub use crate::transport::{
+    Transport, TransportBBT, TransportBBTValidationError, TransportPosition, TransportState,
+    TransportStatePosition,
+};
 
 /// Create and manage client connections to a JACK server.
 mod client;
@@ -68,6 +72,9 @@ mod port;
 
 /// Platform independent types.
 mod primitive_types;
+
+/// Transport.
+mod transport;
 
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
