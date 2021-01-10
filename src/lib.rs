@@ -76,6 +76,9 @@ mod primitive_types;
 /// Transport.
 mod transport;
 
+/// Properties
+pub mod properties;
+
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
 pub fn get_time() -> primitive_types::Time {

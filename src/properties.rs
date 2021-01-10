@@ -1,0 +1,380 @@
+//! Properties, AKA [Meta Data](https://jackaudio.org/api/group__Metadata.html)
+//!
+
+use crate::Error;
+use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
+
+use crate::Client;
+use j::jack_uuid_t as uuid;
+use jack_sys as j;
+
+/*
+int 	jack_set_property_change_callback (jack_client_t *client, JackPropertyChangeCallback callback, void *arg)
+*/
+
+/// A description of a Metadata change describint a creation, change or deletion, its owner
+/// `subject` and `key`.
+pub enum PropertyChange<'a> {
+    Created { subject: uuid, key: &'a str },
+    Changed { subject: uuid, key: &'a str },
+    Deleted { subject: uuid, key: &'a str },
+}
+
+pub trait PropertyChangeHandler: Send {
+    fn property_changed(&mut self, change: PropertyChange);
+}
+
+/// A piece of Metadata on a Jack `subject`: either a port or a client.
+/// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Property {
+    value: String,
+    typ: Option<String>,
+}
+
+/// A map of Metadata `key`s, URI Strings, to `Property`s, value and optional type Strings, for a given subject.
+pub type PropertyMap = HashMap<String, Property>;
+
+//helper to map 0 return to Ok
+fn map_error<F: FnOnce() -> ::libc::c_int>(func: F) -> Result<(), Error> {
+    if func() == 0 {
+        Ok(())
+    } else {
+        Err(Error::UnknownError)
+    }
+}
+
+//helper to convert to an Option<PropertyMap> and free
+unsafe fn description_to_map_free(description: *mut j::jack_description_t) -> Option<PropertyMap> {
+    if description.is_null() {
+        None
+    } else {
+        let des = &*description;
+        let mut properties = HashMap::new();
+        for prop in std::slice::from_raw_parts(des.properties, des.property_cnt as usize) {
+            let typ = if prop._type.is_null() {
+                None
+            } else {
+                Some(
+                    ffi::CStr::from_ptr(prop._type)
+                        .to_str()
+                        .expect("to convert type to str")
+                        .to_string(),
+                )
+            };
+            properties.insert(
+                ffi::CStr::from_ptr(prop.key)
+                    .to_str()
+                    .expect("to turn key to str")
+                    .to_string(),
+                Property::new(
+                    ffi::CStr::from_ptr(prop.data)
+                        .to_str()
+                        .expect("to turn data to str"),
+                    typ,
+                ),
+            );
+        }
+        j::jack_free_description(description, 0);
+        Some(properties)
+    }
+}
+
+impl Property {
+    /// Create a property.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value of the property.
+    /// * `typ` - The optional type of the property. Either a MIME type or URI.
+    pub fn new<V: ToString>(value: V, typ: Option<String>) -> Self {
+        Self {
+            value: value.to_string(),
+            typ,
+        }
+    }
+
+    /// Get the "value" of a property.
+    pub fn value(&self) -> &str {
+        &self.value
+    }
+
+    /// Get the "type" of a property, if it has been set.
+    /// Either a MIME type or URI.
+    pub fn typ(&self) -> Option<&str> {
+        self.typ.as_ref().map(|t| t.as_str())
+    }
+
+    /// Get a property from a subject.
+    ///
+    /// # Arguments
+    ///
+    /// * `subject` - The subject of the property.
+    /// * `key` - The key of the property, a URI String.
+    pub fn get(subject: uuid, key: &str) -> Option<Property> {
+        let key = ffi::CString::new(key).expect("key to be convert to CString");
+        let mut value: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
+        let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
+
+        unsafe {
+            if j::jack_get_property(subject, key.as_ptr(), value.as_mut_ptr(), typ.as_mut_ptr())
+                == 0
+            {
+                let value = value.assume_init();
+                let typ = typ.assume_init();
+                let r = Some(Property::new(
+                    ffi::CStr::from_ptr(value).to_str().unwrap(),
+                    if typ.is_null() {
+                        None
+                    } else {
+                        Some(ffi::CStr::from_ptr(typ).to_str().unwrap().to_string())
+                    },
+                ));
+                j::jack_free(value as _);
+                if !typ.is_null() {
+                    j::jack_free(typ as _)
+                }
+                r
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get all the properties from a subject.
+    ///
+    /// # Arguments
+    ///
+    /// * `subject` - The subject of the properties.
+    ///
+    /// # Remarks
+    ///
+    /// * The Jack API calls this data a 'description'.
+    pub fn get_subject(subject: uuid) -> Option<PropertyMap> {
+        let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::uninit();
+        unsafe {
+            let _ = j::jack_get_properties(subject, description.as_mut_ptr());
+            description_to_map_free(description.as_mut_ptr())
+        }
+    }
+
+    /// Get all the properties from all the subjects with Metadata.
+    ///
+    /// # Remarks
+    ///
+    /// * The Jack API calls these maps 'descriptions'.
+    pub fn get_all() -> HashMap<uuid, PropertyMap> {
+        let mut map = HashMap::new();
+        let mut descriptions: MaybeUninit<*mut j::jack_description_t> = MaybeUninit::uninit();
+        unsafe {
+            let cnt = j::jack_get_all_properties(descriptions.as_mut_ptr());
+            if cnt > 0 {
+                let descriptions = descriptions.assume_init();
+                for des in std::slice::from_raw_parts_mut(descriptions, cnt as usize) {
+                    let uuid = (*des).subject;
+                    if let Some(dmap) = description_to_map_free(des) {
+                        map.insert(uuid, dmap);
+                    }
+                }
+                j::jack_free(descriptions as _);
+            }
+        }
+        map
+    }
+
+    /// Set a property.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - A jack client, does not need to be related to the subject.
+    /// * `subject` - The subject of the property.
+    /// * `key` - The key of the property. A URI string.
+    pub fn set(&self, client: &Client, subject: uuid, key: &str) -> Result<(), Error> {
+        let key = ffi::CString::new(key).expect("to create cstring from key");
+        let value = ffi::CString::new(self.value.as_str()).expect("to create cstring from value");
+        map_error(|| unsafe {
+            if let Some(t) = self.typ() {
+                let t = ffi::CString::new(t).unwrap();
+                j::jack_set_property(
+                    client.raw(),
+                    subject,
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    t.as_ptr(),
+                )
+            } else {
+                j::jack_set_property(
+                    client.raw(),
+                    subject,
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    ptr::null(),
+                )
+            }
+        })
+    }
+
+    /// Remove a single property from a subject.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - A jack client, does not need to be related to the subject.
+    /// * `subject` - The subject to remove all properties from.
+    /// * `key` - The key of the property to be removed. A URI string.
+    pub fn remove(client: &Client, subject: uuid, key: &str) -> Result<(), Error> {
+        let key = ffi::CString::new(key).expect("to create cstring from key");
+        map_error(|| unsafe { j::jack_remove_property(client.raw(), subject, key.as_ptr()) })
+    }
+
+    /// Remove all properties from a subject.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - A jack client, does not need to be related to the subject.
+    /// * `subject` - The subject to remove all properties from.
+    pub fn remove_subject(client: &Client, subject: uuid) -> Result<(), Error> {
+        unsafe {
+            if j::jack_remove_properties(client.raw(), subject) == -1 {
+                Err(Error::UnknownError)
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    /// Remove all properties.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - A jack client.
+    ///
+    /// # Remarks
+    ///
+    /// * **WARNING!!** This deletes all Metadata managed by a running JACK server.
+    pub fn remove_all(client: &Client) -> Result<(), Error> {
+        map_error(|| unsafe { j::jack_remove_all_properties(client.raw()) })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::*;
+
+    #[test]
+    fn can_set_and_get() {
+        let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+
+        let prop1 = Property::new(&"foo", None);
+        assert_eq!(prop1.set(&c, c.uuid(), &"blah"), Ok(()));
+
+        let prop2 = Property::new(
+            &"http://churchofrobotron.com/2084",
+            Some("robot apocalypse".into()),
+        );
+        assert_eq!(prop2.set(&c, c.uuid(), &"mutant"), Ok(()));
+
+        assert_eq!(None, Property::get(c.uuid(), "soda"));
+        assert_eq!(Some(prop1.clone()), Property::get(c.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), Property::get(c.uuid(), "mutant"));
+
+        //get subject
+        let sub = Property::get_subject(c.uuid());
+        assert!(sub.is_some());
+        let sub = sub.unwrap();
+        assert_eq!(2, sub.len());
+
+        assert_eq!(sub.get(&"blah".to_string()), Some(&prop1));
+        assert_eq!(sub.get(&"mutant".to_string()), Some(&prop2));
+        assert_eq!(sub.get(&"asdf".to_string()), None);
+
+        //get all
+        let all = Property::get_all();
+        assert_ne!(0, all.len());
+
+        let sub = all.get(&c.uuid());
+        assert!(sub.is_some());
+        let sub = sub.unwrap();
+        assert_eq!(2, sub.len());
+
+        assert_eq!(sub.get(&"blah".to_string()), Some(&prop1));
+        assert_eq!(sub.get(&"mutant".to_string()), Some(&prop2));
+        assert_eq!(sub.get(&"asdf".to_string()), None);
+    }
+
+    #[test]
+    fn can_remove() {
+        let (c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
+        let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+        let prop1 = Property::new(&"foo", None);
+        let prop2 = Property::new(
+            &"http://churchofrobotron.com/2084",
+            Some("robot apocalypse".into()),
+        );
+
+        assert_eq!(prop1.set(&c1, c1.uuid(), &"blah"), Ok(()));
+        assert_eq!(prop1.set(&c1, c2.uuid(), &"blah"), Ok(()));
+        assert_eq!(prop2.set(&c2, c1.uuid(), &"mutant"), Ok(()));
+        assert_eq!(prop2.set(&c2, c2.uuid(), &"mutant"), Ok(()));
+
+        assert_eq!(Some(prop1.clone()), Property::get(c1.uuid(), "blah"));
+        assert_eq!(Some(prop1.clone()), Property::get(c2.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), Property::get(c1.uuid(), "mutant"));
+        assert_eq!(Some(prop2.clone()), Property::get(c2.uuid(), "mutant"));
+
+        assert_eq!(Ok(()), Property::remove(&c1, c1.uuid(), &"blah"));
+        assert_eq!(None, Property::get(c1.uuid(), "blah"));
+
+        //with other client
+        assert_eq!(Ok(()), Property::remove(&c2, c1.uuid(), &"mutant"));
+        assert_eq!(None, Property::get(c1.uuid(), "mutant"));
+
+        //second time, error
+        assert_eq!(
+            Err(Error::UnknownError),
+            Property::remove(&c2, c1.uuid(), &"mutant")
+        );
+
+        assert_eq!(Some(prop1.clone()), Property::get(c2.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), Property::get(c2.uuid(), "mutant"));
+
+        assert_eq!(Ok(()), Property::remove_subject(&c1, c2.uuid()));
+        assert_eq!(None, Property::get(c2.uuid(), "blah"));
+        assert_eq!(None, Property::get(c2.uuid(), "mutant"));
+
+        //second time, okay
+        assert_eq!(Ok(()), Property::remove_subject(&c1, c2.uuid()));
+        assert_eq!(Ok(()), Property::remove_subject(&c2, c2.uuid()));
+        assert_eq!(None, Property::get(c2.uuid(), "blah"));
+        assert_eq!(None, Property::get(c2.uuid(), "mutant"));
+
+        assert_eq!(Ok(()), Property::remove_subject(&c2, c1.uuid()));
+        assert_eq!(Ok(()), Property::remove_subject(&c1, c1.uuid()));
+    }
+
+    #[test]
+    fn can_remove_all() {
+        let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+        let prop = Property::new(&"foo", Some("bar".into()));
+        assert_eq!(prop.set(&c, c.uuid(), &"blah"), Ok(()));
+
+        let sub = Property::get_subject(c.uuid());
+        assert!(sub.is_some());
+        let sub = sub.unwrap();
+        assert_eq!(1, sub.len());
+
+        let all = Property::get_all();
+        assert_ne!(0, all.len());
+
+        assert_eq!(Property::remove_all(&c), Ok(()));
+        assert_eq!(None, Property::get(c.uuid(), "blah"));
+
+        let sub = Property::get_subject(c.uuid());
+        assert!(sub.is_some());
+        let sub = sub.unwrap();
+        assert_eq!(0, sub.len());
+
+        let all = Property::get_all();
+        assert_eq!(0, all.len());
+    }
+}
