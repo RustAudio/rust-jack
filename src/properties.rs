@@ -474,7 +474,7 @@ mod metadata {
 
         #[test]
         fn client_callbacks() {
-            let timeout = std::time::Duration::from_millis(1);
+            let timeout = std::time::Duration::from_millis(10);
             let prop1 = Property::new(&"foo", None);
             let prop2 = Property::new(
                 &"http://churchofrobotron.com/2084",
