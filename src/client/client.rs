@@ -114,45 +114,70 @@ impl Client {
             _ => Err(Error::SetBufferSizeError),
         }
     }
-    // TODO implement
-    // /// Get the uuid of the current client.
-    // pub fn uuid<'a>(&'a self) -> &'a str {
-    //     self.uuid_by_name(self.name()).unwrap_or("")
-    // }
 
-    // TODO implement
-    // // Get the name of the client with the UUID specified by `uuid`. If the
-    // // client is found then `Some(name)` is returned, if not, then `None` is
-    // // returned.
-    // // pub fn name_by_uuid<'a>(&'a self, uuid: &str) -> Option<&'a str> {
-    //     unsafe {
-    //         let uuid = ffi::CString::new(uuid).unwrap();
-    // let name_ptr = j::jack_get_client_name_by_uuid(self.raw(),
-    // uuid.as_ptr());
-    //         if name_ptr.is_null() {
-    //             None
-    //         } else {
-    //             Some(ffi::CStr::from_ptr(name_ptr).to_str().unwrap())
-    //         }
-    //     }
-    // }
+    /// Get the numeric `uuid` of this client.
+    ///
+    /// # Remarks
+    ///
+    /// * Deallocates, not realtime safe.
+    pub fn uuid(&self) -> j::jack_uuid_t {
+        unsafe {
+            let mut uuid: j::jack_uuid_t = Default::default();
+            let uuid_s = j::jack_client_get_uuid(self.raw());
+            assert!(!uuid_s.is_null());
+            assert_eq!(0, j::jack_uuid_parse(uuid_s, &mut uuid));
+            j::jack_free(uuid_s as _);
+            uuid
+        }
+    }
 
-    // TODO implement
-    // /// Get the uuid of the client with the name specified by `name`. If the
-    // /// client is found then `Some(uuid)` is returned, if not, then `None` is
-    // /// returned.
-    // pub fn uuid_by_name<'a>(&'a self, name: &str) -> Option<&'a str> {
-    //     unsafe {
-    //         let name = ffi::CString::new(name).unwrap();
-    // let uuid_ptr = j::jack_get_client_name_by_uuid(self.raw(),
-    // name.as_ptr());
-    //         if uuid_ptr.is_null() {
-    //             None
-    //         } else {
-    //             Some(ffi::CStr::from_ptr(uuid_ptr).to_str().unwrap())
-    //         }
-    //     }
-    // }
+    /// Get a String representation of the `uuid` of this client.
+    ///
+    /// # Remarks
+    ///
+    /// * Allocates & deallocates, not realtime safe.
+    pub fn uuid_string(&self) -> String {
+        unsafe {
+            let uuid_s = j::jack_client_get_uuid(self.raw());
+            assert!(!uuid_s.is_null());
+            let uuid = ffi::CStr::from_ptr(uuid_s)
+                .to_str()
+                .expect("uuid is valid string")
+                .to_string();
+            j::jack_free(uuid_s as _);
+            uuid
+        }
+    }
+
+    //helper to get client name from uuid string.
+    unsafe fn name_by_uuid_raw(&self, uuid: *const ::libc::c_char) -> Option<String> {
+        let name_ptr = j::jack_get_client_name_by_uuid(self.raw(), uuid);
+        if name_ptr.is_null() {
+            None
+        } else {
+            Some(
+                ffi::CStr::from_ptr(name_ptr)
+                    .to_str()
+                    .expect("name convert to a valid str")
+                    .to_string(),
+            )
+        }
+    }
+
+    /// Get the name of a client but its numeric uuid.
+    pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
+        let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
+        unsafe {
+            j::jack_uuid_unparse(uuid, uuid_s.as_mut_ptr());
+            self.name_by_uuid_raw(uuid_s.as_ptr())
+        }
+    }
+
+    /// Get the name of a client but its `&str` uuid.
+    pub fn name_by_uuid_str(&self, uuid: &str) -> Option<String> {
+        let uuid = ffi::CString::new(uuid).unwrap();
+        unsafe { self.name_by_uuid_raw(uuid.as_ptr()) }
+    }
 
     /// Returns a vector of port names that match the specified arguments
     ///

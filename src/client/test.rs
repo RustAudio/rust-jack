@@ -154,3 +154,40 @@ fn client_can_use_ringbuffer() {
 
     assert_eq!(outbuf[..num], buf[..]);
 }
+
+#[test]
+fn client_uuid() {
+    let (c1, _) = open_test_client("client1");
+    let (c2, _) = open_test_client("client2");
+
+    let uuid1 = c1.uuid();
+    let uuid2 = c2.uuid();
+    assert_ne!(uuid1, uuid2);
+    assert_ne!(0, uuid1);
+    assert_ne!(0, uuid2);
+
+    let uuid1s = c1.uuid_string();
+    let uuid2s = c2.uuid_string();
+    assert_ne!(uuid1s, uuid2s);
+
+    assert_eq!(c1.name_by_uuid(0), None);
+    assert_eq!(c2.name_by_uuid(0), None);
+
+    assert_eq!(c1.name_by_uuid(uuid1), Some("client1".to_string()));
+    assert_eq!(c2.name_by_uuid(uuid1), Some("client1".to_string()));
+    assert_eq!(c1.name_by_uuid_str(&uuid1s), Some("client1".to_string()));
+    assert_eq!(c2.name_by_uuid_str(&uuid1s), Some("client1".to_string()));
+
+    assert_eq!(c1.name_by_uuid(uuid2), Some("client2".to_string()));
+    assert_eq!(c2.name_by_uuid(uuid2), Some("client2".to_string()));
+    assert_eq!(c1.name_by_uuid_str(&uuid2s), Some("client2".to_string()));
+    assert_eq!(c2.name_by_uuid_str(&uuid2s), Some("client2".to_string()));
+
+    //create and then dealloc a client, get the uuid.
+    let uuid3 = {
+        let (c3, _) = open_test_client("client3");
+        c3.uuid()
+    };
+    assert_eq!(c1.name_by_uuid(uuid3), None);
+    assert_eq!(c2.name_by_uuid(uuid3), None);
+}
