@@ -85,11 +85,22 @@
 `jack_transport_reposition`
 `jack_transport_start`
 `jack_transport_stop`
+`jack_get_version_string`
+`jack_client_get_uuid`
+`jack_uuid_parse`
+`jack_uuid_unparse`
+`jack_get_all_properties`
+`jack_get_properties`
+`jack_get_property`
+`jack_remove_all_properties`
+`jack_remove_properties`
+`jack_remove_property`
+`jack_set_property_change_callback`
+`jack_set_property`
 
 # FFI Unused
 `jack_acquire_real_time_scheduling`
 `jack_client_create_thread`
-`jack_client_get_uuid`
 `jack_client_has_session_callback`
 `jack_client_kill_thread`
 `jack_client_max_real_time_priority`
@@ -101,16 +112,12 @@
 `jack_drop_real_time_scheduling`
 `jack_error` - causes link error
 `jack_free_description`
-`jack_get_all_properties`
 `jack_get_client_pid`
 `jack_get_current_transport_frame`
 `jack_get_internal_client_name`
 `jack_get_max_delayed_usecs`
-`jack_get_properties`
-`jack_get_property`
 `jack_get_transport_info`
 `jack_get_uuid_for_client_name`
-`jack_get_version_string`
 `jack_get_version`
 `jack_get_xrun_delayed_usecs`
 `jack_info` - causes link error
@@ -130,9 +137,6 @@
 `jack_port_uuid`
 `jack_recompute_total_latencies`
 `jack_release_timebase`
-`jack_remove_all_properties`
-`jack_remove_properties`
-`jack_remove_property`
 `jack_reserve_client_name`
 `jack_reset_max_delayed_usecs`
 `jack_ringbuffer_reset_size`
@@ -141,8 +145,6 @@
 `jack_session_notify`
 `jack_session_reply`
 `jack_set_process_thread`
-`jack_set_property_change_callback`
-`jack_set_property`
 `jack_set_session_callback`
 `jack_set_sync_callback`
 `jack_set_sync_timeout`
@@ -190,6 +192,11 @@
 `jackctl_server_unload_internal`
 `jackctl_setup_signals`
 `jackctl_wait_signals`
+`jack_uuid_to_index`
+`jack_uuid_compare`
+`jack_uuid_copy`
+`jack_uuid_clear`
+`jack_uuid_empty`
 
 # FFI Deprecated
 `jack_client_new`
