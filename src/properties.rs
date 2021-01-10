@@ -157,14 +157,16 @@ impl Property {
     pub fn typ(&self) -> Option<&str> {
         self.typ.as_ref().map(|t| t.as_str())
     }
+}
 
+impl Client {
     /// Get a property from a subject.
     ///
     /// # Arguments
     ///
     /// * `subject` - The subject of the property.
     /// * `key` - The key of the property, a URI String.
-    pub fn get(subject: uuid, key: &str) -> Option<Property> {
+    pub fn property_get(&self, subject: uuid, key: &str) -> Option<Property> {
         let key = ffi::CString::new(key).expect("key to be convert to CString");
         let mut value: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
         let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
@@ -203,7 +205,7 @@ impl Property {
     /// # Remarks
     ///
     /// * The Jack API calls this data a 'description'.
-    pub fn get_subject(subject: uuid) -> Option<PropertyMap> {
+    pub fn property_get_subject(&self, subject: uuid) -> Option<PropertyMap> {
         let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::uninit();
         unsafe {
             let _ = j::jack_get_properties(subject, description.as_mut_ptr());
@@ -216,7 +218,7 @@ impl Property {
     /// # Remarks
     ///
     /// * The Jack API calls these maps 'descriptions'.
-    pub fn get_all() -> HashMap<uuid, PropertyMap> {
+    pub fn property_get_all(&self) -> HashMap<uuid, PropertyMap> {
         let mut map = HashMap::new();
         let mut descriptions: MaybeUninit<*mut j::jack_description_t> = MaybeUninit::uninit();
         unsafe {
@@ -239,17 +241,17 @@ impl Property {
     ///
     /// # Arguments
     ///
-    /// * `client` - A jack client, does not need to be related to the subject.
     /// * `subject` - The subject of the property.
     /// * `key` - The key of the property. A URI string.
-    pub fn set(&self, client: &Client, subject: uuid, key: &str) -> Result<(), Error> {
+    pub fn property_set(&self, subject: uuid, key: &str, property: &Property) -> Result<(), Error> {
         let key = ffi::CString::new(key).expect("to create cstring from key");
-        let value = ffi::CString::new(self.value.as_str()).expect("to create cstring from value");
+        let value =
+            ffi::CString::new(property.value.as_str()).expect("to create cstring from value");
         map_error(|| unsafe {
-            if let Some(t) = self.typ() {
+            if let Some(t) = property.typ() {
                 let t = ffi::CString::new(t).unwrap();
                 j::jack_set_property(
-                    client.raw(),
+                    self.raw(),
                     subject,
                     key.as_ptr(),
                     value.as_ptr(),
@@ -257,7 +259,7 @@ impl Property {
                 )
             } else {
                 j::jack_set_property(
-                    client.raw(),
+                    self.raw(),
                     subject,
                     key.as_ptr(),
                     value.as_ptr(),
@@ -271,23 +273,21 @@ impl Property {
     ///
     /// # Arguments
     ///
-    /// * `client` - A jack client, does not need to be related to the subject.
     /// * `subject` - The subject to remove all properties from.
     /// * `key` - The key of the property to be removed. A URI string.
-    pub fn remove(client: &Client, subject: uuid, key: &str) -> Result<(), Error> {
+    pub fn property_remove(&self, subject: uuid, key: &str) -> Result<(), Error> {
         let key = ffi::CString::new(key).expect("to create cstring from key");
-        map_error(|| unsafe { j::jack_remove_property(client.raw(), subject, key.as_ptr()) })
+        map_error(|| unsafe { j::jack_remove_property(self.raw(), subject, key.as_ptr()) })
     }
 
     /// Remove all properties from a subject.
     ///
     /// # Arguments
     ///
-    /// * `client` - A jack client, does not need to be related to the subject.
     /// * `subject` - The subject to remove all properties from.
-    pub fn remove_subject(client: &Client, subject: uuid) -> Result<(), Error> {
+    pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
         unsafe {
-            if j::jack_remove_properties(client.raw(), subject) == -1 {
+            if j::jack_remove_properties(self.raw(), subject) == -1 {
                 Err(Error::UnknownError)
             } else {
                 Ok(())
@@ -297,15 +297,11 @@ impl Property {
 
     /// Remove all properties.
     ///
-    /// # Arguments
-    ///
-    /// * `client` - A jack client.
-    ///
     /// # Remarks
     ///
     /// * **WARNING!!** This deletes all Metadata managed by a running JACK server.
-    pub fn remove_all(client: &Client) -> Result<(), Error> {
-        map_error(|| unsafe { j::jack_remove_all_properties(client.raw()) })
+    pub fn property_remove_all(&self) -> Result<(), Error> {
+        map_error(|| unsafe { j::jack_remove_all_properties(self.raw()) })
     }
 }
 
@@ -339,20 +335,20 @@ mod tests {
         let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
 
         let prop1 = Property::new(&"foo", None);
-        assert_eq!(prop1.set(&c, c.uuid(), &"blah"), Ok(()));
+        assert_eq!(c.property_set(c.uuid(), &"blah", &prop1), Ok(()));
 
         let prop2 = Property::new(
             &"http://churchofrobotron.com/2084",
             Some("robot apocalypse".into()),
         );
-        assert_eq!(prop2.set(&c, c.uuid(), &"mutant"), Ok(()));
+        assert_eq!(c.property_set(c.uuid(), &"mutant", &prop2), Ok(()));
 
-        assert_eq!(None, Property::get(c.uuid(), "soda"));
-        assert_eq!(Some(prop1.clone()), Property::get(c.uuid(), "blah"));
-        assert_eq!(Some(prop2.clone()), Property::get(c.uuid(), "mutant"));
+        assert_eq!(None, c.property_get(c.uuid(), "soda"));
+        assert_eq!(Some(prop1.clone()), c.property_get(c.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), c.property_get(c.uuid(), "mutant"));
 
         //get subject
-        let sub = Property::get_subject(c.uuid());
+        let sub = c.property_get_subject(c.uuid());
         assert!(sub.is_some());
         let sub = sub.unwrap();
         assert_eq!(2, sub.len());
@@ -362,7 +358,7 @@ mod tests {
         assert_eq!(sub.get(&"asdf".to_string()), None);
 
         //get all
-        let all = Property::get_all();
+        let all = c.property_get_all();
         assert_ne!(0, all.len());
 
         let sub = all.get(&c.uuid());
@@ -385,69 +381,69 @@ mod tests {
             Some("robot apocalypse".into()),
         );
 
-        assert_eq!(prop1.set(&c1, c1.uuid(), &"blah"), Ok(()));
-        assert_eq!(prop1.set(&c1, c2.uuid(), &"blah"), Ok(()));
-        assert_eq!(prop2.set(&c2, c1.uuid(), &"mutant"), Ok(()));
-        assert_eq!(prop2.set(&c2, c2.uuid(), &"mutant"), Ok(()));
+        assert_eq!(c1.property_set(c1.uuid(), &"blah", &prop1), Ok(()));
+        assert_eq!(c1.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
+        assert_eq!(c2.property_set(c1.uuid(), &"mutant", &prop2), Ok(()));
+        assert_eq!(c2.property_set(c2.uuid(), &"mutant", &prop2), Ok(()));
 
-        assert_eq!(Some(prop1.clone()), Property::get(c1.uuid(), "blah"));
-        assert_eq!(Some(prop1.clone()), Property::get(c2.uuid(), "blah"));
-        assert_eq!(Some(prop2.clone()), Property::get(c1.uuid(), "mutant"));
-        assert_eq!(Some(prop2.clone()), Property::get(c2.uuid(), "mutant"));
+        assert_eq!(Some(prop1.clone()), c1.property_get(c1.uuid(), "blah"));
+        assert_eq!(Some(prop1.clone()), c1.property_get(c2.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), c1.property_get(c1.uuid(), "mutant"));
+        assert_eq!(Some(prop2.clone()), c1.property_get(c2.uuid(), "mutant"));
 
-        assert_eq!(Ok(()), Property::remove(&c1, c1.uuid(), &"blah"));
-        assert_eq!(None, Property::get(c1.uuid(), "blah"));
+        assert_eq!(Ok(()), c1.property_remove(c1.uuid(), &"blah"));
+        assert_eq!(None, c1.property_get(c1.uuid(), "blah"));
 
         //with other client
-        assert_eq!(Ok(()), Property::remove(&c2, c1.uuid(), &"mutant"));
-        assert_eq!(None, Property::get(c1.uuid(), "mutant"));
+        assert_eq!(Ok(()), c2.property_remove(c1.uuid(), &"mutant"));
+        assert_eq!(None, c1.property_get(c1.uuid(), "mutant"));
 
         //second time, error
         assert_eq!(
             Err(Error::UnknownError),
-            Property::remove(&c2, c1.uuid(), &"mutant")
+            c2.property_remove(c1.uuid(), &"mutant")
         );
 
-        assert_eq!(Some(prop1.clone()), Property::get(c2.uuid(), "blah"));
-        assert_eq!(Some(prop2.clone()), Property::get(c2.uuid(), "mutant"));
+        assert_eq!(Some(prop1.clone()), c2.property_get(c2.uuid(), "blah"));
+        assert_eq!(Some(prop2.clone()), c2.property_get(c2.uuid(), "mutant"));
 
-        assert_eq!(Ok(()), Property::remove_subject(&c1, c2.uuid()));
-        assert_eq!(None, Property::get(c2.uuid(), "blah"));
-        assert_eq!(None, Property::get(c2.uuid(), "mutant"));
+        assert_eq!(Ok(()), c1.property_remove_subject(c2.uuid()));
+        assert_eq!(None, c2.property_get(c2.uuid(), "blah"));
+        assert_eq!(None, c2.property_get(c2.uuid(), "mutant"));
 
         //second time, okay
-        assert_eq!(Ok(()), Property::remove_subject(&c1, c2.uuid()));
-        assert_eq!(Ok(()), Property::remove_subject(&c2, c2.uuid()));
-        assert_eq!(None, Property::get(c2.uuid(), "blah"));
-        assert_eq!(None, Property::get(c2.uuid(), "mutant"));
+        assert_eq!(Ok(()), c1.property_remove_subject(c2.uuid()));
+        assert_eq!(Ok(()), c2.property_remove_subject(c2.uuid()));
+        assert_eq!(None, c2.property_get(c2.uuid(), "blah"));
+        assert_eq!(None, c2.property_get(c2.uuid(), "mutant"));
 
-        assert_eq!(Ok(()), Property::remove_subject(&c2, c1.uuid()));
-        assert_eq!(Ok(()), Property::remove_subject(&c1, c1.uuid()));
+        assert_eq!(Ok(()), c2.property_remove_subject(c1.uuid()));
+        assert_eq!(Ok(()), c1.property_remove_subject(c1.uuid()));
     }
 
     #[test]
-    fn can_remove_all() {
+    fn can_property_remove_all() {
         let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
         let prop = Property::new(&"foo", Some("bar".into()));
-        assert_eq!(prop.set(&c, c.uuid(), &"blah"), Ok(()));
+        assert_eq!(c.property_set(c.uuid(), &"blah", &prop), Ok(()));
 
-        let sub = Property::get_subject(c.uuid());
+        let sub = c.property_get_subject(c.uuid());
         assert!(sub.is_some());
         let sub = sub.unwrap();
         assert_eq!(1, sub.len());
 
-        let all = Property::get_all();
+        let all = c.property_get_all();
         assert_ne!(0, all.len());
 
-        assert_eq!(Property::remove_all(&c), Ok(()));
-        assert_eq!(None, Property::get(c.uuid(), "blah"));
+        assert_eq!(c.property_remove_all(), Ok(()));
+        assert_eq!(None, c.property_get(c.uuid(), "blah"));
 
-        let sub = Property::get_subject(c.uuid());
+        let sub = c.property_get_subject(c.uuid());
         assert!(sub.is_some());
         let sub = sub.unwrap();
         assert_eq!(0, sub.len());
 
-        let all = Property::get_all();
+        let all = c.property_get_all();
         assert_eq!(0, all.len());
     }
 
@@ -473,7 +469,7 @@ mod tests {
         //must activate to get callbacks
         let ac = c1.activate_async((), ()).unwrap();
 
-        assert_eq!(prop1.set(&c2, c2.uuid(), &"blah"), Ok(()));
+        assert_eq!(c2.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
         let r = receiver.recv_timeout(timeout);
         assert_eq!(
             Ok(PropertyChangeOwned::Created {
@@ -484,8 +480,11 @@ mod tests {
         );
 
         //doesn't matter which client is used to set or remove the property
-        assert_eq!(prop2.set(ac.as_client(), c2.uuid(), &"blah"), Ok(()));
-        assert_eq!(Property::remove(&c2, c2.uuid(), &"blah"), Ok(()));
+        assert_eq!(
+            ac.as_client().property_set(c2.uuid(), &"blah", &prop2),
+            Ok(())
+        );
+        assert_eq!(c2.property_remove(c2.uuid(), &"blah"), Ok(()));
         let r = receiver.recv_timeout(timeout);
         assert_eq!(
             Ok(PropertyChangeOwned::Changed {
@@ -503,8 +502,11 @@ mod tests {
             r
         );
 
-        assert_eq!(prop1.set(&c2, c2.uuid(), &"blah"), Ok(()));
-        assert_eq!(prop2.set(&c2, ac.as_client().uuid(), &"mutant"), Ok(()));
+        assert_eq!(c2.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
+        assert_eq!(
+            c2.property_set(ac.as_client().uuid(), &"mutant", &prop2),
+            Ok(())
+        );
         let r = receiver.recv_timeout(timeout);
         assert_eq!(
             Ok(PropertyChangeOwned::Created {
