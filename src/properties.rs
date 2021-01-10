@@ -37,7 +37,7 @@ pub enum PropertyChange<'a> {
     Deleted { subject: uuid, key: &'a str },
 }
 
-/// A helper enum, allowing fro sending changes between threads.
+/// A helper enum, allowing for sending changes between threads.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyChangeOwned {
     Created { subject: uuid, key: String },
