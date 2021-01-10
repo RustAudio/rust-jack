@@ -89,6 +89,7 @@ pub fn get_time() -> primitive_types::Time {
     unsafe { jack_sys::jack_get_time() }
 }
 
+/// Get a `String` representation of the version of the Jack system that is in use.
 pub fn jack_version_string() -> String {
     unsafe {
         let s = jack_sys::jack_get_version_string();
@@ -99,7 +100,7 @@ pub fn jack_version_string() -> String {
     }
 }
 
-/// Get the version of the running jack system. Major, Minor, Patch
+/// Get the version of the Jack system that is in use. Major, Minor, Patch
 pub fn jack_version() -> Vec<isize> {
     //note, jack_get_version was returning all zeros
     let ver: Vec<isize> = jack_version_string()
