@@ -4,6 +4,7 @@ use std::{ffi, fmt, ptr};
 
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use crate::jack_utils::collect_strs;
+use crate::properties::{property_changed, PropertyChangeHandler};
 use crate::transport::Transport;
 use crate::{
     AsyncClient, ClientOptions, ClientStatus, Error, Frames, NotificationHandler, Port, PortFlags,
@@ -25,7 +26,11 @@ use crate::{
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
 /// ```
-pub struct Client(*mut j::jack_client_t, Arc<()>);
+pub struct Client(
+    *mut j::jack_client_t,
+    Arc<()>,
+    Option<Box<dyn PropertyChangeHandler>>,
+);
 
 unsafe impl Send for Client {}
 
@@ -49,7 +54,7 @@ impl Client {
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            Ok((Client(client, Arc::default()), status))
+            Ok((Client(client, Arc::default(), None), status))
         }
     }
 
@@ -476,7 +481,7 @@ impl Client {
     ///
     /// This is mostly for use within the jack crate itself.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
-        Client(p, Arc::default())
+        Client(p, Arc::default(), None)
     }
 
     /// Get a `Transport` object associated with this client.
@@ -487,6 +492,34 @@ impl Client {
         Transport {
             client_ptr: self.0,
             client_life: Arc::downgrade(&self.1),
+        }
+    }
+
+    /// Register a property change handler for this client.
+    ///
+    /// # Remarks
+    /// * The handler isn't called until after this client is activated.
+    ///
+    /// # Panics
+    /// Calling this method more than once on any given client with cause a panic.
+    pub fn register_property_change_handler<H: PropertyChangeHandler + 'static>(
+        &mut self,
+        handler: H,
+    ) -> Result<(), Error> {
+        assert!(self.2.is_none());
+        let handler = Box::into_raw(Box::new(handler));
+        unsafe {
+            self.2 = Some(Box::from_raw(handler));
+            if j::jack_set_property_change_callback(
+                self.raw(),
+                Some(property_changed::<H>),
+                std::mem::transmute::<_, _>(handler),
+            ) == 0
+            {
+                Ok(())
+            } else {
+                Err(Error::UnknownError)
+            }
         }
     }
 }

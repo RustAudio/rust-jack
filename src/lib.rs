@@ -53,6 +53,8 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+pub use crate::properties::*;
+
 /// Create and manage client connections to a JACK server.
 mod client;
 
@@ -77,7 +79,7 @@ mod primitive_types;
 mod transport;
 
 /// Properties
-pub mod properties;
+mod properties;
 
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.

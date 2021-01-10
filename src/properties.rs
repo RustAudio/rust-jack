@@ -8,20 +8,45 @@ use crate::Client;
 use j::jack_uuid_t as uuid;
 use jack_sys as j;
 
-/*
-int 	jack_set_property_change_callback (jack_client_t *client, JackPropertyChangeCallback callback, void *arg)
-*/
+pub(crate) unsafe extern "C" fn property_changed<P>(
+    subject: j::jack_uuid_t,
+    key: *const ::libc::c_char,
+    change: j::jack_property_change_t,
+    arg: *mut ::libc::c_void,
+) -> ()
+where
+    P: PropertyChangeHandler,
+{
+    let h: &mut P = std::mem::transmute::<*mut ::libc::c_void, &mut P>(arg);
+    let key_c = ffi::CStr::from_ptr(key);
+    let key = key_c.to_str().expect("to convert key to valid str");
+    let c = match change {
+        j::PropertyCreated => PropertyChange::Created { subject, key },
+        j::PropertyDeleted => PropertyChange::Deleted { subject, key },
+        _ => PropertyChange::Changed { subject, key },
+    };
+    h.property_changed(&c);
+}
 
 /// A description of a Metadata change describint a creation, change or deletion, its owner
 /// `subject` and `key`.
+#[derive(Debug, PartialEq)]
 pub enum PropertyChange<'a> {
     Created { subject: uuid, key: &'a str },
     Changed { subject: uuid, key: &'a str },
     Deleted { subject: uuid, key: &'a str },
 }
 
+/// A helper enum, allowing fro sending changes between threads.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyChangeOwned {
+    Created { subject: uuid, key: String },
+    Changed { subject: uuid, key: String },
+    Deleted { subject: uuid, key: String },
+}
+
 pub trait PropertyChangeHandler: Send {
-    fn property_changed(&mut self, change: PropertyChange);
+    fn property_changed(&mut self, change: &PropertyChange);
 }
 
 /// A piece of Metadata on a Jack `subject`: either a port or a client.
@@ -34,6 +59,34 @@ pub struct Property {
 
 /// A map of Metadata `key`s, URI Strings, to `Property`s, value and optional type Strings, for a given subject.
 pub type PropertyMap = HashMap<String, Property>;
+
+/// Wrap a closure that chan handle a `property_changed` callback.
+/// This is called for every property that changes.
+pub struct ClosurePropertyChangeHandler<F>
+where
+    F: 'static + Send + FnMut(&PropertyChange),
+{
+    func: F,
+}
+
+impl<F> ClosurePropertyChangeHandler<F>
+where
+    F: 'static + Send + FnMut(&PropertyChange),
+{
+    /// Create a new `PropertyChangeHandler` from a closure.
+    pub fn new(func: F) -> ClosurePropertyChangeHandler<F> {
+        ClosurePropertyChangeHandler { func }
+    }
+}
+
+impl<F> PropertyChangeHandler for ClosurePropertyChangeHandler<F>
+where
+    F: 'static + Send + FnMut(&PropertyChange),
+{
+    fn property_changed(&mut self, change: &PropertyChange) {
+        (self.func)(change)
+    }
+}
 
 //helper to map 0 return to Ok
 fn map_error<F: FnOnce() -> ::libc::c_int>(func: F) -> Result<(), Error> {
@@ -256,10 +309,30 @@ impl Property {
     }
 }
 
+impl<'a> From<&PropertyChange<'a>> for PropertyChangeOwned {
+    fn from(foo: &PropertyChange<'a>) -> Self {
+        match foo {
+            &PropertyChange::Created { subject, key } => Self::Created {
+                subject,
+                key: key.into(),
+            },
+            &PropertyChange::Changed { subject, key } => Self::Changed {
+                subject,
+                key: key.into(),
+            },
+            &PropertyChange::Deleted { subject, key } => Self::Deleted {
+                subject,
+                key: key.into(),
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::client::*;
+    use std::sync::mpsc::{channel, Sender};
 
     #[test]
     fn can_set_and_get() {
@@ -376,5 +449,88 @@ mod tests {
 
         let all = Property::get_all();
         assert_eq!(0, all.len());
+    }
+
+    #[test]
+    fn client_callbacks() {
+        let timeout = std::time::Duration::from_millis(1);
+        let prop1 = Property::new(&"foo", None);
+        let prop2 = Property::new(
+            &"http://churchofrobotron.com/2084",
+            Some("robot apocalypse".into()),
+        );
+
+        let (mut c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
+        let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+        let (sender, receiver): (Sender<PropertyChangeOwned>, _) = channel();
+        assert_eq!(
+            Ok(()),
+            c1.register_property_change_handler(ClosurePropertyChangeHandler::new(move |change| {
+                assert_eq!(Ok(()), sender.send(change.into()));
+            }))
+        );
+
+        //must activate to get callbacks
+        let ac = c1.activate_async((), ()).unwrap();
+
+        assert_eq!(prop1.set(&c2, c2.uuid(), &"blah"), Ok(()));
+        let r = receiver.recv_timeout(timeout);
+        assert_eq!(
+            Ok(PropertyChangeOwned::Created {
+                subject: c2.uuid(),
+                key: "blah".into()
+            }),
+            r
+        );
+
+        //doesn't matter which client is used to set or remove the property
+        assert_eq!(prop2.set(ac.as_client(), c2.uuid(), &"blah"), Ok(()));
+        assert_eq!(Property::remove(&c2, c2.uuid(), &"blah"), Ok(()));
+        let r = receiver.recv_timeout(timeout);
+        assert_eq!(
+            Ok(PropertyChangeOwned::Changed {
+                subject: c2.uuid(),
+                key: "blah".into()
+            }),
+            r
+        );
+        let r = receiver.recv_timeout(timeout);
+        assert_eq!(
+            Ok(PropertyChangeOwned::Deleted {
+                subject: c2.uuid(),
+                key: "blah".into()
+            }),
+            r
+        );
+
+        assert_eq!(prop1.set(&c2, c2.uuid(), &"blah"), Ok(()));
+        assert_eq!(prop2.set(&c2, ac.as_client().uuid(), &"mutant"), Ok(()));
+        let r = receiver.recv_timeout(timeout);
+        assert_eq!(
+            Ok(PropertyChangeOwned::Created {
+                subject: c2.uuid(),
+                key: "blah".into()
+            }),
+            r
+        );
+        let r = receiver.recv_timeout(timeout);
+        assert_eq!(
+            Ok(PropertyChangeOwned::Created {
+                subject: ac.as_client().uuid(),
+                key: "mutant".into()
+            }),
+            r
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn double_register() {
+        let (mut c, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
+        assert_eq!(
+            Ok(()),
+            c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}))
+        );
+        let _panic = c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}));
     }
 }
