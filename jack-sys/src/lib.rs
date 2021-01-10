@@ -1058,6 +1058,20 @@ extern "C" {
     ) -> ::libc::size_t;
     pub fn jack_ringbuffer_write_advance(rb: *mut jack_ringbuffer_t, cnt: ::libc::size_t) -> ();
     pub fn jack_ringbuffer_write_space(rb: *const jack_ringbuffer_t) -> ::libc::size_t;
+
+}
+
+extern "C" {
+    pub fn jack_uuid_to_index(arg1: jack_uuid_t) -> u32;
+    pub fn jack_uuid_compare(arg1: jack_uuid_t, arg2: jack_uuid_t) -> ::std::os::raw::c_int;
+    pub fn jack_uuid_copy(dst: *mut jack_uuid_t, src: jack_uuid_t);
+    pub fn jack_uuid_clear(arg1: *mut jack_uuid_t);
+    pub fn jack_uuid_parse(
+        buf: *const ::std::os::raw::c_char,
+        arg1: *mut jack_uuid_t,
+    ) -> ::std::os::raw::c_int;
+    pub fn jack_uuid_unparse(arg1: jack_uuid_t, buf: *mut ::std::os::raw::c_char);
+    pub fn jack_uuid_empty(arg1: jack_uuid_t) -> ::std::os::raw::c_int;
 }
 
 // Load optional functions:
