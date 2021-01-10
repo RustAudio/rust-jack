@@ -18,3 +18,7 @@ libc = "0.2"
 
 [dev-dependencies]
 crossbeam-channel = "0.5"
+
+[features]
+default = []
+metadata = []

@@ -4,7 +4,7 @@ use std::{ffi, fmt, ptr};
 
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use crate::jack_utils::collect_strs;
-use crate::properties::{property_changed, PropertyChangeHandler};
+use crate::properties::PropertyChangeHandler;
 use crate::transport::Transport;
 use crate::{
     AsyncClient, ClientOptions, ClientStatus, Error, Frames, NotificationHandler, Port, PortFlags,
@@ -125,6 +125,7 @@ impl Client {
     /// # Remarks
     ///
     /// * Deallocates, not realtime safe.
+    #[cfg(feature = "metadata")]
     pub fn uuid(&self) -> j::jack_uuid_t {
         unsafe {
             let mut uuid: j::jack_uuid_t = Default::default();
@@ -170,6 +171,7 @@ impl Client {
     }
 
     /// Get the name of a client but its numeric uuid.
+    #[cfg(feature = "metadata")]
     pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
         unsafe {
@@ -502,6 +504,7 @@ impl Client {
     ///
     /// # Panics
     /// Calling this method more than once on any given client with cause a panic.
+    #[cfg(feature = "metadata")]
     pub fn register_property_change_handler<H: PropertyChangeHandler + 'static>(
         &mut self,
         handler: H,
@@ -512,7 +515,7 @@ impl Client {
             self.2 = Some(Box::from_raw(handler));
             if j::jack_set_property_change_callback(
                 self.raw(),
-                Some(property_changed::<H>),
+                Some(crate::properties::property_changed::<H>),
                 std::mem::transmute::<_, _>(handler),
             ) == 0
             {

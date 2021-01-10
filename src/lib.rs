@@ -53,6 +53,8 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+//only expose metadata if enabled
+#[cfg(feature = "metadata")]
 pub use crate::properties::*;
 
 /// Create and manage client connections to a JACK server.
@@ -87,6 +89,33 @@ pub fn get_time() -> primitive_types::Time {
     unsafe { jack_sys::jack_get_time() }
 }
 
+pub fn jack_version_string() -> String {
+    unsafe {
+        let s = jack_sys::jack_get_version_string();
+        std::ffi::CStr::from_ptr(s)
+            .to_str()
+            .expect("version string to convert to str")
+            .to_string()
+    }
+}
+
+/// Get the version of the running jack system. Major, Minor, Patch
+pub fn jack_version() -> Vec<isize> {
+    //note, jack_get_version was returning all zeros
+    let ver: Vec<isize> = jack_version_string()
+        .split(".")
+        .map(|v| v.parse::<isize>().unwrap())
+        .collect();
+    assert!(ver.len() >= 3);
+    ver
+}
+
+/// See if the running jack system supports metadata (version 1.9.13+).
+pub fn jack_supports_metadata() -> bool {
+    let v = jack_version();
+    return v[0] > 1 || v[0] == 1 && v[1] > 9 || v[0] == 1 && v[1] == 9 && v[2] > 12;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -103,5 +132,17 @@ mod test {
         thread::sleep(time::Duration::from_millis(100));
         let later_t = get_time();
         assert!(initial_t < later_t, "failed {} < {}", initial_t, later_t);
+    }
+
+    #[test]
+    fn can_get_version() {
+        let v = jack_version();
+        assert!(v.len() >= 3);
+        assert!(v[0] >= 1);
+    }
+
+    #[test]
+    fn can_query_metadata_support() {
+        let _s = jack_supports_metadata();
     }
 }
