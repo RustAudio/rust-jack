@@ -351,11 +351,6 @@ mod metadata {
         use std::sync::mpsc::{channel, Sender};
 
         #[test]
-        fn supports_metadata() {
-            assert!(crate::jack_supports_metadata());
-        }
-
-        #[test]
         fn can_set_and_get() {
             let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
 

@@ -85,7 +85,6 @@
 `jack_transport_reposition`
 `jack_transport_start`
 `jack_transport_stop`
-`jack_get_version_string`
 `jack_client_get_uuid`
 `jack_uuid_parse`
 `jack_uuid_unparse`
@@ -119,6 +118,7 @@
 `jack_get_transport_info`
 `jack_get_uuid_for_client_name`
 `jack_get_version`
+`jack_get_version_string`
 `jack_get_xrun_delayed_usecs`
 `jack_info` - causes link error
 `jack_internal_client_handle`
