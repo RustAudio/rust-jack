@@ -170,7 +170,7 @@ impl Client {
         }
     }
 
-    /// Get the name of a client but its numeric uuid.
+    /// Get the name of a client by its numeric uuid.
     #[cfg(feature = "metadata")]
     pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
@@ -180,7 +180,7 @@ impl Client {
         }
     }
 
-    /// Get the name of a client but its `&str` uuid.
+    /// Get the name of a client by its `&str` uuid.
     pub fn name_by_uuid_str(&self, uuid: &str) -> Option<String> {
         let uuid = ffi::CString::new(uuid).unwrap();
         unsafe { self.name_by_uuid_raw(uuid.as_ptr()) }
