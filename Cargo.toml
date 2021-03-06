@@ -1,6 +1,6 @@
 [package]
 name = "jack"
-version = "0.6.5"
+version = "0.6.6"
 edition = "2018"
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi using safe JACK bindings."
