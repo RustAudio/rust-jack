@@ -154,3 +154,107 @@ fn client_can_use_ringbuffer() {
 
     assert_eq!(outbuf[..num], buf[..]);
 }
+
+#[test]
+fn client_uuid() {
+    let (c1, _) = open_test_client("uuidtest-client1");
+    let (c2, _) = open_test_client("uuidtest-client2");
+
+    let uuid1s = c1.uuid_string();
+    let uuid2s = c2.uuid_string();
+    assert_ne!(uuid1s, uuid2s);
+
+    assert_eq!(
+        c1.name_by_uuid_str(&uuid1s),
+        Some("uuidtest-client1".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid_str(&uuid1s),
+        Some("uuidtest-client1".to_string())
+    );
+
+    assert_eq!(
+        c1.name_by_uuid_str(&uuid2s),
+        Some("uuidtest-client2".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid_str(&uuid2s),
+        Some("uuidtest-client2".to_string())
+    );
+
+    //create and then dealloc a client, get the uuid.
+    let uuid3s = {
+        let (c3, _) = open_test_client("uuidtest-client3");
+        c3.uuid_string()
+    };
+    assert_eq!(c1.name_by_uuid_str(&uuid3s), None);
+    assert_eq!(c2.name_by_uuid_str(&uuid3s), None);
+}
+
+#[cfg(feature = "metadata")]
+#[test]
+fn client_numeric_uuid() {
+    let (c1, _) = open_test_client("numeric-uuid-client1");
+    let (c2, _) = open_test_client("numeric-uuid-client2");
+
+    let ac1 = c1.activate_async((), ()).unwrap();
+    let ac2 = c2.activate_async((), ()).unwrap();
+
+    let c1 = ac1.as_client();
+    let c2 = ac2.as_client();
+
+    let uuid1 = c1.uuid();
+    let uuid2 = c2.uuid();
+    assert_ne!(uuid1, uuid2);
+    assert_ne!(0, uuid1);
+    assert_ne!(0, uuid2);
+
+    let uuid1s = c1.uuid_string();
+    let uuid2s = c2.uuid_string();
+    assert_ne!(uuid1s, uuid2s);
+
+    assert_eq!(c1.name_by_uuid(0), None);
+    assert_eq!(c2.name_by_uuid(0), None);
+
+    assert_eq!(
+        c1.name_by_uuid(uuid1),
+        Some("numeric-uuid-client1".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid(uuid1),
+        Some("numeric-uuid-client1".to_string())
+    );
+    assert_eq!(
+        c1.name_by_uuid_str(&uuid1s),
+        Some("numeric-uuid-client1".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid_str(&uuid1s),
+        Some("numeric-uuid-client1".to_string())
+    );
+
+    assert_eq!(
+        c1.name_by_uuid(uuid2),
+        Some("numeric-uuid-client2".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid(uuid2),
+        Some("numeric-uuid-client2".to_string())
+    );
+    assert_eq!(
+        c1.name_by_uuid_str(&uuid2s),
+        Some("numeric-uuid-client2".to_string())
+    );
+    assert_eq!(
+        c2.name_by_uuid_str(&uuid2s),
+        Some("numeric-uuid-client2".to_string())
+    );
+
+    //create and then dealloc a client, get the uuid.
+    let uuid3 = {
+        let (c3, _) = open_test_client("numeric-uuid-client3");
+        c3.uuid()
+    };
+    assert_eq!(c1.name_by_uuid(uuid3), None);
+    assert_eq!(c2.name_by_uuid(uuid3), None);
+}

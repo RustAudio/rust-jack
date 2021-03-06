@@ -12,9 +12,13 @@ keywords = ["jack", "realtime", "audio", "midi"]
 
 [dependencies]
 bitflags = "1.2"
-jack-sys = { path = "./jack-sys", version = "0.2" }
+jack-sys = { path = "./jack-sys", version = "0.2.2" }
 lazy_static = "1.4"
 libc = "0.2"
 
 [dev-dependencies]
 crossbeam-channel = "0.5"
+
+[features]
+default = []
+metadata = []

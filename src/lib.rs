@@ -53,6 +53,10 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+//only expose metadata if enabled
+#[cfg(feature = "metadata")]
+pub use crate::properties::*;
+
 /// Create and manage client connections to a JACK server.
 mod client;
 
@@ -75,6 +79,9 @@ mod primitive_types;
 
 /// Transport.
 mod transport;
+
+/// Properties
+mod properties;
 
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
