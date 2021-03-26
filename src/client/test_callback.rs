@@ -27,11 +27,6 @@ impl NotificationHandler for Counter {
         self.thread_init_count.fetch_add(1, Ordering::Relaxed);
     }
 
-    fn buffer_size(&mut self, _: &Client, size: Frames) -> Control {
-        self.buffer_size_change_history.push(size);
-        Control::Continue
-    }
-
     fn client_registration(&mut self, _: &Client, name: &str, is_registered: bool) {
         if is_registered {
             self.registered_client_history.push(name.to_string())
@@ -63,6 +58,11 @@ impl ProcessHandler for Counter {
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
         }
+        Control::Continue
+    }
+
+    fn buffer_size(&mut self, _: &Client, size: Frames) -> Control {
+        self.buffer_size_change_history.push(size);
         Control::Continue
     }
 }

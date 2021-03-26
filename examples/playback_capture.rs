@@ -64,11 +64,6 @@ impl jack::NotificationHandler for Notifications {
         );
     }
 
-    fn buffer_size(&mut self, _: &jack::Client, sz: jack::Frames) -> jack::Control {
-        println!("JACK: buffer size changed to {}", sz);
-        jack::Control::Continue
-    }
-
     fn sample_rate(&mut self, _: &jack::Client, srate: jack::Frames) -> jack::Control {
         println!("JACK: sample rate changed to {}", srate);
         jack::Control::Continue
