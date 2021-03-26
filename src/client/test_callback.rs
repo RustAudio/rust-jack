@@ -131,14 +131,14 @@ fn client_cback_calls_process() {
 
 #[test]
 fn client_cback_calls_buffer_size() {
-    let ac = active_test_client("client_cback_calls_process");
+    let ac = active_test_client("client_cback_calls_buffer_size");
     let initial = ac.as_client().buffer_size();
     let second = initial / 2;
     let third = second / 2;
     ac.as_client().set_buffer_size(second).unwrap();
     ac.as_client().set_buffer_size(third).unwrap();
     ac.as_client().set_buffer_size(initial).unwrap();
-    let counter = ac.deactivate().unwrap().1;
+    let counter = ac.deactivate().unwrap().2;
     let mut history_iter = counter.buffer_size_change_history.iter().cloned();
     assert_eq!(history_iter.find(|&s| s == initial), Some(initial));
     assert_eq!(history_iter.find(|&s| s == second), Some(second));
