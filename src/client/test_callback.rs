@@ -12,6 +12,8 @@ pub struct Counter {
     pub induce_xruns: bool,
     pub thread_init_count: AtomicUsize,
     pub frames_processed: usize,
+    pub process_thread: Option<thread::ThreadId>,
+    pub buffer_size_thread_history: Vec<thread::ThreadId>,
     pub buffer_size_change_history: Vec<Frames>,
     pub registered_client_history: Vec<String>,
     pub unregistered_client_history: Vec<String>,
@@ -58,11 +60,13 @@ impl ProcessHandler for Counter {
         if self.induce_xruns {
             thread::sleep(time::Duration::from_millis(400));
         }
+        self.process_thread = Some(thread::current().id());
         Control::Continue
     }
 
     fn buffer_size(&mut self, _: &Client, size: Frames) -> Control {
         self.buffer_size_change_history.push(size);
+        self.buffer_size_thread_history.push(thread::current().id());
         Control::Continue
     }
 }
@@ -144,6 +148,19 @@ fn client_cback_calls_buffer_size() {
     assert_eq!(history_iter.find(|&s| s == second), Some(second));
     assert_eq!(history_iter.find(|&s| s == third), Some(third));
     assert_eq!(history_iter.find(|&s| s == initial), Some(initial));
+}
+
+/// Tests the assumption that the buffer_size callback is called on the process
+/// thread. See issue #137
+#[test]
+fn client_cback_calls_buffer_size_on_process_thread() {
+    let ac = active_test_client("cback_buffer_size_process_thr");
+    let initial = ac.as_client().buffer_size();
+    let second = initial / 2;
+    ac.as_client().set_buffer_size(second).unwrap();
+    let counter = ac.deactivate().unwrap().2;
+    let process_thread = counter.process_thread.unwrap();
+    assert_eq!(counter.buffer_size_thread_history, [process_thread, process_thread]);
 }
 
 #[test]
