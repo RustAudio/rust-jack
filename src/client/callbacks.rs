@@ -25,12 +25,6 @@ pub trait NotificationHandler: Send {
     /// Called whenever "freewheel" mode is entered or leaving.
     fn freewheel(&mut self, _: &Client, _is_freewheel_enabled: bool) {}
 
-    /// Called whenever the size of the buffer that will be passed to `process`
-    /// is about to change.
-    fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
-        Control::Continue
-    }
-
     /// Called whenever the system sample rate changes.
     fn sample_rate(&mut self, _: &Client, _srate: Frames) -> Control {
         Control::Continue
@@ -150,6 +144,16 @@ pub trait ProcessHandler: Send {
     /// Should return `Control::Continue` on success, and
     /// `Control::Quit` on error.
     fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
+    
+    /// Called whenever the size of the buffer that will be passed to `process`
+    /// is about to change, and once before the first call to `process`.
+    ///
+    /// It is called on the same thread as `process`, but as an exception, does
+    /// not need to be suitable for real-time execution, so it is allowed to
+    /// allocate new buffers to accomodate the buffer size for example.
+    fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
+        Control::Continue
+    }
 }
 
 unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
@@ -210,7 +214,7 @@ where
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
-    ctx.notification.buffer_size(&ctx.client, n_frames).to_ffi()
+    ctx.process.buffer_size(&ctx.client, n_frames).to_ffi()
 }
 
 unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
