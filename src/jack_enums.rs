@@ -22,6 +22,7 @@ pub enum Error {
     TimeError,
     WeakFunctionNotFound,
     ClientIsNoLongerAlive,
+    RingbufferCreateFailed,
     UnknownError,
 }
 

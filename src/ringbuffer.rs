@@ -24,12 +24,12 @@ pub struct RingBuffer(*mut j::jack_ringbuffer_t);
 
 impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
-    pub fn new(size: usize) -> Result<Self, ()> {
+    pub fn new(size: usize) -> Result<Self, crate::Error> {
         let insize = size as libc::size_t;
         let handle = unsafe { j::jack_ringbuffer_create(insize) };
 
         if handle.is_null() {
-            return Err(());
+            return Err(crate::Error::RingbufferCreateFailed);
         }
 
         Ok(RingBuffer(handle))
@@ -196,9 +196,9 @@ impl RingBufferReader {
     }
 
     /// Iterator that goes over all the data available to read.
-    pub fn peek_iter<'a>(
-        &'a self,
-    ) -> std::iter::Chain<std::slice::Iter<'a, u8>, std::slice::Iter<'a, u8>> {
+    pub fn peek_iter(
+        &'_ self,
+    ) -> std::iter::Chain<std::slice::Iter<'_, u8>, std::slice::Iter<'_, u8>> {
         let (view1, view2) = self.get_vector();
 
         view1.iter().chain(view2.iter())
@@ -213,11 +213,14 @@ impl std::io::Read for RingBufferReader {
 
 impl Drop for RingBufferReader {
     fn drop(&mut self) {
-        if !self
+        match self
             .both_live
-            .compare_and_swap(true, false, Ordering::SeqCst)
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
         {
-            drop(RingBuffer(self.ringbuffer_handle));
+            Ok(false) | Err(false) => {
+                drop(RingBuffer(self.ringbuffer_handle));
+            }
+            _ => (),
         }
     }
 }
@@ -290,9 +293,9 @@ impl RingBufferWriter {
     }
 
     /// Iterator that goes over all the data available to write.
-    pub fn peek_iter<'a>(
-        &'a mut self,
-    ) -> std::iter::Chain<std::slice::IterMut<'a, u8>, std::slice::IterMut<'a, u8>> {
+    pub fn peek_iter(
+        &'_ mut self,
+    ) -> std::iter::Chain<std::slice::IterMut<'_, u8>, std::slice::IterMut<'_, u8>> {
         let (view1, view2) = self.get_vector();
 
         view1.iter_mut().chain(view2.iter_mut())
@@ -311,11 +314,14 @@ impl std::io::Write for RingBufferWriter {
 
 impl Drop for RingBufferWriter {
     fn drop(&mut self) {
-        if !self
+        match self
             .both_live
-            .compare_and_swap(true, false, Ordering::SeqCst)
+            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
         {
-            drop(RingBuffer(self.ringbuffer_handle));
+            Ok(false) | Err(false) => {
+                drop(RingBuffer(self.ringbuffer_handle));
+            }
+            _ => (),
         }
     }
 }

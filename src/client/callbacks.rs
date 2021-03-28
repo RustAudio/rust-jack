@@ -144,7 +144,7 @@ pub trait ProcessHandler: Send {
     /// Should return `Control::Continue` on success, and
     /// `Control::Quit` on error.
     fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
-    
+
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change, and once before the first call to `process`.
     ///
@@ -175,10 +175,7 @@ unsafe extern "C" fn shutdown<N, P>(
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let cstr = ffi::CStr::from_ptr(reason);
-    let reason_str = match cstr.to_str() {
-        Ok(s) => s,
-        Err(_) => "Failed to interpret error.",
-    };
+    let reason_str = cstr.to_str().unwrap_or("Failed to interpret error.");
     ctx.notification.shutdown(
         ClientStatus::from_bits(code).unwrap_or_else(ClientStatus::empty),
         reason_str,
@@ -201,10 +198,7 @@ where
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
-    let is_starting = match starting {
-        0 => false,
-        _ => true,
-    };
+    let is_starting = !matches!(starting, 0);
     ctx.notification.freewheel(&ctx.client, is_starting)
 }
 
@@ -236,10 +230,7 @@ unsafe extern "C" fn client_registration<N, P>(
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let name = ffi::CStr::from_ptr(name).to_str().unwrap();
-    let register = match register {
-        0 => false,
-        _ => true,
-    };
+    let register = !matches!(register, 0);
     ctx.notification
         .client_registration(&ctx.client, name, register)
 }
@@ -253,10 +244,7 @@ unsafe extern "C" fn port_registration<N, P>(
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
-    let register = match register {
-        0 => false,
-        _ => true,
-    };
+    let register = !matches!(register, 0);
     ctx.notification
         .port_registration(&ctx.client, port_id, register)
 }
@@ -290,10 +278,7 @@ unsafe extern "C" fn port_connect<N, P>(
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
-    let are_connected = match connect {
-        0 => false,
-        _ => true,
-    };
+    let are_connected = !matches!(connect, 0);
     ctx.notification
         .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected)
 }

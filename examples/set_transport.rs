@@ -16,7 +16,7 @@ fn main() {
         ];
         println!("usage:");
         for cmd in commands.iter() {
-            println!("\t {} {}", env::args().nth(0).unwrap(), cmd);
+            println!("\t {} {}", env::args().next().unwrap(), cmd);
         }
     };
 
@@ -26,12 +26,12 @@ fn main() {
         let jack::TransportStatePosition { mut pos, state: _ } =
             transport.query().expect("failed to query transport");
 
-        let mut bbt = pos.bbt().unwrap_or(jack::TransportBBT::default());
+        let mut bbt = pos.bbt().unwrap_or_else(jack::TransportBBT::default);
         pos.set_frame(pos.frame() + 44100);
 
         let mut new_bbt = None;
         let mut args = env::args().skip(1);
-        let cmd = args.next().expect("failed to get command").clone();
+        let cmd = args.next().expect("failed to get command");
         match cmd.as_str() {
             "start" => transport.start().expect("failed to start"),
             "stop" => transport.stop().expect("failed to stop"),
@@ -77,7 +77,7 @@ fn main() {
                     ),
                 );
             }
-            c @ _ => {
+            c => {
                 println!("unknown command {}", c);
                 usage();
                 return;

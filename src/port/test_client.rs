@@ -96,7 +96,7 @@ fn client_port_can_get_port_by_id() {
     let registered_ports: Vec<String> = reg_rx
         .iter()
         .flat_map(|i| c.port_by_id(i))
-        .map(|p| p.name().unwrap().to_string())
+        .map(|p| p.name().unwrap())
         .collect();
     let port_name = format!("{}:{}", client_name, port_name);
     assert!(registered_ports.contains(&port_name));
@@ -192,14 +192,12 @@ fn client_port_cant_connect_inactive_client() {
         .register_port("inp", AudioIn::default())
         .unwrap()
         .name()
-        .unwrap()
-        .to_string();
+        .unwrap();
     let out_p = other
         .register_port("outp", AudioOut::default())
         .unwrap()
         .name()
-        .unwrap()
-        .to_string();
+        .unwrap();
 
     // Normally we start a client before we begin connecting, but in this case
     // we're checking for errors that happen when we connect before activating.
@@ -229,8 +227,8 @@ fn client_port_recognizes_already_connected_ports() {
     assert_eq!(
         client.as_client().connect_ports(&out_p, &in_p),
         Err(Error::PortAlreadyConnected(
-            out_p.name().unwrap().to_string(),
-            in_p.name().unwrap().to_string(),
+            out_p.name().unwrap(),
+            in_p.name().unwrap(),
         ))
     );
 }
@@ -339,8 +337,8 @@ fn client_port_can_get_existing_ports() {
     // retrieve
     use std::collections::HashSet;
     let known_ports = [
-        in_p.name().unwrap().to_string(),
-        out_p.name().unwrap().to_string(),
+        in_p.name().unwrap(),
+        out_p.name().unwrap(),
         "system:playback_2".to_string(),
         "system:playback_1".to_string(),
         "system:capture_1".to_string(),

@@ -27,11 +27,10 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
     key: *const ::libc::c_char,
     change: j::jack_property_change_t,
     arg: *mut ::libc::c_void,
-) -> ()
-where
+) where
     P: PropertyChangeHandler,
 {
-    let h: &mut P = std::mem::transmute::<*mut ::libc::c_void, &mut P>(arg);
+    let h: &mut P = &mut *(arg as *mut P);
     let key_c = std::ffi::CStr::from_ptr(key);
     let key = key_c.to_str().expect("to convert key to valid str");
     let c = match change {

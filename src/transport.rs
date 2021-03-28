@@ -87,7 +87,7 @@ impl std::error::Error for TransportBBTValidationError {}
 
 impl Transport {
     fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
-        if let Some(_) = self.client_life.upgrade() {
+        if self.client_life.upgrade().is_some() {
             Ok(func(self.client_ptr))
         } else {
             Err(crate::Error::ClientIsNoLongerAlive)
@@ -134,7 +134,7 @@ impl Transport {
     /// * If there are slow-sync clients and the transport is already rolling, it will enter the `TransportState::Starting` state and begin invoking their sync_callbacks until ready.
     /// * This function is realtime-safe.
     pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
-        Self::to_result(
+        Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
                 j::jack_transport_reposition(
                     ptr,
@@ -158,14 +158,14 @@ impl Transport {
     /// * If there are slow-sync clients and the transport is already rolling, it will enter the JackTransportStarting state and begin invoking their sync_callbacks until ready.
     /// * This function is realtime-safe.
     pub fn locate(&self, frame: Frames) -> Result<()> {
-        Self::to_result(
+        Self::result_from_ffi(
             self.with_client(|ptr| unsafe { j::jack_transport_locate(ptr, frame) }),
             (),
         )
     }
 
     //helper to convert to TransportState
-    fn to_state(state: j::jack_transport_state_t) -> TransportState {
+    fn state_from_ffi(state: j::jack_transport_state_t) -> TransportState {
         match state {
             j::JackTransportStopped => TransportState::Stopped,
             j::JackTransportStarting => TransportState::Starting,
@@ -175,7 +175,7 @@ impl Transport {
     }
 
     //helper to create generic error from jack response
-    fn to_result<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
+    fn result_from_ffi<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
         match v {
             Ok(0) => Ok(r),
             Ok(_) => Err(crate::Error::UnknownError),
@@ -192,12 +192,10 @@ impl Transport {
     pub fn query(&self) -> Result<TransportStatePosition> {
         self.with_client(|ptr| {
             let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
-            let state = Self::to_state(unsafe {
+            let state = Self::state_from_ffi(unsafe {
                 j::jack_transport_query(
                     ptr,
-                    std::mem::transmute::<*mut TransportPosition, *mut j::jack_position_t>(
-                        pos.as_mut_ptr(),
-                    ),
+                    pos.as_mut_ptr() as *mut jack_sys::Struct__jack_position,
                 )
             });
             TransportStatePosition {
@@ -215,7 +213,7 @@ impl Transport {
     /// * If called from the process thread, the state returned is valid for the entire cycle.
     pub fn query_state(&self) -> Result<TransportState> {
         self.with_client(|ptr| {
-            Self::to_state(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
+            Self::state_from_ffi(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
         })
     }
 }
@@ -328,7 +326,7 @@ impl TransportPosition {
     ) -> std::result::Result<(), TransportBBTValidationError> {
         match bbt {
             None => {
-                self.0.valid = self.0.valid & !j::JackPositionBBT;
+                self.0.valid &= !j::JackPositionBBT;
                 Ok(())
             }
             Some(bbt) => match bbt.validated() {
@@ -376,7 +374,7 @@ impl TransportPosition {
     pub fn set_bbt_offset(&mut self, frame: Option<Frames>) -> std::result::Result<(), Frames> {
         match frame {
             None => {
-                self.0.valid = self.0.valid & !j::JackBBTFrameOffset;
+                self.0.valid &= !j::JackBBTFrameOffset;
                 Ok(())
             }
             Some(frame) => {
@@ -417,7 +415,7 @@ impl TransportBBT {
     /// assert_eq!(bbt.beat, 2);
     /// assert_eq!(bbt.tick, 14);
     /// ```
-    pub fn with_bbt<'a>(&'a mut self, bar: usize, beat: usize, tick: usize) -> &'a mut Self {
+    pub fn with_bbt(&'_ mut self, bar: usize, beat: usize, tick: usize) -> &'_ mut Self {
         self.bar = bar;
         self.beat = beat;
         self.tick = tick;
@@ -425,32 +423,32 @@ impl TransportBBT {
     }
 
     /// Set Beats Per Minute.
-    pub fn with_bpm<'a>(&'a mut self, bpm: f64) -> &'a mut Self {
+    pub fn with_bpm(&'_ mut self, bpm: f64) -> &'_ mut Self {
         self.bpm = bpm;
         self
     }
 
     /// Set the time signature.
-    pub fn with_timesig<'a>(&'a mut self, num: f32, denom: f32) -> &'a mut Self {
+    pub fn with_timesig(&'_ mut self, num: f32, denom: f32) -> &'_ mut Self {
         self.sig_num = num;
         self.sig_denom = denom;
         self
     }
 
     /// Set ticks per beat.
-    pub fn with_ticks_per_beat<'a>(&'a mut self, ticks_per_beat: f64) -> &'a mut Self {
+    pub fn with_ticks_per_beat(&'_ mut self, ticks_per_beat: f64) -> &'_ mut Self {
         self.ticks_per_beat = ticks_per_beat;
         self
     }
 
     /// Set bar start tick.
-    pub fn with_bar_start_tick<'a>(&'a mut self, tick: f64) -> &'a mut Self {
+    pub fn with_bar_start_tick(&'_ mut self, tick: f64) -> &'_ mut Self {
         self.bar_start_tick = tick;
         self
     }
 
     /// Validate contents.
-    pub fn validated<'a>(&'a self) -> std::result::Result<Self, TransportBBTValidationError> {
+    pub fn validated(&'_ self) -> std::result::Result<Self, TransportBBTValidationError> {
         if self.bar == 0 {
             Err(TransportBBTValidationError::BarZero)
         } else if self.beat == 0 || self.beat > self.sig_num.ceil() as _ {
@@ -560,8 +558,10 @@ mod test {
                 assert_eq!(v.bbt(), Some(def));
             };
 
-            let mut bbt: TransportBBT = Default::default();
-            bbt.bar = 0;
+            let mut bbt = TransportBBT {
+                bar: 0,
+                ..Default::default()
+            };
             t(bbt);
 
             bbt = Default::default();
@@ -614,8 +614,10 @@ mod test {
         fn bbt_valid() {
             let mut p: TransportPosition = Default::default();
             let mut b: TransportBBT = Default::default();
-            let mut i: TransportBBT = Default::default();
-            i.beat = 5; //invalid
+            let i = TransportBBT {
+                beat: 5, //invalid
+                ..Default::default()
+            };
 
             assert!(!i.valid());
 
@@ -665,17 +667,36 @@ mod test {
     mod bbt {
         use crate::{TransportBBT, TransportBBTValidationError};
 
+        fn approx_eq(a: f32, b: f32) -> bool {
+            (a - b).abs() < f32::EPSILON
+        }
+
         #[test]
         fn default() {
             let bbt: TransportBBT = Default::default();
             assert_eq!(bbt.bar, 1);
             assert_eq!(bbt.beat, 1);
             assert_eq!(bbt.tick, 0);
-            assert_eq!(bbt.sig_num, 4.0);
-            assert_eq!(bbt.sig_denom, 4.0);
-            assert_eq!(bbt.ticks_per_beat, 1920.0);
-            assert_eq!(bbt.bpm, 120.0);
-            assert_eq!(bbt.bar_start_tick, 0.0);
+            assert!(approx_eq(bbt.sig_num, 4.0), "{} != {}", bbt.sig_num, 4.0);
+            assert!(
+                approx_eq(bbt.sig_denom, 4.0),
+                "{} != {}",
+                bbt.sig_denom,
+                4.0
+            );
+            assert!(
+                approx_eq(bbt.ticks_per_beat as f32, 1920.0),
+                "{} != {}",
+                bbt.ticks_per_beat,
+                1920.0
+            );
+            assert!(approx_eq(bbt.bpm as f32, 120.0), "{} != {}", bbt.bpm, 120.0);
+            assert!(
+                approx_eq(bbt.bar_start_tick as f32, 0.0),
+                "{} != {}",
+                bbt.bar_start_tick,
+                0.0
+            );
         }
 
         #[test]
@@ -744,14 +765,20 @@ mod test {
             //can simply use setters, could create invalid data..
             bbt = TransportBBT::default();
             bbt.with_bpm(120.0);
-            assert_eq!(bbt.bpm, 120.0);
+            assert!(
+                approx_eq(bbt.bpm as f32, 120.0),
+                "{} != {},",
+                bbt.bpm,
+                120.0
+            );
         }
 
         #[test]
         fn builder_invalid() {
-            let mut bbt = TransportBBT::default();
-
-            bbt.bpm = -1023.0;
+            let mut bbt = TransportBBT {
+                bpm: -1023.0,
+                ..TransportBBT::default()
+            };
             assert_eq!(
                 TransportBBT::default().with_bpm(bbt.bpm).validated(),
                 Err(TransportBBTValidationError::BPMRange)

@@ -4,7 +4,7 @@ use std::mem;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
-use crate::client::client::Client;
+use crate::client::client_impl::Client;
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
 use crate::Error;
 
@@ -44,7 +44,7 @@ where
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
-        let _ = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         unsafe {
             sleep_on_test();
             let mut callback_context = Box::new(CallbackContext {
@@ -98,7 +98,7 @@ impl<N, P> AsyncClient<N, P> {
     // Helper function for deactivating. Any function that calls this should
     // have ownership of self and no longer use it after this call.
     unsafe fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
-        let _ = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
         }

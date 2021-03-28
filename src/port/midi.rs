@@ -290,8 +290,8 @@ mod test {
 
         fn connector(&self) -> Connector {
             Connector {
-                src: self.midi_out.name().unwrap().to_string(),
-                dst: self.midi_in.name().unwrap().to_string(),
+                src: self.midi_out.name().unwrap(),
+                dst: self.midi_in.name().unwrap(),
             }
         }
     }

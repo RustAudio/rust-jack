@@ -42,7 +42,7 @@ impl Client {
     /// Although the client may be successful in opening, there still may be some errors minor
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
-        let _ = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
@@ -307,10 +307,7 @@ impl Client {
 
     /// Returns `true` if the port `port` belongs to this client.
     pub fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
-        match unsafe { j::jack_port_is_mine(self.raw(), port.raw()) } {
-            1 => true,
-            _ => false,
-        }
+        matches!(unsafe { j::jack_port_is_mine(self.raw(), port.raw()) }, 1)
     }
 
     /// Toggle input monitoring for the port with name `port_name`.
@@ -414,7 +411,7 @@ impl Client {
         source_port: &Port<A>,
         destination_port: &Port<B>,
     ) -> Result<(), Error> {
-        let _ = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
         self.connect_ports_by_name(&source_port.name()?, &destination_port.name()?)
     }
 
@@ -463,7 +460,7 @@ impl Client {
 
     /// The buffer size of a port type
     ///
-    /// # Unsafe
+    /// # Safety
     ///
     /// * This function may only be called in a buffer size callback.
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
@@ -482,6 +479,9 @@ impl Client {
     /// Create a `Client` from an ffi pointer.
     ///
     /// This is mostly for use within the jack crate itself.
+    ///
+    /// # Safety
+    /// It is unsafe to create a `Client` from a raw pointer.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
         Client(p, Arc::default(), None)
     }
@@ -530,7 +530,7 @@ impl Client {
 /// Close the client.
 impl Drop for Client {
     fn drop(&mut self) {
-        let _ = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
 
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
@@ -630,6 +630,10 @@ impl ProcessScope {
     /// frames.
     ///
     /// This is mostly for use within the jack crate itself.
+    ///
+    /// # Safety
+    /// It is unsafe to create a `ProcessScope` since it may not be valid. For library user's, the
+    /// `ProcessScope` is usually passed in as a parameter to a trait's method.
     pub unsafe fn from_raw(n_frames: Frames, client_ptr: *mut j::jack_client_t) -> Self {
         ProcessScope {
             n_frames,

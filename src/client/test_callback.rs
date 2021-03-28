@@ -87,30 +87,27 @@ fn client_cback_has_proper_default_callbacks() {
     let wc = unsafe { Client::from_raw(ptr::null_mut()) };
     let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut()) };
     // check each callbacks
-    assert_eq!(().thread_init(&wc), ());
-    assert_eq!(
-        ().shutdown(client_status::ClientStatus::empty(), "mock"),
-        ()
-    );
+    ().thread_init(&wc);
+    ().shutdown(client_status::ClientStatus::empty(), "mock");
     assert_eq!(().process(&wc, &ps), Control::Continue);
-    assert_eq!(().freewheel(&wc, true), ());
-    assert_eq!(().freewheel(&wc, false), ());
+    ().freewheel(&wc, true);
+    ().freewheel(&wc, false);
     assert_eq!(().buffer_size(&wc, 0), Control::Continue);
     assert_eq!(().sample_rate(&wc, 0), Control::Continue);
-    assert_eq!(().client_registration(&wc, "mock", true), ());
-    assert_eq!(().client_registration(&wc, "mock", false), ());
-    assert_eq!(().port_registration(&wc, 0, true), ());
-    assert_eq!(().port_registration(&wc, 0, false), ());
+    ().client_registration(&wc, "mock", true);
+    ().client_registration(&wc, "mock", false);
+    ().port_registration(&wc, 0, true);
+    ().port_registration(&wc, 0, false);
     assert_eq!(
         ().port_rename(&wc, 0, "old_mock", "new_mock"),
         Control::Continue
     );
-    assert_eq!(().ports_connected(&wc, 0, 1, true), ());
-    assert_eq!(().ports_connected(&wc, 2, 3, false), ());
+    ().ports_connected(&wc, 0, 1, true);
+    ().ports_connected(&wc, 2, 3, false);
     assert_eq!(().graph_reorder(&wc), Control::Continue);
     assert_eq!(().xrun(&wc), Control::Continue);
-    assert_eq!(().latency(&wc, LatencyType::Capture), ());
-    assert_eq!(().latency(&wc, LatencyType::Playback), ());
+    ().latency(&wc, LatencyType::Capture);
+    ().latency(&wc, LatencyType::Playback);
 
     mem::forget(wc);
     mem::forget(ps);
@@ -160,7 +157,11 @@ fn client_cback_calls_buffer_size_on_process_thread() {
     ac.as_client().set_buffer_size(second).unwrap();
     let counter = ac.deactivate().unwrap().2;
     let process_thread = counter.process_thread.unwrap();
-    assert_eq!(counter.buffer_size_thread_history, [process_thread, process_thread]);
+    assert_eq!(
+        counter.buffer_size_thread_history,
+        [process_thread, process_thread],
+        "Note: This does not hold for JACK2",
+    );
 }
 
 #[test]
@@ -193,8 +194,10 @@ fn client_cback_calls_after_client_unregistered() {
 #[test]
 fn client_cback_reports_xruns() {
     let c = open_test_client("client_cback_reports_xruns");
-    let mut counter = Counter::default();
-    counter.induce_xruns = true;
+    let counter = Counter {
+        induce_xruns: true,
+        ..Counter::default()
+    };
     let ac = c.activate_async(Counter::default(), counter).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert!(counter.xruns_count > 0, "No xruns encountered.");

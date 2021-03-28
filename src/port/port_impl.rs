@@ -232,6 +232,9 @@ impl<PS> Port<PS> {
     /// Create a Port from raw JACK pointers.
     ///
     /// This is mostly for use within the jack crate itself.
+    ///
+    /// # Safety
+    /// It is unsafe to create a `Port` from raw pointers.
     pub unsafe fn from_raw(
         spec: PS,
         client_ptr: *mut j::jack_client_t,
@@ -266,6 +269,10 @@ impl<PS> Port<PS> {
     /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort` adapter. For more
     /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
     /// method.
+    ///
+    /// # Safety
+    /// It is unsafe to extract a buffer. Prefer to use one of the type specific wrappers such as
+    /// `.as_mut_slice()` for audio and `.midi_iter` for midi.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
         // We don't check for life to improve performance in a very hot codepath.
@@ -297,7 +304,7 @@ impl<PS> Port<PS> {
     pub fn get_latency_range(&self, mode: LatencyType) -> (Frames, Frames) {
         let mut ffi_range = j::Struct__jack_latency_range { min: 0, max: 0 };
         unsafe { j::jack_port_get_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
-        return (ffi_range.min, ffi_range.max);
+        (ffi_range.min, ffi_range.max)
     }
 
     fn check_client_life(&self) -> Result<(), Error> {
