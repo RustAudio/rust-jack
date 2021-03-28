@@ -8,7 +8,7 @@
 
 Rust bindings for [JACK Audio Connection Kit](https://www.jackaudio.org).
 
-[:heart: Sponsor][https://github.com/sponsors/wmedrano]
+[:heart: Sponsor](https://github.com/sponsors/wmedrano)
 
 Check out the `examples` directory for usage.
 
