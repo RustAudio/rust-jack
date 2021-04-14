@@ -16,7 +16,7 @@ Check out the `examples` directory for usage.
 
 ```toml
 [dependencies]
-jack = "0.6"
+jack = "0.7"
 ```
 
 ### Windows
