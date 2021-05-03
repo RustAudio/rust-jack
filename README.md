@@ -6,7 +6,7 @@
 [![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
 [![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
 
-Rust bindings for [JACK Audio Connection Kit](https://www.jackaudio.org).
+Rust bindings for [JACK Audio Connection Kit](https://jackaudio.org).
 
 [:heart: Sponsor](https://github.com/sponsors/wmedrano)
 
@@ -21,7 +21,7 @@ jack = "0.7"
 
 ### Windows
 
-Install `JACK` from the [official website](http://www.jackaudio.org/downloads/).
+Install `JACK` from the [official website](http://jackaudio.org/downloads/).
 Link the installed library in your rust code. For example:
 
 ```rust
@@ -32,11 +32,11 @@ extern "C" {}
 
 ## Running
 
-* `libjack` is required. Consult your package manager or the [official](http://www.jackaudio.org/downloads/) website.
+* `libjack` is required. Consult your package manager or the [official](http://jackaudio.org/downloads/) website.
 
 * The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a JACK server through a GUI.
 
-* [JACK FAQ](http://www.jackaudio.org/faq/)
+* [JACK FAQ](http://jackaudio.org/faq/)
 
 ## Testing
 
