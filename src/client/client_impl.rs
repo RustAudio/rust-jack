@@ -276,27 +276,41 @@ impl Client {
     }
 
     /// Load a (server) internal client
-    /// 
-    /// This call will load a server-internal jack client. Internal clients run inside the jack 
+    ///
+    /// This call will load a server-internal jack client. Internal clients run inside the jack
     /// server process and are provided as .so files by the jack package. Most internal clients
     /// provide low level interfaces, so as such are not expected to be needed by regular applications
-    /// 
+    ///
     /// `client_name` is the name the new client will display as on the graph
     /// `client_bin_name` is the name of the internal client to load. This is the same as the .so file
     /// being loaded, without its file extension or path.
     /// `client_args` is an arbitrary string of parameters passed to the client. These are client specific
-    /// 
+    ///
     /// This call will return the ID of the new client, needed to unload it again on success.
     /// It returns a ClientError on error.
-    pub fn load_internal_client(&self, client_name: &str, client_bin_name: &str, client_args: &str) -> Result<InternalClientID, Error> {
+    pub fn load_internal_client(
+        &self,
+        client_name: &str,
+        client_bin_name: &str,
+        client_args: &str,
+    ) -> Result<InternalClientID, Error> {
         let ffi_client_name = ffi::CString::new(client_name).unwrap();
         let ffi_client_bin = ffi::CString::new(client_bin_name).unwrap();
         let ffi_client_args = ffi::CString::new(client_args).unwrap();
-        
-        let mut status_bits = 0;
-        let options: j::Enum_JackOptions = j::JackLoadName|j::JackLoadInit;
 
-        let intclient = unsafe { j::jack_internal_client_load(self.raw(), ffi_client_name.as_ptr(), options, &mut status_bits, ffi_client_bin.as_ptr(), ffi_client_args.as_ptr()) };
+        let mut status_bits = 0;
+        let options: j::Enum_JackOptions = j::JackLoadName | j::JackLoadInit;
+
+        let intclient = unsafe {
+            j::jack_internal_client_load(
+                self.raw(),
+                ffi_client_name.as_ptr(),
+                options,
+                &mut status_bits,
+                ffi_client_bin.as_ptr(),
+                ffi_client_args.as_ptr(),
+            )
+        };
 
         if intclient == 0 {
             let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
@@ -307,16 +321,16 @@ impl Client {
     }
 
     /// Unload a (server) internal client
-    /// 
+    ///
     /// This call will unload a server-internal jack client with an ID given from load_internal_client.
-    /// 
+    ///
     /// `client` is the ID to unload
-    /// 
+    ///
     /// This call will return `Ok(())` on success.
     /// It returns a ClientError on error.
-    pub fn unload_internal_client(&self, client: InternalClientID) -> Result<(),Error> {
+    pub fn unload_internal_client(&self, client: InternalClientID) -> Result<(), Error> {
         let status = unsafe {
-            let status = j::jack_internal_client_unload(self.raw(),client);
+            let status = j::jack_internal_client_unload(self.raw(), client);
             ClientStatus::from_bits_unchecked(status)
         };
         if status.is_empty() {
