@@ -12,7 +12,7 @@ mod client_status;
 
 pub use self::async_client::AsyncClient;
 pub use self::callbacks::{NotificationHandler, ProcessHandler};
-pub use self::client_impl::{Client, CycleTimes, ProcessScope};
+pub use self::client_impl::{Client, CycleTimes, InternalClientID, ProcessScope};
 pub use self::client_options::ClientOptions;
 pub use self::client_status::ClientStatus;
 pub use self::common::CLIENT_NAME_SIZE;

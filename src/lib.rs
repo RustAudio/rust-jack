@@ -35,7 +35,7 @@
 
 pub use crate::client::{
     AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,
-    NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
+    InternalClientID, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
 pub use crate::logging::{
