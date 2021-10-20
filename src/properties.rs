@@ -353,14 +353,14 @@ mod metadata {
         fn can_set_and_get() {
             let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
 
-            let prop1 = Property::new(&"foo", None);
-            assert_eq!(c.property_set(c.uuid(), &"blah", &prop1), Ok(()));
+            let prop1 = Property::new("foo", None);
+            assert_eq!(c.property_set(c.uuid(), "blah", &prop1), Ok(()));
 
             let prop2 = Property::new(
-                &"http://churchofrobotron.com/2084",
+                "http://churchofrobotron.com/2084",
                 Some("robot apocalypse".into()),
             );
-            assert_eq!(c.property_set(c.uuid(), &"mutant", &prop2), Ok(()));
+            assert_eq!(c.property_set(c.uuid(), "mutant", &prop2), Ok(()));
 
             assert_eq!(None, c.property_get(c.uuid(), "soda"));
             assert_eq!(Some(prop1.clone()), c.property_get(c.uuid(), "blah"));
@@ -372,9 +372,9 @@ mod metadata {
             let sub = sub.unwrap();
             assert_eq!(2, sub.len());
 
-            assert_eq!(sub.get(&"blah".to_string()), Some(&prop1));
-            assert_eq!(sub.get(&"mutant".to_string()), Some(&prop2));
-            assert_eq!(sub.get(&"asdf".to_string()), None);
+            assert_eq!(sub.get("blah".to_string()), Some(&prop1));
+            assert_eq!(sub.get("mutant".to_string()), Some(&prop2));
+            assert_eq!(sub.get("asdf".to_string()), None);
 
             //get all
             let all = c.property_get_all();
@@ -385,42 +385,42 @@ mod metadata {
             let sub = sub.unwrap();
             assert_eq!(2, sub.len());
 
-            assert_eq!(sub.get(&"blah".to_string()), Some(&prop1));
-            assert_eq!(sub.get(&"mutant".to_string()), Some(&prop2));
-            assert_eq!(sub.get(&"asdf".to_string()), None);
+            assert_eq!(sub.get("blah".to_string()), Some(&prop1));
+            assert_eq!(sub.get("mutant".to_string()), Some(&prop2));
+            assert_eq!(sub.get("asdf".to_string()), None);
         }
 
         #[test]
         fn can_remove() {
             let (c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
             let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
-            let prop1 = Property::new(&"foo", None);
+            let prop1 = Property::new("foo", None);
             let prop2 = Property::new(
-                &"http://churchofrobotron.com/2084",
+                "http://churchofrobotron.com/2084",
                 Some("robot apocalypse".into()),
             );
 
-            assert_eq!(c1.property_set(c1.uuid(), &"blah", &prop1), Ok(()));
-            assert_eq!(c1.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
-            assert_eq!(c2.property_set(c1.uuid(), &"mutant", &prop2), Ok(()));
-            assert_eq!(c2.property_set(c2.uuid(), &"mutant", &prop2), Ok(()));
+            assert_eq!(c1.property_set(c1.uuid(), "blah", &prop1), Ok(()));
+            assert_eq!(c1.property_set(c2.uuid(), "blah", &prop1), Ok(()));
+            assert_eq!(c2.property_set(c1.uuid(), "mutant", &prop2), Ok(()));
+            assert_eq!(c2.property_set(c2.uuid(), "mutant", &prop2), Ok(()));
 
             assert_eq!(Some(prop1.clone()), c1.property_get(c1.uuid(), "blah"));
             assert_eq!(Some(prop1.clone()), c1.property_get(c2.uuid(), "blah"));
             assert_eq!(Some(prop2.clone()), c1.property_get(c1.uuid(), "mutant"));
             assert_eq!(Some(prop2.clone()), c1.property_get(c2.uuid(), "mutant"));
 
-            assert_eq!(Ok(()), c1.property_remove(c1.uuid(), &"blah"));
+            assert_eq!(Ok(()), c1.property_remove(c1.uuid(), "blah"));
             assert_eq!(None, c1.property_get(c1.uuid(), "blah"));
 
             //with other client
-            assert_eq!(Ok(()), c2.property_remove(c1.uuid(), &"mutant"));
+            assert_eq!(Ok(()), c2.property_remove(c1.uuid(), "mutant"));
             assert_eq!(None, c1.property_get(c1.uuid(), "mutant"));
 
             //second time, error
             assert_eq!(
                 Err(Error::UnknownError),
-                c2.property_remove(c1.uuid(), &"mutant")
+                c2.property_remove(c1.uuid(), "mutant")
             );
 
             assert_eq!(Some(prop1.clone()), c2.property_get(c2.uuid(), "blah"));
@@ -443,8 +443,8 @@ mod metadata {
         #[test]
         fn can_property_remove_all() {
             let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
-            let prop = Property::new(&"foo", Some("bar".into()));
-            assert_eq!(c.property_set(c.uuid(), &"blah", &prop), Ok(()));
+            let prop = Property::new("foo", Some("bar".into()));
+            assert_eq!(c.property_set(c.uuid(), "blah", &prop), Ok(()));
 
             let sub = c.property_get_subject(c.uuid());
             assert!(sub.is_some());
@@ -469,9 +469,9 @@ mod metadata {
         #[test]
         fn client_callbacks() {
             let timeout = std::time::Duration::from_millis(10);
-            let prop1 = Property::new(&"foo", None);
+            let prop1 = Property::new("foo", None);
             let prop2 = Property::new(
-                &"http://churchofrobotron.com/2084",
+                "http://churchofrobotron.com/2084",
                 Some("robot apocalypse".into()),
             );
 
@@ -490,7 +490,7 @@ mod metadata {
             //must activate to get callbacks
             let ac = c1.activate_async((), ()).unwrap();
 
-            assert_eq!(c2.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
+            assert_eq!(c2.property_set(c2.uuid(), "blah", &prop1), Ok(()));
             let r = receiver.recv_timeout(timeout);
             assert_eq!(
                 Ok(PropertyChangeOwned::Created {
@@ -502,7 +502,7 @@ mod metadata {
 
             //doesn't matter which client is used to set or remove the property
             assert_eq!(
-                ac.as_client().property_set(c2.uuid(), &"blah", &prop2),
+                ac.as_client().property_set(c2.uuid(), "blah", &prop2),
                 Ok(())
             );
             let r = receiver.recv_timeout(timeout);
@@ -514,7 +514,7 @@ mod metadata {
                 r
             );
 
-            assert_eq!(c2.property_remove(c2.uuid(), &"blah"), Ok(()));
+            assert_eq!(c2.property_remove(c2.uuid(), "blah"), Ok(()));
             let r = receiver.recv_timeout(timeout);
             assert_eq!(
                 Ok(PropertyChangeOwned::Deleted {
@@ -524,9 +524,9 @@ mod metadata {
                 r
             );
 
-            assert_eq!(c2.property_set(c2.uuid(), &"blah", &prop1), Ok(()));
+            assert_eq!(c2.property_set(c2.uuid(), "blah", &prop1), Ok(()));
             assert_eq!(
-                c2.property_set(ac.as_client().uuid(), &"mutant", &prop2),
+                c2.property_set(ac.as_client().uuid(), "mutant", &prop2),
                 Ok(())
             );
             let r = receiver.recv_timeout(timeout);

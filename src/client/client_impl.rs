@@ -207,11 +207,16 @@ impl Client {
         type_name_pattern: Option<&str>,
         flags: PortFlags,
     ) -> Vec<String> {
-        let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
-        let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
+        let port_name_pattern_cstr = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
+        let type_name_pattern_cstr = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = libc::c_ulong::from(flags.bits());
         unsafe {
-            let ports = j::jack_get_ports(self.raw(), pnp.as_ptr(), tnp.as_ptr(), flags);
+            let ports = j::jack_get_ports(
+                self.raw(),
+                port_name_pattern_cstr.as_ptr(),
+                type_name_pattern_cstr.as_ptr(),
+                flags,
+            );
             collect_strs(ports)
         }
     }
@@ -439,6 +444,10 @@ impl Client {
     /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
     /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
     /// 4. Both ports must be owned by active clients.
+    ///
+    /// # Panics
+    /// Panics if it is not possible to convert `source_port` or
+    /// `destination_port` to a `CString`.
     pub fn connect_ports_by_name(
         &self,
         source_port: &str,

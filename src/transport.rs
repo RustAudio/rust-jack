@@ -390,11 +390,11 @@ impl std::fmt::Debug for TransportPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("TransportPosition");
         let mut d = s
-            .field("unique_1", unsafe { &self.0.unique_1 })
-            .field("usecs", unsafe { &self.0.usecs })
-            .field("frame", unsafe { &self.0.frame })
-            .field("frame_rate", unsafe { &self.0.frame_rate })
-            .field("valid", &format!("{:#b}", { self.0.valid }));
+            .field("unique_1", &self.0.unique_1)
+            .field("usecs", &self.0.usecs)
+            .field("frame", &self.0.frame)
+            .field("frame_rate", &self.0.frame_rate)
+            .field("valid", &format!("{:#b}", self.0.valid));
         if let Some(bbt) = self.bbt() {
             d = d.field("bbt", &bbt);
         }
