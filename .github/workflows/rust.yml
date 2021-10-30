@@ -22,7 +22,7 @@ jobs:
       - name: Start dummy JACK server
         run: jackd -r -ddummy -r44100 -p1024 &
       - name: Lint
-        run: cargo clippy --all-targets --all-features -- -D clippy:all
+        run: cargo clippy --all-targets --all-features -- -D clippy::all
       - name: Build
         run: cargo build --verbose
       - name: Run tests
