@@ -8,13 +8,14 @@ license = "MIT"
 name = "jack"
 readme = "README.md"
 repository = "https://github.com/RustAudio/rust-jack"
-version = "0.7.2"
+version = "0.7.3"
 
 [dependencies]
 bitflags = "1.2"
 jack-sys = {path = "./jack-sys", version = "0.2.2"}
 lazy_static = "1.4"
 libc = "0.2"
+log = "0.4"
 
 [dev-dependencies]
 crossbeam-channel = "0.5"
