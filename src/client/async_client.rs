@@ -26,8 +26,10 @@ use crate::Error;
 ///
 /// // An active async client is created, `client` is consumed.
 /// let active_client = client.activate_async((), process_handler).unwrap();
+/// // When done, deactivate the client.
+/// active_client.deactivate().unwrap();
 /// ```
-#[must_use = "the jack client is shut down when the AsyncClient is dropped"]
+#[must_use = "The jack client is shut down when the AsyncClient is dropped. You most likely want to keep this alive and manually tear down with `AsyncClient::deactivate`."]
 pub struct AsyncClient<N, P> {
     callback: Option<Box<CallbackContext<N, P>>>,
 }
