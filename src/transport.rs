@@ -389,12 +389,17 @@ impl TransportPosition {
 impl std::fmt::Debug for TransportPosition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = f.debug_struct("TransportPosition");
+        let unique_1 = self.0.unique_1;
+        let usecs = self.0.usecs;
+        let frame = self.0.frame;
+        let frame_rate = self.0.frame_rate;
+        let valid = self.0.valid != 0;
         let mut d = s
-            .field("unique_1", &self.0.unique_1)
-            .field("usecs", &self.0.usecs)
-            .field("frame", &self.0.frame)
-            .field("frame_rate", &self.0.frame_rate)
-            .field("valid", &format!("{:#b}", self.0.valid));
+            .field("unique_1", &unique_1)
+            .field("usecs", &usecs)
+            .field("frame", &frame)
+            .field("frame_rate", &frame_rate)
+            .field("valid", &valid);
         if let Some(bbt) = self.bbt() {
             d = d.field("bbt", &bbt);
         }

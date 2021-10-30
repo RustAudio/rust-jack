@@ -46,7 +46,7 @@ pub use metadata::*;
 
 #[cfg(feature = "metadata")]
 mod metadata {
-    use super::*;
+    use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
     use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
 
@@ -168,7 +168,7 @@ mod metadata {
         /// Get the "type" of a property, if it has been set.
         /// Either a MIME type or URI.
         pub fn typ(&self) -> Option<&str> {
-            self.typ.as_ref().map(|t| t.as_str())
+            self.typ.as_deref()
         }
     }
 
@@ -325,19 +325,19 @@ mod metadata {
     }
 
     impl<'a> From<&PropertyChange<'a>> for PropertyChangeOwned {
-        fn from(foo: &PropertyChange<'a>) -> Self {
-            match foo {
-                &PropertyChange::Created { subject, key } => Self::Created {
-                    subject,
-                    key: key.into(),
+        fn from(property: &PropertyChange<'a>) -> Self {
+            match property {
+                PropertyChange::Created { subject, key } => Self::Created {
+                    subject: *subject,
+                    key: key.to_string(),
                 },
-                &PropertyChange::Changed { subject, key } => Self::Changed {
-                    subject,
-                    key: key.into(),
+                PropertyChange::Changed { subject, key } => Self::Changed {
+                    subject: *subject,
+                    key: key.to_string(),
                 },
-                &PropertyChange::Deleted { subject, key } => Self::Deleted {
-                    subject,
-                    key: key.into(),
+                PropertyChange::Deleted { subject, key } => Self::Deleted {
+                    subject: *subject,
+                    key: key.to_string(),
                 },
             }
         }
@@ -346,7 +346,7 @@ mod metadata {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::client::*;
+        use crate::client::{Client, ClientOptions};
         use std::sync::mpsc::{channel, Sender};
 
         #[test]
@@ -372,9 +372,9 @@ mod metadata {
             let sub = sub.unwrap();
             assert_eq!(2, sub.len());
 
-            assert_eq!(sub.get("blah".to_string()), Some(&prop1));
-            assert_eq!(sub.get("mutant".to_string()), Some(&prop2));
-            assert_eq!(sub.get("asdf".to_string()), None);
+            assert_eq!(sub.get("blah"), Some(&prop1));
+            assert_eq!(sub.get("mutant"), Some(&prop2));
+            assert_eq!(sub.get("asdf"), None);
 
             //get all
             let all = c.property_get_all();
@@ -385,9 +385,9 @@ mod metadata {
             let sub = sub.unwrap();
             assert_eq!(2, sub.len());
 
-            assert_eq!(sub.get("blah".to_string()), Some(&prop1));
-            assert_eq!(sub.get("mutant".to_string()), Some(&prop2));
-            assert_eq!(sub.get("asdf".to_string()), None);
+            assert_eq!(sub.get("blah"), Some(&prop1));
+            assert_eq!(sub.get("mutant"), Some(&prop2));
+            assert_eq!(sub.get("asdf"), None);
         }
 
         #[test]
@@ -423,8 +423,8 @@ mod metadata {
                 c2.property_remove(c1.uuid(), "mutant")
             );
 
-            assert_eq!(Some(prop1.clone()), c2.property_get(c2.uuid(), "blah"));
-            assert_eq!(Some(prop2.clone()), c2.property_get(c2.uuid(), "mutant"));
+            assert_eq!(Some(prop1), c2.property_get(c2.uuid(), "blah"));
+            assert_eq!(Some(prop2), c2.property_get(c2.uuid(), "mutant"));
 
             assert_eq!(Ok(()), c1.property_remove_subject(c2.uuid()));
             assert_eq!(None, c2.property_get(c2.uuid(), "blah"));

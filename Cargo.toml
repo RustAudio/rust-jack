@@ -20,5 +20,5 @@ libc = "0.2"
 crossbeam-channel = "0.5"
 
 [features]
-default = []
+default = ["metadata"]
 metadata = []
