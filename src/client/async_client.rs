@@ -1,5 +1,6 @@
 use jack_sys as j;
 use std::fmt;
+use std::fmt::Debug;
 use std::mem;
 
 use super::callbacks::clear_callbacks;
@@ -131,8 +132,10 @@ impl<N, P> Drop for AsyncClient<N, P> {
     }
 }
 
-impl<N, P> fmt::Debug for AsyncClient<N, P> {
+impl<N, P> Debug for AsyncClient<N, P> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "AsyncClient({:?})", self.as_client())
+        f.debug_tuple("AsyncClient")
+            .field(&self.as_client())
+            .finish()
     }
 }

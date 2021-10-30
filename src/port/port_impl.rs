@@ -1,6 +1,7 @@
 use jack_sys as j;
 use lazy_static::lazy_static;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::marker::Sized;
 use std::sync::Weak;
@@ -361,9 +362,18 @@ impl PortInfo {
     }
 }
 
-impl<PS: PortSpec> fmt::Debug for Port<PS> {
+impl<PS: PortSpec> Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", PortInfo::new(self))
+        f.debug_struct("Port")
+            .field(
+                "name",
+                &self.name().unwrap_or_else(|e| format!("Error: {:?}", e)),
+            )
+            .field("connections", &self.connected_count().unwrap_or(0))
+            .field("port_type", &self.spec().jack_port_type())
+            .field("port_flags", &self.spec().jack_flags())
+            .field("aliases", &self.aliases().unwrap_or_else(|_| Vec::new()))
+            .finish()
     }
 }
 

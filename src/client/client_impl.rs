@@ -1,4 +1,5 @@
 use jack_sys as j;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
@@ -619,9 +620,15 @@ impl Drop for Client {
     }
 }
 
-impl fmt::Debug for Client {
+impl Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", ClientInfo::from(self))
+        f.debug_struct("Client")
+            .field("name", &self.name())
+            .field("sample_rate", &self.sample_rate())
+            .field("buffer_size", &self.buffer_size())
+            .field("cpu_usage", &format!("{}%", self.cpu_load() / 100.0))
+            .field("frame_time", &self.frame_time())
+            .finish()
     }
 }
 
@@ -726,27 +733,4 @@ pub struct CycleTimes {
     pub current_usecs: Time,
     pub next_usecs: Time,
     pub period_usecs: libc::c_float,
-}
-
-#[derive(Debug)]
-struct ClientInfo {
-    name: String,
-    sample_rate: usize,
-    buffer_size: u32,
-    cpu_usage: String,
-    ports: Vec<String>,
-    frame_time: Frames,
-}
-
-impl<'a> From<&'a Client> for ClientInfo {
-    fn from(c: &Client) -> ClientInfo {
-        ClientInfo {
-            name: c.name().into(),
-            sample_rate: c.sample_rate(),
-            buffer_size: c.buffer_size(),
-            cpu_usage: format!("{}%", c.cpu_load() / 100.0),
-            ports: c.ports(None, None, PortFlags::empty()),
-            frame_time: c.frame_time(),
-        }
-    }
 }
