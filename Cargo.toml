@@ -1,14 +1,14 @@
 [package]
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi with JACK."
-documentation = "https://RustAudio.github.io/rust-jack/jack/index.html"
+documentation = "https://docs.rs/jack"
 edition = "2018"
 keywords = ["jack", "realtime", "audio", "midi", "music"]
 license = "MIT"
 name = "jack"
 readme = "README.md"
 repository = "https://github.com/RustAudio/rust-jack"
-version = "0.7.2"
+version = "0.7.3"
 
 [dependencies]
 bitflags = "1.2"
