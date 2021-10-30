@@ -338,30 +338,6 @@ unsafe impl PortSpec for Unowned {
     }
 }
 
-#[derive(Debug)]
-struct PortInfo {
-    name: String,
-    connections: usize,
-    port_type: String,
-    port_flags: PortFlags,
-    aliases: Vec<String>,
-}
-
-impl PortInfo {
-    fn new<PS: PortSpec>(p: &Port<PS>) -> PortInfo {
-        let s = p.spec();
-        PortInfo {
-            name: p
-                .name()
-                .unwrap_or_else(|_| String::from("client not alive")),
-            connections: p.connected_count().unwrap_or(0),
-            port_type: s.jack_port_type().to_owned(),
-            port_flags: s.jack_flags(),
-            aliases: p.aliases().unwrap_or_else(|_| Vec::new()),
-        }
-    }
-}
-
 impl<PS: PortSpec> Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.debug_struct("Port")
