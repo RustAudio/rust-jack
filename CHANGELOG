@@ -1,6 +1,6 @@
 # Changelog
 
-## MAIN
+## 0.8.0
 
 - `latency` no longer supported for `NotificationHandler`.
 - JACK messages are automatically routed through the `log` crate.
