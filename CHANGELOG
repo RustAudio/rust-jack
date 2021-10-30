@@ -2,5 +2,6 @@
 
 ## MAIN
 
+- `latency` no longer supported for `NotificationHandler`.
 - JACK messages are automatically routed through the `log` crate.
 - The following functions have been removed: `set_info_callback`, `info_callback`, `reset_info_callback`, `set_error_callback`, `error_callback`, and `reset_error_callback`.
