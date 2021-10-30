@@ -15,6 +15,7 @@ bitflags = "1.2"
 jack-sys = {path = "./jack-sys", version = "0.2.2"}
 lazy_static = "1.4"
 libc = "0.2"
+log = "0.4"
 
 [dev-dependencies]
 crossbeam-channel = "0.5"

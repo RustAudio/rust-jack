@@ -38,10 +38,6 @@ pub use crate::client::{
     InternalClientID, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
-pub use crate::logging::{
-    error_callback, info_callback, reset_error_callback, reset_info_callback, set_error_callback,
-    set_info_callback,
-};
 pub use crate::port::{
     AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
     Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,

@@ -47,6 +47,7 @@ impl Client {
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        crate::logging::initialize_logging();
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
