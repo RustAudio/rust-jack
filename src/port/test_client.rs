@@ -1,6 +1,3 @@
-use std::sync::mpsc;
-use std::sync::Mutex;
-
 use super::*;
 use crate::Client;
 use crate::ClientOptions;
@@ -8,6 +5,10 @@ use crate::Error;
 use crate::NotificationHandler;
 use crate::PortId;
 use crate::PORT_NAME_SIZE;
+use std::collections::HashSet;
+use std::sync::mpsc;
+use std::sync::Mutex;
+use std::{thread, time};
 
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
@@ -93,13 +94,12 @@ fn client_port_can_get_port_by_id() {
 
     // Get by id
     let c = ac.deactivate().unwrap().0;
-    let registered_ports: Vec<String> = reg_rx
+    let mut registered_ports = reg_rx
         .iter()
         .flat_map(|i| c.port_by_id(i))
-        .map(|p| p.name().unwrap())
-        .collect();
+        .map(|p| p.name().unwrap());
     let port_name = format!("{}:{}", client_name, port_name);
-    assert!(registered_ports.contains(&port_name));
+    assert!(registered_ports.any(|n| n == port_name));
 
     // Port that doesn't exist
     // TODO: Restore when JACK doesn't exit when this happens.
@@ -121,14 +121,14 @@ fn client_port_fails_to_nonexistant_port() {
 fn client_port_recognizes_my_ports() {
     let ca = open_test_client("cp_cprmp_ca");
     let cb = open_test_client("cp_cprmp_cb");
-    let pa = ca.register_port("cpcprmp_pa", AudioIn::default()).unwrap();
-    let pb = cb.register_port("cpcprmp_pb", AudioIn::default()).unwrap();
-    let pa_alt = ca.port_by_name(&pa.name().unwrap()).unwrap();
-    let pb_alt = ca.port_by_name(&pb.name().unwrap()).unwrap();
-    assert!(ca.is_mine(&pa));
-    assert!(ca.is_mine(&pa_alt));
-    assert!(!ca.is_mine(&pb));
-    assert!(!ca.is_mine(&pb_alt));
+    let first = ca.register_port("cpcprmp_pa", AudioIn::default()).unwrap();
+    let second = cb.register_port("cpcprmp_pb", AudioIn::default()).unwrap();
+    let first_alt = ca.port_by_name(&first.name().unwrap()).unwrap();
+    let second_alt = ca.port_by_name(&second.name().unwrap()).unwrap();
+    assert!(ca.is_mine(&first));
+    assert!(ca.is_mine(&first_alt));
+    assert!(!ca.is_mine(&second));
+    assert!(!ca.is_mine(&second_alt));
 }
 
 #[test]
@@ -335,7 +335,6 @@ fn client_port_can_get_existing_ports() {
     let out_p = client.register_port("connb", AudioOut::default()).unwrap();
 
     // retrieve
-    use std::collections::HashSet;
     let known_ports = [
         in_p.name().unwrap(),
         out_p.name().unwrap(),
@@ -358,7 +357,6 @@ fn client_port_can_get_port_by_name_pattern() {
     let client = open_test_client("client_port_cgpbnp");
 
     // retrieve
-    use std::collections::HashSet;
     let known_ports = [
         "system:playback_2".to_string(),
         "system:capture_2".to_string(),
@@ -373,14 +371,13 @@ fn client_port_can_get_port_by_name_pattern() {
 
 #[test]
 fn client_port_can_get_port_by_type_pattern() {
-    let cname = "client_port_cgpbtp";
-    let pname = "midip";
-    let full_name = format!("{}:{}", cname, pname);
-    let client = open_test_client(cname);
+    let c_name = "client_port_cgpbtp";
+    let p_name = "midip";
+    let full_name = format!("{}:{}", c_name, p_name);
+    let client = open_test_client(c_name);
 
     // register port with type name, like midi
-    let _p = client.register_port(pname, MidiIn::default());
-    use std::{thread, time};
+    let _p = client.register_port(p_name, MidiIn::default());
     thread::sleep(time::Duration::from_millis(400));
 
     // retrieve

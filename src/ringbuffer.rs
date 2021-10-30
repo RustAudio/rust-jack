@@ -12,12 +12,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// let ringbuf = jack::RingBuffer::new(1024).unwrap();
 /// let (mut reader, mut writer) = ringbuf.into_reader_writer();
 ///
-/// let buf = [0u8, 1, 2, 3];
+/// let buf = [0_u8, 1, 2, 3];
 /// let num = writer.write_buffer(&buf);
 /// assert_eq!(num, buf.len());
 ///
 /// // Potentially in a another thread:
-/// let mut outbuf = [0u8; 8];
+/// let mut outbuf = [0_u8; 8];
 /// let num = reader.read_buffer(&mut outbuf);
 /// ```
 pub struct RingBuffer(*mut j::jack_ringbuffer_t);
@@ -339,13 +339,12 @@ mod test {
     #[test]
     fn ringbuffer_can_space() {
         const SIZE: usize = 1024;
+        const ADVANCE: usize = 5;
         let ringbuf = RingBuffer::new(SIZE).unwrap();
         let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
         assert_eq!(writer.space(), SIZE - 1);
         assert_eq!(reader.space(), 0);
-
-        const ADVANCE: usize = 5;
 
         writer.advance(ADVANCE);
 
@@ -362,11 +361,11 @@ mod test {
         let ringbuf = RingBuffer::new(1024).unwrap();
         let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
-        let buf = [0u8, 1, 2, 3];
+        let buf = [0_u8, 1, 2, 3];
         let num = writer.write_buffer(&buf);
         assert_eq!(num, buf.len());
 
-        let mut outbuf = [0u8; 8];
+        let mut outbuf = [0_u8; 8];
         let num = reader.read_buffer(&mut outbuf);
         assert_eq!(num, buf.len());
 
@@ -378,7 +377,7 @@ mod test {
         let ringbuf = RingBuffer::new(1024).unwrap();
         let (reader, mut writer) = ringbuf.into_reader_writer();
 
-        let buf = [0u8, 1, 2, 3];
+        let buf = [0_u8, 1, 2, 3];
         writer.write_buffer(&buf);
 
         let data: Vec<u8> = reader.peek_iter().copied().collect();
@@ -393,7 +392,7 @@ mod test {
         let ringbuf = RingBuffer::new(BUFSIZE).unwrap();
         let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
-        let buf = [0u8, 1, 2, 3];
+        let buf = [0_u8, 1, 2, 3];
 
         let advancedsize = BUFSIZE / (buf.len() / 2);
         writer.advance(advancedsize);
@@ -421,14 +420,14 @@ mod test {
         let ringbuf = RingBuffer::new(1024).unwrap();
         let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
-        let buf = [0u8, 1, 2, 3];
+        let buf = [0_u8, 1, 2, 3];
         for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
             *item = *bufitem;
         }
 
         writer.advance(buf.len());
 
-        let mut outbuf = [0u8; 8];
+        let mut outbuf = [0_u8; 8];
         let num = reader.read_buffer(&mut outbuf);
         assert_eq!(num, buf.len());
 
@@ -442,7 +441,7 @@ mod test {
         let ringbuf = RingBuffer::new(1024).unwrap();
         let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
-        let buf = [0u8, 1, 2, 3];
+        let buf = [0_u8, 1, 2, 3];
         thread::spawn(move || {
             for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
                 *item = *bufitem;
@@ -453,7 +452,7 @@ mod test {
         .join()
         .unwrap();
 
-        let mut outbuf = [0u8; 8];
+        let mut outbuf = [0_u8; 8];
         let num = reader.read_buffer(&mut outbuf);
         assert_eq!(num, buf.len());
 

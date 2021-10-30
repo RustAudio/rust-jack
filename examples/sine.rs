@@ -67,7 +67,7 @@ fn main() {
 fn read_freq() -> Option<f64> {
     let mut user_input = String::new();
     match io::stdin().read_line(&mut user_input) {
-        Ok(_) => u16::from_str(&user_input.trim()).ok().map(|n| n as f64),
+        Ok(_) => u16::from_str(user_input.trim()).ok().map(|n| n as f64),
         Err(_) => None,
     }
 }
