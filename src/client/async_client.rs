@@ -136,3 +136,10 @@ impl<N, P> fmt::Debug for AsyncClient<N, P> {
         write!(f, "AsyncClient({:?})", self.as_client())
     }
 }
+
+unsafe impl<N, P> Sync for AsyncClient<N, P>
+where
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + ProcessHandler,
+{
+}
