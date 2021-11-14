@@ -37,6 +37,7 @@ pub struct Client(
 );
 
 unsafe impl Send for Client {}
+unsafe impl Sync for Client {}
 
 impl Client {
     /// Opens a JACK client with the given name and options. If the client is successfully opened,
