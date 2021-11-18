@@ -45,8 +45,16 @@ fn main() {
         },
     );
 
-    // 4. activate the client
+    // 4. Activate the client. Also connect the ports to the system audio.
     let active_client = client.activate_async((), process).unwrap();
+    active_client
+        .as_client()
+        .connect_ports_by_name("rust_jack_sine:sine_out", "system:playback_1")
+        .unwrap();
+    active_client
+        .as_client()
+        .connect_ports_by_name("rust_jack_sine:sine_out", "system:playback_2")
+        .unwrap();
     // processing starts here
 
     // 5. wait or do some processing while your handler is running in real time.
