@@ -1,6 +1,7 @@
 use jack_sys as j;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
+use std::{thread, time};
 
 /// The maximum length of the JACK client name string. Unlike the "C" JACK API, this does not take
 /// into account the final `NULL` character and instead corresponds directly to `.len()`. This value
@@ -19,11 +20,9 @@ lazy_static! {
     pub static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());
 }
 
-#[inline(always)]
 pub fn sleep_on_test() {
     #[cfg(test)]
     {
-        use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(150));
+        // thread::sleep(time::Duration::from_millis(150));
     }
 }
