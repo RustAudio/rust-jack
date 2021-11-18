@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2
+- `MidiIter` is now `Sync`.
+
+## 0.8.1
+- `AsyncClient` and `Client` are `Sync`.
+
 ## 0.8.0
 
 - `latency` no longer supported for `NotificationHandler`.
