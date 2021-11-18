@@ -1,5 +1,8 @@
 # Changelog
 
+## HEAD
+- Updated dependencies to latest as of 2021/11/17.
+
 ## 0.8.2
 - `MidiIter` is now `Sync`.
 
