@@ -70,6 +70,8 @@ pub struct MidiIter<'a> {
     _phantom: PhantomData<&'a ()>,
 }
 
+unsafe impl<'a> Sync for MidiIter<'a> {}
+
 impl<'a> MidiIter<'a> {
     /// Return the next element without advancing the iterator.
     pub fn peek(&self) -> Option<RawMidi<'a>> {
