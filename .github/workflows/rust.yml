@@ -18,11 +18,13 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: sudo apt update && sudo apt install jackd libjack0 libjack-dev
+      - name: Cache
+        uses: Swatinem/rust-cache@v1
       - name: Start dummy JACK server
         run: jackd -r -ddummy -r44100 -p1024 &
-      - name: Lint
-        run: cargo clippy --all-targets --all-features -- -D clippy::all
       - name: Build
         run: cargo build --verbose
+      - name: Lint
+        run: cargo clippy --all-targets --all-features -- -D clippy::all
       - name: Run tests
         run: RUST_TEST_THREADS=1 cargo test --verbose
