@@ -6,6 +6,7 @@ authors = ["Patrick Reisert"]
 description = "Low-level binding to the JACK audio API."
 repository = "https://github.com/RustAudio/rust-jack/tree/main/jack-sys"
 license = "MIT OR Apache-2.0"
+links = "jack"
 
 [dependencies]
 libc = "0.2"
