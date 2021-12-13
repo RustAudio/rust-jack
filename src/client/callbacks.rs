@@ -85,7 +85,7 @@ pub trait ProcessHandler: Send {
     ///
     /// Should return `Control::Continue` on success, and
     /// `Control::Quit` on error.
-    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control;
+    fn process(&mut self, client: &Client, ps: &ProcessScope) -> Control;
 
     /// Called whenever the size of the buffer that will be passed to `process`
     /// is about to change, and once before the first call to `process`.
@@ -93,9 +93,7 @@ pub trait ProcessHandler: Send {
     /// It is called on the same thread as `process`, but as an exception, does
     /// not need to be suitable for real-time execution, so it is allowed to
     /// allocate new buffers to accomodate the buffer size for example.
-    fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
-        Control::Continue
-    }
+    fn buffer_size(&mut self, client: &Client, size: Frames) -> Control;
 }
 
 unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)

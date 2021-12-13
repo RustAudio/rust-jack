@@ -19,6 +19,9 @@ lazy_static! {
 
 /// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
 /// midi output, etc...
+///
+/// # Safety
+/// JACK types are dynamically sized so its more difficult to get right.
 pub unsafe trait PortSpec: Sized {
     /// String used by JACK upon port creation to identify the port
     /// type.
