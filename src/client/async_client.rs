@@ -20,12 +20,21 @@ use crate::Error;
 /// // Create a client and a handler
 /// let (client, _status) =
 ///     jack::Client::new("my_client", jack::ClientOptions::NO_START_SERVER).unwrap();
-/// let process_handler = jack::ClosureProcessHandler::new(
-///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
-/// );
+///
+/// struct MyHandler {};
+/// impl jack::ProcessHandler for MyHandler {
+///     fn buffer_size(&mut self, _: &jack::Client, _: jack::Frames) -> jack::Control {
+///         jack::Control::Continue
+///     }
+///
+///     fn process(&mut self, _: &jack::Client, _: &jack::ProcessScope) -> jack::Control {
+///         // Processing logic goes here.
+///         jack::Control::Continue
+///     }
+/// }
 ///
 /// // An active async client is created, `client` is consumed.
-/// let active_client = client.activate_async((), process_handler).unwrap();
+/// let active_client = client.activate_async((), MyHandler{}).unwrap();
 /// // When done, deactivate the client.
 /// active_client.deactivate().unwrap();
 /// ```

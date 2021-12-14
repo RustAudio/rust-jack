@@ -147,7 +147,7 @@ fn client_can_use_ringbuffer() {
     };
     let _a = c.activate_async((), handler).unwrap();
 
-    // spin until realtime closure has been run
+    // Spin until realtime processing has run.
     while reader.space() == 0 {}
 
     let mut outbuf = [0_u8; 8];
