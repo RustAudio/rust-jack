@@ -2,6 +2,29 @@
 //! All JACK notifications are also printed out.
 use std::io;
 
+struct PlaybackCapture {
+    out_a: jack::Port<jack::AudioOut>,
+    out_b: jack::Port<jack::AudioOut>,
+    in_a: jack::Port<jack::AudioIn>,
+    in_b: jack::Port<jack::AudioIn>,
+}
+
+impl jack::ProcessHandler for PlaybackCapture {
+    fn process(&mut self, _: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
+        let out_a = self.out_a.as_mut_slice(ps);
+        let out_b = self.out_b.as_mut_slice(ps);
+        let in_a = self.in_a.as_slice(ps);
+        let in_b = self.in_b.as_slice(ps);
+        out_a.clone_from_slice(in_a);
+        out_b.clone_from_slice(in_b);
+        jack::Control::Continue
+    }
+
+    fn buffer_size(&mut self, _: &jack::Client, _size: jack::Frames) -> jack::Control {
+        jack::Control::Continue
+    }
+}
+
 fn main() {
     // Create client
     let (client, _status) =
@@ -15,25 +38,25 @@ fn main() {
     let in_b = client
         .register_port("rust_in_r", jack::AudioIn::default())
         .unwrap();
-    let mut out_a = client
+    let out_a = client
         .register_port("rust_out_l", jack::AudioOut::default())
         .unwrap();
-    let mut out_b = client
+    let out_b = client
         .register_port("rust_out_r", jack::AudioOut::default())
         .unwrap();
-    let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let out_a_p = out_a.as_mut_slice(ps);
-        let out_b_p = out_b.as_mut_slice(ps);
-        let in_a_p = in_a.as_slice(ps);
-        let in_b_p = in_b.as_slice(ps);
-        out_a_p.clone_from_slice(in_a_p);
-        out_b_p.clone_from_slice(in_b_p);
-        jack::Control::Continue
+
+    // Create the processor.
+    let playback_capture = PlaybackCapture {
+        out_a,
+        out_b,
+        in_a,
+        in_b,
     };
-    let process = jack::ClosureProcessHandler::new(process_callback);
 
     // Activate the client, which starts the processing.
-    let active_client = client.activate_async(Notifications, process).unwrap();
+    let active_client = client
+        .activate_async(Notifications, playback_capture)
+        .unwrap();
 
     // Wait for user input to quit
     println!("Press enter/return to quit...");

@@ -1,6 +1,6 @@
-use crate::client::*;
 use crate::jack_enums::Error;
-use crate::{ClosureProcessHandler, Control, RingBuffer};
+use crate::{client::*, RingBufferWriter};
+use crate::{Control, RingBuffer};
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap()
@@ -108,40 +108,53 @@ fn client_debug_printing() {
     assert_ne!("", got);
 }
 
+struct RingBufferTestHandler {
+    buffer: [u8; 4],
+    writer: RingBufferWriter,
+    sent: bool,
+}
+
+impl ProcessHandler for RingBufferTestHandler {
+    fn process(&mut self, _: &Client, _process_scope: &ProcessScope) -> Control {
+        if !self.sent {
+            for (item, bufitem) in self.writer.peek_iter().zip(self.buffer.iter()) {
+                *item = *bufitem;
+            }
+
+            self.writer.advance(self.buffer.len());
+            self.sent = true;
+        }
+        Control::Continue
+    }
+
+    fn buffer_size(&mut self, _: &Client, _size: crate::Frames) -> Control {
+        Control::Continue
+    }
+}
+
 #[test]
 fn client_can_use_ringbuffer() {
     let (c, _) = open_test_client("client_can_use_ringbuffer");
 
     let ringbuf = RingBuffer::new(1024).unwrap();
-    let (mut reader, mut writer) = ringbuf.into_reader_writer();
+    let (mut reader, writer) = ringbuf.into_reader_writer();
 
-    let buf = [0_u8, 1, 2, 3];
-    let mut sent = false;
-    let _a = c
-        .activate_async(
-            (),
-            ClosureProcessHandler::new(move |_, _| {
-                if !sent {
-                    for (item, bufitem) in writer.peek_iter().zip(buf.iter()) {
-                        *item = *bufitem;
-                    }
-
-                    writer.advance(buf.len());
-                    sent = true;
-                }
-                Control::Continue
-            }),
-        )
-        .unwrap();
+    let buffer = [0_u8, 1, 2, 3];
+    let handler = RingBufferTestHandler {
+        buffer,
+        writer,
+        sent: false,
+    };
+    let _a = c.activate_async((), handler).unwrap();
 
     // spin until realtime closure has been run
     while reader.space() == 0 {}
 
     let mut outbuf = [0_u8; 8];
     let num = reader.read_buffer(&mut outbuf);
-    assert_eq!(num, buf.len());
+    assert_eq!(num, buffer.len());
 
-    assert_eq!(outbuf[..num], buf[..]);
+    assert_eq!(outbuf[..num], buffer[..]);
 }
 
 #[test]

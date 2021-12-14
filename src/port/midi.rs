@@ -222,7 +222,6 @@ impl<'a> MidiWriter<'a> {
 mod test {
     use super::*;
     use crate::client::Client;
-    use crate::client::ClosureProcessHandler;
     use crate::client::ProcessHandler;
     use crate::jack_enums::Control;
     use crate::primitive_types::Frames;
@@ -299,6 +298,10 @@ mod test {
     }
 
     impl<F: Send + Fn(MidiIter) -> Vec<OwnedRawMidi>> ProcessHandler for IterTest<F> {
+        fn buffer_size(&mut self, _: &Client, _: Frames) -> Control {
+            Control::Continue
+        }
+
         fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
             let (midi_in, mut midi_out) = (self.midi_in.iter(ps), self.midi_out.writer(ps));
             // Write to output.
@@ -313,18 +316,16 @@ mod test {
         }
     }
 
-    #[test]
-    fn port_midi_can_read_write() {
-        // open clients and ports
-        let c = open_test_client("port_midi_crw");
-        let in_a = c.register_port("ia", MidiIn::default()).unwrap();
-        let in_b = c.register_port("ib", MidiIn::default()).unwrap();
-        let mut out_a = c.register_port("oa", MidiOut::default()).unwrap();
-        let mut out_b = c.register_port("ob", MidiOut::default()).unwrap();
+    struct TestHandler {
+        in_a: Port<MidiIn>,
+        in_b: Port<MidiIn>,
+        out_a: Port<MidiOut>,
+        out_b: Port<MidiOut>,
+        signal_succeed: crossbeam_channel::Sender<bool>,
+    }
 
-        // set callback routine
-        let (signal_succeed, did_succeed) = bounded(1_000);
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
+    impl ProcessHandler for TestHandler {
+        fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
             let exp_a = RawMidi {
                 time: 0,
                 bytes: &[0b1001_0000, 0b0100_0000],
@@ -333,25 +334,47 @@ mod test {
                 time: 64,
                 bytes: &[0b1000_0000, 0b0100_0000],
             };
-            let in_a = in_a.iter(ps);
-            let in_b = in_b.iter(ps);
-            let mut out_a = out_a.writer(ps);
-            let mut out_b = out_b.writer(ps);
+            let in_a = self.in_a.iter(ps);
+            let in_b = self.in_b.iter(ps);
+            let mut out_a = self.out_a.writer(ps);
+            let mut out_b = self.out_b.writer(ps);
             out_a.write(&exp_a).unwrap();
             out_b.write(&exp_b).unwrap();
             if in_a.clone().next().is_some()
                 && in_a.clone().all(|m| m == exp_a)
                 && in_b.clone().all(|m| m == exp_b)
             {
-                signal_succeed.send(true).unwrap();
+                self.signal_succeed.send(true).unwrap();
             }
             Control::Continue
+        }
+
+        fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
+            Control::Continue
+        }
+    }
+
+    #[test]
+    fn port_midi_can_read_write() {
+        // open clients and ports
+        let c = open_test_client("port_midi_crw");
+        let in_a = c.register_port("ia", MidiIn::default()).unwrap();
+        let in_b = c.register_port("ib", MidiIn::default()).unwrap();
+        let out_a = c.register_port("oa", MidiOut::default()).unwrap();
+        let out_b = c.register_port("ob", MidiOut::default()).unwrap();
+
+        // set callback routine
+        let (signal_succeed, did_succeed) = bounded(1_000);
+        let handler = TestHandler {
+            in_a,
+            in_b,
+            out_a,
+            out_b,
+            signal_succeed,
         };
 
         // activate
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
+        let ac = c.activate_async((), handler).unwrap();
 
         // connect ports to each other
         ac.as_client()
@@ -372,23 +395,33 @@ mod test {
 
     static PMCGMES_MAX_EVENT_SIZE: AtomicUsize = AtomicUsize::new(0);
 
+    struct TestSizeHandler {
+        out_p: Port<MidiOut>,
+    }
+
+    impl ProcessHandler for TestSizeHandler {
+        fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
+            let out_p = self.out_p.writer(ps);
+            PMCGMES_MAX_EVENT_SIZE.fetch_add(out_p.max_event_size(), Ordering::Relaxed);
+            Control::Continue
+        }
+
+        fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
+            Control::Continue
+        }
+    }
+
     #[test]
     fn port_midi_can_get_max_event_size() {
         // open clients and ports
         let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+        let out_p = c.register_port("op", MidiOut::default()).unwrap();
 
         // set callback routine
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let out_p = out_p.writer(ps);
-            PMCGMES_MAX_EVENT_SIZE.fetch_add(out_p.max_event_size(), Ordering::Relaxed);
-            Control::Continue
-        };
+        let handler = TestSizeHandler { out_p };
 
         // activate
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
+        let ac = c.activate_async((), handler).unwrap();
 
         // check correctness
         assert!(PMCGMES_MAX_EVENT_SIZE.load(Ordering::Relaxed) > 0);
@@ -399,15 +432,13 @@ mod test {
         static ref PMCEMES_WRITE_RESULT: Mutex<Result<(), Error>> = Mutex::new(Ok(()));
     }
 
-    #[test]
-    fn port_midi_cant_exceed_max_event_size() {
-        // open clients and ports
-        let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+    struct ExceedMaxSizeTestHandler {
+        out_p: Port<MidiOut>,
+    }
 
-        // set callback routine
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let mut out_p = out_p.writer(ps);
+    impl ProcessHandler for ExceedMaxSizeTestHandler {
+        fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
+            let mut out_p = self.out_p.writer(ps);
             let event_size = out_p.max_event_size();
             PMCGMES_MAX_EVENT_SIZE.store(event_size, Ordering::Relaxed);
 
@@ -420,12 +451,24 @@ mod test {
             *PMCEMES_WRITE_RESULT.lock().unwrap() = out_p.write(&msg);
 
             Control::Continue
-        };
+        }
+
+        fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
+            Control::Continue
+        }
+    }
+
+    #[test]
+    fn port_midi_cant_exceed_max_event_size() {
+        // open clients and ports
+        let c = open_test_client("port_midi_cglc");
+        let out_p = c.register_port("op", MidiOut::default()).unwrap();
+
+        // set callback routine
+        let handler = ExceedMaxSizeTestHandler { out_p };
 
         // activate
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
+        let ac = c.activate_async((), handler).unwrap();
 
         // check correctness
         assert_eq!(
@@ -443,17 +486,15 @@ mod test {
         static ref PMI_THIRD: Mutex<Option<(Frames, Vec<u8>)>> = Mutex::default();
     }
 
-    #[test]
-    fn port_midi_iter() {
-        // open clients and ports
-        let c = open_test_client("port_midi_iter");
-        let in_p = c.register_port("ip", MidiIn::default()).unwrap();
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+    struct MidiIterTestHandler {
+        in_p: Port<MidiIn>,
+        out_p: Port<MidiOut>,
+    }
 
-        // set callback routine
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let in_p = in_p.iter(ps);
-            let mut out_p = out_p.writer(ps);
+    impl ProcessHandler for MidiIterTestHandler {
+        fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
+            let in_p = self.in_p.iter(ps);
+            let mut out_p = self.out_p.writer(ps);
 
             for i in 10..14 {
                 let msg = RawMidi {
@@ -471,12 +512,25 @@ mod test {
             *PMI_THIRD.lock().unwrap() = in_p.clone().nth(2).map(|m| rm_to_owned(&m));
 
             Control::Continue
-        };
+        }
+
+        fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
+            Control::Continue
+        }
+    }
+
+    #[test]
+    fn port_midi_iter() {
+        // open clients and ports
+        let c = open_test_client("port_midi_iter");
+        let in_p = c.register_port("ip", MidiIn::default()).unwrap();
+        let out_p = c.register_port("op", MidiOut::default()).unwrap();
+
+        // set callback routine
+        let handler = MidiIterTestHandler { in_p, out_p };
 
         // run
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
+        let ac = c.activate_async((), handler).unwrap();
         ac.as_client()
             .connect_ports_by_name("port_midi_iter:op", "port_midi_iter:ip")
             .unwrap();

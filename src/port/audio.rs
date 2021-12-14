@@ -98,27 +98,28 @@ mod test {
     use crossbeam_channel::bounded;
 
     use super::*;
-    use crate::{Client, ClientOptions, ClosureProcessHandler, Control};
+    use crate::{Client, ClientOptions, Control, ProcessHandler};
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
     }
 
-    #[test]
-    fn port_audio_can_read_write() {
-        let c = open_test_client("port_audio_crw");
-        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
-        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
-        let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
-        let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
-        let (signal_succeed, did_succeed) = bounded(1_000);
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
+    struct TestHandler {
+        in_a: Port<AudioIn>,
+        in_b: Port<AudioIn>,
+        out_a: Port<AudioOut>,
+        out_b: Port<AudioOut>,
+        signal_succeed: crossbeam_channel::Sender<bool>,
+    }
+
+    impl ProcessHandler for TestHandler {
+        fn process(&mut self, _: &Client, ps: &ProcessScope) -> Control {
             let exp_a = 0.312_443;
             let exp_b = -0.612_120;
-            let in_a = in_a.as_slice(ps);
-            let in_b = in_b.as_slice(ps);
-            let out_a = out_a.as_mut_slice(ps);
-            let out_b = out_b.as_mut_slice(ps);
+            let in_a = self.in_a.as_slice(ps);
+            let in_b = self.in_b.as_slice(ps);
+            let out_a = self.out_a.as_mut_slice(ps);
+            let out_b = self.out_b.as_mut_slice(ps);
             for v in out_a.iter_mut() {
                 *v = exp_a;
             }
@@ -128,14 +129,32 @@ mod test {
             if in_a.iter().all(|v| (*v - exp_a).abs() < 1E-5)
                 && in_b.iter().all(|v| (*v - exp_b).abs() < 1E-5)
             {
-                let s = signal_succeed.clone();
-                let _ = s.send(true);
+                let _ = self.signal_succeed.send(true);
             }
             Control::Continue
+        }
+
+        fn buffer_size(&mut self, _: &Client, _size: crate::Frames) -> Control {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn port_audio_can_read_write() {
+        let c = open_test_client("port_audio_crw");
+        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
+        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
+        let out_a = c.register_port("oa", AudioOut::default()).unwrap();
+        let out_b = c.register_port("ob", AudioOut::default()).unwrap();
+        let (signal_succeed, did_succeed) = bounded(1_000);
+        let handler = TestHandler {
+            in_a,
+            in_b,
+            out_a,
+            out_b,
+            signal_succeed,
         };
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
+        let ac = c.activate_async((), handler).unwrap();
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
             .unwrap();
