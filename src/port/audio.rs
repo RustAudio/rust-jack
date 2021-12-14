@@ -135,7 +135,7 @@ mod test {
         }
 
         fn buffer_size(&mut self, _: &Client, _size: crate::Frames) -> Control {
-            jack::Control::Continue
+            Control::Continue
         }
     }
 
