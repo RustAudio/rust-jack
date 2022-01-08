@@ -1,0 +1,16 @@
+# Changelog
+
+## HEAD
+- Updated dependencies to latest as of 2021/11/17.
+
+## 0.8.2
+- `MidiIter` is now `Sync`.
+
+## 0.8.1
+- `AsyncClient` and `Client` are `Sync`.
+
+## 0.8.0
+
+- `latency` no longer supported for `NotificationHandler`.
+- JACK messages are automatically routed through the `log` crate.
+- The following functions have been removed: `set_info_callback`, `info_callback`, `reset_info_callback`, `set_error_callback`, `error_callback`, and `reset_error_callback`.

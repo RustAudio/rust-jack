@@ -26,7 +26,7 @@ fn main() {
         let jack::TransportStatePosition { mut pos, state: _ } =
             transport.query().expect("failed to query transport");
 
-        let mut bbt = pos.bbt().unwrap_or_else(jack::TransportBBT::default);
+        let mut bbt = pos.bbt().unwrap_or_default();
         pos.set_frame(pos.frame() + 44100);
 
         let mut new_bbt = None;

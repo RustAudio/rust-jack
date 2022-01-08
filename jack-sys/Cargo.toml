@@ -1,13 +1,17 @@
 [package]
 name = "jack-sys"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2018"
 authors = ["Patrick Reisert"]
 description = "Low-level binding to the JACK audio API."
 repository = "https://github.com/RustAudio/rust-jack/tree/main/jack-sys"
 license = "MIT OR Apache-2.0"
+links = "jack"
 
 [dependencies]
 libc = "0.2"
 libloading = "0.6"
 lazy_static = "1.4"
+
+[build-dependencies]
+pkg-config = "0.3"

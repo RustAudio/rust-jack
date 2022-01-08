@@ -2,9 +2,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{mem, ptr, thread, time};
 
 use super::*;
-use crate::{
-    AudioIn, Client, Control, Frames, LatencyType, NotificationHandler, PortId, ProcessHandler,
-};
+use crate::{AudioIn, Client, Control, Frames, NotificationHandler, PortId, ProcessHandler};
 
 #[derive(Debug, Default)]
 pub struct Counter {
@@ -106,8 +104,6 @@ fn client_cback_has_proper_default_callbacks() {
     ().ports_connected(&wc, 2, 3, false);
     assert_eq!(().graph_reorder(&wc), Control::Continue);
     assert_eq!(().xrun(&wc), Control::Continue);
-    ().latency(&wc, LatencyType::Capture);
-    ().latency(&wc, LatencyType::Playback);
 
     mem::forget(wc);
     mem::forget(ps);
