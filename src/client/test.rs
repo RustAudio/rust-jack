@@ -1,5 +1,6 @@
 use crate::client::*;
 use crate::jack_enums::Error;
+use crate::{ClosureProcessHandler, Control, RingBuffer};
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap()
@@ -104,29 +105,17 @@ fn client_can_estimate_frame_times() {
 fn client_debug_printing() {
     let (c, _) = open_test_client("client_has_debug_string");
     let got = format!("{:?}", c);
-    let parts = [
-        ("name", "\"client_has_debug_string\""),
-        ("sample_rate", "44100"),
-        ("buffer_size", "1024"),
-        ("cpu_usage", ""),
-        ("ports", "["),
-        ("frame_time", ""),
-    ];
-    for &(k, v) in parts.iter() {
-        let p = format!("{}: {}", k, v);
-        assert!(got.contains(&p), "Expected {} to contain {}.", got, p);
-    }
+    assert_ne!("", got);
 }
 
 #[test]
 fn client_can_use_ringbuffer() {
-    use crate::{ClosureProcessHandler, Control, RingBuffer};
     let (c, _) = open_test_client("client_can_use_ringbuffer");
 
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (mut reader, mut writer) = ringbuf.into_reader_writer();
 
-    let buf = [0u8, 1, 2, 3];
+    let buf = [0_u8, 1, 2, 3];
     let mut sent = false;
     let _a = c
         .activate_async(
@@ -148,7 +137,7 @@ fn client_can_use_ringbuffer() {
     // spin until realtime closure has been run
     while reader.space() == 0 {}
 
-    let mut outbuf = [0u8; 8];
+    let mut outbuf = [0_u8; 8];
     let num = reader.read_buffer(&mut outbuf);
     assert_eq!(num, buf.len());
 

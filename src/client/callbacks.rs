@@ -1,7 +1,7 @@
 use jack_sys as j;
 use std::ffi;
 
-use crate::{Client, ClientStatus, Control, Error, Frames, LatencyType, PortId, ProcessScope};
+use crate::{Client, ClientStatus, Control, Error, Frames, PortId, ProcessScope};
 
 /// Specifies callbacks for JACK.
 pub trait NotificationHandler: Send {
@@ -69,64 +69,6 @@ pub trait NotificationHandler: Send {
     fn xrun(&mut self, _: &Client) -> Control {
         Control::Continue
     }
-
-    /// Called whenever it is necessary to recompute the latencies for some or
-    /// all JACK ports.
-    ///
-    /// It will be called twice each time it is needed, once being passed
-    /// `CaptureLatency` and once
-    /// with `PlayBackLatency. See managing and determining latency for the
-    /// definition of each type
-    /// of latency and related functions. TODO: clear up the "see managing and
-    /// ..." in the
-    /// docstring.
-    ///
-    /// IMPORTANT: Most JACK clients do NOT need to register a latency callback.
-    ///
-    /// Clients that meed any of the following conditions do NOT need to
-    /// register a latency
-    /// callback:
-    ///
-    /// * have only input ports
-    ///
-    /// * have only output ports
-    ///
-    /// * their output is totally unrelated to their input
-    ///
-    /// * their output is not delayed relative to their input (i.e. data that
-    /// arrives in a `process`
-    /// is processed and output again in the same callback)
-    ///
-    /// Clients NOT registering a latency callback MUST also satisfy this
-    /// condition
-    ///
-    /// * have no multiple distinct internal signal pathways
-    ///
-    /// This means that if your client has more than 1 input and output port,
-    /// and considers them
-    /// always "correlated" (e.g. as a stereo pair), then there is only 1 (e.g.
-    /// stereo) signal
-    /// pathway through the client. This would be true, for example, of a
-    /// stereo FX rack client that
-    /// has a left/right input pair and a left/right output pair.
-    ///
-    /// However, this is somewhat a matter of perspective. The same FX rack
-    /// client could be
-    /// connected so that its two input ports were connected to entirely
-    /// separate sources. Under
-    /// these conditions, the fact that the client does not register a latency
-    /// callback MAY result
-    /// in port latency values being incorrect.
-    ///
-    /// Clients that do not meet any of those conditions SHOULD register a
-    /// latency callback.
-    ///
-    /// See the documentation for `jack_port_set_latency_range()` on how the
-    /// callback should
-    /// operate. Remember that the mode argument given to the latency callback
-    /// will need to be
-    /// passed into jack_port_set_latency_range()
-    fn latency(&mut self, _: &Client, _mode: LatencyType) {}
 }
 
 /// Specifies real-time processing.
@@ -301,20 +243,6 @@ where
     ctx.notification.xrun(&ctx.client).to_ffi()
 }
 
-unsafe extern "C" fn latency<N, P>(mode: j::jack_latency_callback_mode_t, data: *mut libc::c_void)
-where
-    N: 'static + Send + Sync + NotificationHandler,
-    P: 'static + Send + ProcessHandler,
-{
-    let ctx = CallbackContext::<N, P>::from_raw(data);
-    let mode = match mode {
-        j::JackCaptureLatency => LatencyType::Capture,
-        j::JackPlaybackLatency => LatencyType::Playback,
-        _ => unreachable!(),
-    };
-    ctx.notification.latency(&ctx.client, mode)
-}
-
 /// Unsafe ffi wrapper that clears the callbacks registered to `client`.
 ///
 /// This is mostly for use within the jack crate itself.
@@ -402,7 +330,6 @@ where
         j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
         j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
         j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
-        j::jack_set_latency_callback(client, Some(latency::<N, P>), data_ptr);
         Ok(())
     }
 }

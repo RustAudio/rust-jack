@@ -1,4 +1,5 @@
 use jack_sys as j;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
@@ -36,6 +37,7 @@ pub struct Client(
 );
 
 unsafe impl Send for Client {}
+unsafe impl Sync for Client {}
 
 impl Client {
     /// Opens a JACK client with the given name and options. If the client is successfully opened,
@@ -46,6 +48,7 @@ impl Client {
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        crate::logging::initialize_logging();
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
@@ -207,11 +210,16 @@ impl Client {
         type_name_pattern: Option<&str>,
         flags: PortFlags,
     ) -> Vec<String> {
-        let pnp = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
-        let tnp = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
+        let port_name_pattern_cstr = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
+        let type_name_pattern_cstr = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = libc::c_ulong::from(flags.bits());
         unsafe {
-            let ports = j::jack_get_ports(self.raw(), pnp.as_ptr(), tnp.as_ptr(), flags);
+            let ports = j::jack_get_ports(
+                self.raw(),
+                port_name_pattern_cstr.as_ptr(),
+                type_name_pattern_cstr.as_ptr(),
+                flags,
+            );
             collect_strs(ports)
         }
     }
@@ -439,6 +447,10 @@ impl Client {
     /// 2. The port flags of the `source_port` must include `IS_OUTPUT`
     /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
     /// 4. Both ports must be owned by active clients.
+    ///
+    /// # Panics
+    /// Panics if it is not possible to convert `source_port` or
+    /// `destination_port` to a `CString`.
     pub fn connect_ports_by_name(
         &self,
         source_port: &str,
@@ -610,9 +622,15 @@ impl Drop for Client {
     }
 }
 
-impl fmt::Debug for Client {
+impl Debug for Client {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", ClientInfo::from(self))
+        f.debug_struct("Client")
+            .field("name", &self.name())
+            .field("sample_rate", &self.sample_rate())
+            .field("buffer_size", &self.buffer_size())
+            .field("cpu_usage", &format!("{}%", self.cpu_load() / 100.0))
+            .field("frame_time", &self.frame_time())
+            .finish()
     }
 }
 
@@ -717,27 +735,4 @@ pub struct CycleTimes {
     pub current_usecs: Time,
     pub next_usecs: Time,
     pub period_usecs: libc::c_float,
-}
-
-#[derive(Debug)]
-struct ClientInfo {
-    name: String,
-    sample_rate: usize,
-    buffer_size: u32,
-    cpu_usage: String,
-    ports: Vec<String>,
-    frame_time: Frames,
-}
-
-impl<'a> From<&'a Client> for ClientInfo {
-    fn from(c: &Client) -> ClientInfo {
-        ClientInfo {
-            name: c.name().into(),
-            sample_rate: c.sample_rate(),
-            buffer_size: c.buffer_size(),
-            cpu_usage: format!("{}%", c.cpu_load() / 100.0),
-            ports: c.ports(None, None, PortFlags::empty()),
-            frame_time: c.frame_time(),
-        }
-    }
 }
