@@ -676,7 +676,8 @@ external_library!(
         fn jack_internal_client_close( *const ::libc::c_char) -> (),
         fn jack_activate( *mut jack_client_t) -> ::libc::c_int,
         fn jack_deactivate( *mut jack_client_t) -> ::libc::c_int,
-        fn jack_get_client_pid( *const ::libc::c_char) -> ::libc::c_int,
+        // This isn't present in some systems.
+        // fn jack_get_client_pid( *const ::libc::c_char) -> ::libc::c_int,
         // #[cfg(not(target_os = "windows"))]
         // fn jack_client_thread_id( *mut jack_client_t) -> jack_native_thread_t,
         fn jack_is_realtime( *mut jack_client_t) -> ::libc::c_int,
