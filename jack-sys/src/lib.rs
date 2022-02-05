@@ -1020,7 +1020,8 @@ external_library!(
              u32
         ) -> ::libc::c_int,
         fn jack_midi_clear_buffer(*mut ::libc::c_void) -> (),
-        fn jack_midi_reset_buffer(*mut ::libc::c_void) -> (),
+        // Not present in some systems.
+        // fn jack_midi_reset_buffer(*mut ::libc::c_void) -> (),
         fn jack_midi_max_event_size(*mut ::libc::c_void) -> ::libc::size_t,
         fn jack_midi_event_reserve(
             *mut ::libc::c_void,
