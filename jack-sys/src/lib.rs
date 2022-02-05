@@ -788,7 +788,8 @@ external_library!(
         fn jack_port_short_name( *const jack_port_t) -> *const ::libc::c_char,
         fn jack_port_flags( *const jack_port_t) -> ::libc::c_int,
         fn jack_port_type( *const jack_port_t) -> *const ::libc::c_char,
-        fn jack_port_type_id( *const jack_port_t) -> jack_port_type_id_t,
+        // Not present in some systems.
+        // fn jack_port_type_id( *const jack_port_t) -> jack_port_type_id_t,
         fn jack_port_is_mine(
              *const jack_client_t,
              *const jack_port_t
