@@ -1,5 +1,8 @@
+#[cfg(feature = "dlopen")]
 use crate::LIB;
-use jack_sys as j;
+use dlib::ffi_dispatch;
+#[cfg(not(feature = "dlopen"))]
+use jack_sys::*;
 use lazy_static::lazy_static;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Debug;
@@ -10,12 +13,22 @@ use std::{ffi, fmt, iter};
 
 use crate::{Error, Frames, LatencyType, PortFlags};
 
+#[cfg(feature = "dlopen")]
 lazy_static! {
     /// The maximum string length for port names.
-    pub static ref PORT_NAME_SIZE: usize = unsafe { (LIB.jack_port_name_size)() - 1 } as usize;
+    pub static ref PORT_NAME_SIZE: usize = unsafe { (crate::LIB.jack_port_name_size)() - 1 } as usize;
 
     /// The maximum string length for jack type names.
-    pub static ref PORT_TYPE_SIZE: usize = unsafe { (LIB.jack_port_type_size)() - 1 } as usize;
+    pub static ref PORT_TYPE_SIZE: usize = unsafe { (crate::LIB.jack_port_type_size)() - 1 } as usize;
+}
+
+#[cfg(not(feature = "dlopen"))]
+lazy_static! {
+    /// The maximum string length for port names.
+    pub static ref PORT_NAME_SIZE: usize = unsafe { jack_sys::jack_port_name_size() - 1 } as usize;
+
+    /// The maximum string length for jack type names.
+    pub static ref PORT_TYPE_SIZE: usize = unsafe { jack_sys::jack_port_type_size() - 1 } as usize;
 }
 
 /// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
@@ -48,8 +61,8 @@ pub unsafe trait PortSpec: Sized {
 /// Also, ports can be compared and hashed using their raw pointers.
 pub struct Port<PS> {
     spec: PS,
-    client_ptr: *mut j::jack_client_t,
-    port_ptr: *mut j::jack_port_t,
+    client_ptr: *mut jack_sys::jack_client_t,
+    port_ptr: *mut jack_sys::jack_port_t,
     client_life: Weak<()>,
 }
 
@@ -77,7 +90,7 @@ impl<PS> Port<PS> {
     pub fn name(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr((LIB.jack_port_name)(self.raw()))
+            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_name, self.raw()))
                 .to_string_lossy()
                 .to_string()
         };
@@ -89,7 +102,7 @@ impl<PS> Port<PS> {
     pub fn short_name(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr((LIB.jack_port_short_name)(self.raw()))
+            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_short_name, self.raw()))
                 .to_string_lossy()
                 .to_string()
         };
@@ -99,8 +112,8 @@ impl<PS> Port<PS> {
     /// The flags for the port. These are set when the port is registered with
     /// its client.
     pub fn flags(&self) -> PortFlags {
-        let bits = unsafe { (LIB.jack_port_flags)(self.raw()) };
-        PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
+        let bits = unsafe { ffi_dispatch!(LIB, jack_port_flags, self.raw()) };
+        PortFlags::from_bits(bits as jack_sys::Enum_JackPortFlags).unwrap()
     }
 
     /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
@@ -108,7 +121,7 @@ impl<PS> Port<PS> {
     pub fn port_type(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr((LIB.jack_port_type)(self.raw()))
+            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_type, self.raw()))
                 .to_string_lossy()
                 .to_string()
         };
@@ -118,7 +131,7 @@ impl<PS> Port<PS> {
     /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> Result<usize, Error> {
         self.check_client_life()?;
-        let n = unsafe { (LIB.jack_port_connected)(self.raw()) };
+        let n = unsafe { ffi_dispatch!(LIB, jack_port_connected, self.raw()) };
         Ok(n as usize)
     }
 
@@ -128,7 +141,7 @@ impl<PS> Port<PS> {
         self.check_client_life()?;
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
-            (LIB.jack_port_connected_to)(self.raw(), port_name.as_ptr())
+            ffi_dispatch!(LIB, jack_port_connected_to, self.raw(), port_name.as_ptr())
         };
         match res {
             0 => Ok(false),
@@ -145,7 +158,7 @@ impl<PS> Port<PS> {
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
-            (LIB.jack_port_get_aliases)(self.raw(), ptrs.as_mut_ptr());
+            ffi_dispatch!(LIB, jack_port_get_aliases, self.raw(), ptrs.as_mut_ptr());
         };
         Ok([a, b]
             .iter()
@@ -158,7 +171,7 @@ impl<PS> Port<PS> {
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> Result<bool, Error> {
         self.check_client_life()?;
-        match unsafe { (LIB.jack_port_monitoring_input)(self.raw()) } {
+        match unsafe { ffi_dispatch!(LIB, jack_port_monitoring_input, self.raw()) } {
             0 => Ok(false),
             _ => Ok(true),
         }
@@ -170,7 +183,7 @@ impl<PS> Port<PS> {
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
         let onoff = if enable_monitor { 1 } else { 0 };
-        let res = unsafe { (LIB.jack_port_request_monitor)(self.raw(), onoff) };
+        let res = unsafe { ffi_dispatch!(LIB, jack_port_request_monitor, self.raw(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -183,7 +196,7 @@ impl<PS> Port<PS> {
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
         let onoff = if enable_monitor { 1 } else { 0 };
-        let res = unsafe { (LIB.jack_port_ensure_monitor)(self.raw(), onoff) };
+        let res = unsafe { ffi_dispatch!(LIB, jack_port_ensure_monitor, self.raw(), onoff) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -195,7 +208,8 @@ impl<PS> Port<PS> {
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let short_name = ffi::CString::new(short_name).unwrap();
-        let res = unsafe { (LIB.jack_port_set_name)(self.raw(), short_name.as_ptr()) };
+        let res =
+            unsafe { ffi_dispatch!(LIB, jack_port_set_name, self.raw(), short_name.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortNamingError),
@@ -215,7 +229,7 @@ impl<PS> Port<PS> {
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { (LIB.jack_port_set_alias)(self.raw(), alias.as_ptr()) };
+        let res = unsafe { ffi_dispatch!(LIB, jack_port_set_alias, self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -228,7 +242,7 @@ impl<PS> Port<PS> {
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { (LIB.jack_port_unset_alias)(self.raw(), alias.as_ptr()) };
+        let res = unsafe { ffi_dispatch!(LIB, jack_port_unset_alias, self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -243,8 +257,8 @@ impl<PS> Port<PS> {
     /// It is unsafe to create a `Port` from raw pointers.
     pub unsafe fn from_raw(
         spec: PS,
-        client_ptr: *mut j::jack_client_t,
-        port_ptr: *mut j::jack_port_t,
+        client_ptr: *mut jack_sys::jack_client_t,
+        port_ptr: *mut jack_sys::jack_port_t,
         client_life: Weak<()>,
     ) -> Self {
         Port {
@@ -259,7 +273,7 @@ impl<PS> Port<PS> {
     ///
     /// This is mostly for use within the jack crate itself.
     #[inline(always)]
-    pub fn client_ptr(&self) -> *mut j::jack_client_t {
+    pub fn client_ptr(&self) -> *mut jack_sys::jack_client_t {
         self.client_ptr
     }
 
@@ -267,7 +281,7 @@ impl<PS> Port<PS> {
     ///
     /// This is mostly for use within the jack crate itself.
     #[inline(always)]
-    pub fn raw(&self) -> *mut j::jack_port_t {
+    pub fn raw(&self) -> *mut jack_sys::jack_port_t {
         self.port_ptr
     }
 
@@ -283,7 +297,7 @@ impl<PS> Port<PS> {
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
         // We don't check for life to improve performance in a very hot codepath.
         // self.check_client_life()?;
-        (LIB.jack_port_get_buffer)(self.port_ptr, n_frames)
+        ffi_dispatch!(LIB, jack_port_get_buffer, self.port_ptr, n_frames)
     }
 
     /// Set the minimum and maximum latencies defined by mode for port, in frames.
@@ -294,11 +308,19 @@ impl<PS> Port<PS> {
     /// **only** be used inside a latency callback.
     #[inline(always)]
     pub fn set_latency_range(&self, mode: LatencyType, range: (Frames, Frames)) {
-        let mut ffi_range = j::Struct__jack_latency_range {
+        let mut ffi_range = jack_sys::Struct__jack_latency_range {
             min: range.0,
             max: range.1,
         };
-        unsafe { (LIB.jack_port_set_latency_range)(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
+        unsafe {
+            ffi_dispatch!(
+                LIB,
+                jack_port_set_latency_range,
+                self.port_ptr,
+                mode.to_ffi(),
+                &mut ffi_range
+            )
+        };
     }
 
     /// Returns a tuple of the minimum and maximum latencies defined by mode for port, in frames.
@@ -308,8 +330,16 @@ impl<PS> Port<PS> {
     /// used in the LatencyCallback. and therefore safe to execute from callbacks.
     #[inline(always)]
     pub fn get_latency_range(&self, mode: LatencyType) -> (Frames, Frames) {
-        let mut ffi_range = j::Struct__jack_latency_range { min: 0, max: 0 };
-        unsafe { (LIB.jack_port_get_latency_range)(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
+        let mut ffi_range = jack_sys::Struct__jack_latency_range { min: 0, max: 0 };
+        unsafe {
+            ffi_dispatch!(
+                LIB,
+                jack_port_get_latency_range,
+                self.port_ptr,
+                mode.to_ffi(),
+                &mut ffi_range
+            )
+        };
         (ffi_range.min, ffi_range.max)
     }
 

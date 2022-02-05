@@ -1,4 +1,8 @@
+#[cfg(feature = "dlopen")]
 use crate::LIB;
+use dlib::ffi_dispatch;
+#[cfg(not(feature = "dlopen"))]
+use jack_sys::*;
 use std::fmt;
 use std::fmt::Debug;
 use std::mem;
@@ -61,7 +65,7 @@ where
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             sleep_on_test();
-            let res = (LIB.jack_activate)(callback_context.client.raw());
+            let res = ffi_dispatch!(LIB, jack_activate, callback_context.client.raw());
             for _ in 0..4 {
                 sleep_on_test();
             }
@@ -116,7 +120,7 @@ impl<N, P> AsyncClient<N, P> {
 
         // deactivate
         sleep_on_test();
-        if (LIB.jack_deactivate)(client) != 0 {
+        if ffi_dispatch!(LIB, jack_deactivate, client) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 

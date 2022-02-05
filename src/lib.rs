@@ -49,6 +49,7 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+#[cfg(feature = "dlopen")]
 use lazy_static::lazy_static;
 
 //only expose metadata if enabled
@@ -78,41 +79,23 @@ mod transport;
 /// Properties
 mod properties;
 
-unsafe extern "C" fn error_fn(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::error!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
-    }
-}
-
-unsafe extern "C" fn info_fn(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::info!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
-    }
-}
-
+#[cfg(feature = "dlopen")]
 lazy_static! {
+    pub(crate) static ref LIB: &'static jack_sys::JackLib = {
+        let j = LIB_RESULT.as_ref().unwrap();
+        j
+    };
     static ref LIB_RESULT: Result<jack_sys::JackLib, dlib::DlError> =
         unsafe { jack_sys::JackLib::open(jack_sys::JACK_LIB) };
 }
 
-lazy_static! {
-    pub(crate) static ref LIB: &'static jack_sys::JackLib = unsafe {
-        let j = LIB_RESULT.as_ref().unwrap();
-        (j.jack_set_error_function)(Some(error_fn));
-        (j.jack_set_info_function)(Some(info_fn));
-        j
-    };
-}
-
-#[cfg(feature = "metadata")]
+#[cfg(all(feature = "dlopen", feature = "metadata"))]
 lazy_static! {
     pub(crate) static ref METADATA: jack_sys::JackMetadata =
         unsafe { jack_sys::JackMetadata::open(jack_sys::JACK_LIB).unwrap() };
 }
 
-#[cfg(feature = "metadata")]
+#[cfg(all(feature = "dlopen", feature = "metadata"))]
 lazy_static! {
     pub(crate) static ref UUID: jack_sys::JackUuid =
         unsafe { jack_sys::JackUuid::open(jack_sys::JACK_LIB).unwrap() };
@@ -120,6 +103,7 @@ lazy_static! {
 
 /// Dynamically loads the JACK library. This is libjack.so on Linux and
 /// libjack.dll on Windows.
+#[cfg(feature = "dlopen")]
 pub fn load_jack_library() -> Result<(), Error> {
     LIB_RESULT
         .as_ref()
@@ -130,7 +114,11 @@ pub fn load_jack_library() -> Result<(), Error> {
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
 pub fn get_time() -> primitive_types::Time {
-    unsafe { (LIB.jack_get_time)() }
+    #[cfg(feature = "dlopen")]
+    let t = unsafe { (LIB.jack_get_time)() };
+    #[cfg(not(feature = "dlopen"))]
+    let t = unsafe { jack_sys::jack_get_time() };
+    t
 }
 
 #[cfg(test)]
