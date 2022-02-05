@@ -83,7 +83,7 @@ fn active_test_client(name: &str) -> AsyncClient<Counter, Counter> {
 fn client_cback_has_proper_default_callbacks() {
     // defaults shouldn't care about these params
     let wc = unsafe { Client::from_raw(ptr::null_mut()) };
-    let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut()) };
+    let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut(), *crate::LIB) };
     // check each callbacks
     ().thread_init(&wc);
     ().shutdown(client_status::ClientStatus::empty(), "mock");

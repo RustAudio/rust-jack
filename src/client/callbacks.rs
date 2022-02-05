@@ -131,7 +131,7 @@ where
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
-    let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
+    let scope = ProcessScope::from_raw(n_frames, ctx.client.raw(), ctx.client.lib);
     ctx.process.process(&ctx.client, &scope).to_ffi()
 }
 

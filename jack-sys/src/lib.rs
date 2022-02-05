@@ -1085,6 +1085,13 @@ external_library!(
     fn jack_uuid_empty(jack_uuid_t) -> ::std::os::raw::c_int,
 );
 
+#[cfg(feature = "dlopen")]
+impl std::fmt::Debug for JackLib {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JackLib").finish()
+    }
+}
+
 // The following functions are not available in some JACK versions. Use with caution.
 external_library!(
 JackOptional,
