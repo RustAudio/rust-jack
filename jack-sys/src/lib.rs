@@ -3,11 +3,18 @@
 use dlib::external_library;
 use lazy_static::lazy_static;
 
-#[cfg(windows)]
-pub const JACK_LIB: &'static str = "libjack.dll";
-
-#[cfg(not(windows))]
-pub const JACK_LIB: &'static str = "libjack.so.0\0";
+pub const JACK_LIB: &'static str =
+    if cfg!(target_family = "windows") {
+        if cfg!(target_arch = "x86") {
+            "libjack.dll"
+        } else {
+            "libjack64.dll"
+        }
+    } else if cfg!(target_vendor = "apple") {
+        "libjack.0.dylib"
+    } else {
+        "libjack.so.0"
+    };
 
 /// JACK port type for 8 bit raw midi
 pub static RAW_MIDI_TYPE: &str = "8 bit raw midi";
