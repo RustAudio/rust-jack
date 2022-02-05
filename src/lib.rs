@@ -93,12 +93,26 @@ unsafe extern "C" fn info_fn(msg: *const libc::c_char) {
 }
 
 lazy_static! {
-    pub static ref LIB: jack_sys::JackLib = unsafe {
-        let j = jack_sys::JackLib::open("jack").unwrap();
+    static ref LIB_RESULT: Result<jack_sys::JackLib, dlib::DlError> =
+        unsafe { jack_sys::JackLib::open(jack_sys::JACK_LIB) };
+}
+
+lazy_static! {
+    pub(crate) static ref LIB: &'static jack_sys::JackLib = unsafe {
+        let j = LIB_RESULT.as_ref().unwrap();
         (j.jack_set_error_function)(Some(error_fn));
         (j.jack_set_info_function)(Some(info_fn));
         j
     };
+}
+
+/// Dynamically loads the JACK library. This is libjack.so on Linux and
+/// libjack.dll on Windows.
+pub fn load_jack_library() -> Result<(), Error> {
+    LIB_RESULT
+        .as_ref()
+        .map(|_| ())
+        .map_err(|e| Error::LoadLibraryError(format!("{}", e)))
 }
 
 /// Return JACK's current system time in microseconds, using the JACK clock

@@ -513,6 +513,101 @@ external_library!(
 );
 
 external_library!(
+    JackCtl,
+    "jack",
+    functions:
+        fn jackctl_setup_signals(::libc::c_uint) -> *mut jackctl_sigmask_t,
+        fn jackctl_wait_signals(*mut jackctl_sigmask_t) -> (),
+        fn jackctl_server_create(
+            ::std::option::Option<
+                unsafe extern "C" fn(*const ::libc::c_char) -> u8,
+            >,
+            ::std::option::Option<
+                unsafe extern "C" fn(*const ::libc::c_char) -> (),
+            >
+        ) -> *mut jackctl_server_t,
+        fn jackctl_server_destroy(*mut jackctl_server_t) -> (),
+        fn jackctl_server_open(*mut jackctl_server_t, *mut jackctl_driver_t) -> u8,
+        fn jackctl_server_start(*mut jackctl_server_t) -> u8,
+        fn jackctl_server_stop(*mut jackctl_server_t) -> u8,
+        fn jackctl_server_close(*mut jackctl_server_t) -> u8,
+        fn jackctl_server_get_drivers_list(*mut jackctl_server_t) -> *const JSList,
+        fn jackctl_server_get_parameters(*mut jackctl_server_t) -> *const JSList,
+        fn jackctl_server_get_internals_list(*mut jackctl_server_t) -> *const JSList,
+        fn jackctl_server_load_internal(
+            *mut jackctl_server_t,
+            *mut jackctl_internal_t
+        ) -> u8,
+        fn jackctl_server_unload_internal(
+            *mut jackctl_server_t,
+            *mut jackctl_internal_t
+        ) -> u8,
+        fn jackctl_server_add_slave(
+            *mut jackctl_server_t,
+            *mut jackctl_driver_t
+        ) -> u8,
+        fn jackctl_server_remove_slave(
+            *mut jackctl_server_t,
+            *mut jackctl_driver_t
+        ) -> u8,
+        fn jackctl_server_switch_master(
+            *mut jackctl_server_t,
+            *mut jackctl_driver_t
+        ) -> u8,
+        fn jackctl_driver_get_name( *mut jackctl_driver_t) -> *const ::libc::c_char,
+        fn jackctl_driver_get_type( *mut jackctl_driver_t) -> jackctl_driver_type_t,
+        fn jackctl_driver_get_parameters( *mut jackctl_driver_t) -> *const JSList,
+        fn jackctl_driver_params_parse(
+            *mut jackctl_driver_t,
+            ::libc::c_int,
+            *mut *mut ::libc::c_char
+        ) -> ::libc::c_int,
+        fn jackctl_internal_get_name(*mut jackctl_internal_t) -> *const ::libc::c_char,
+        fn jackctl_internal_get_parameters(*mut jackctl_internal_t) -> *const JSList,
+        fn jackctl_parameter_get_name(*mut jackctl_parameter_t)
+            -> *const ::libc::c_char,
+        fn jackctl_parameter_get_short_description(
+            *mut jackctl_parameter_t
+        ) -> *const ::libc::c_char,
+        fn jackctl_parameter_get_long_description(
+            *mut jackctl_parameter_t
+        ) -> *const ::libc::c_char,
+        fn jackctl_parameter_get_type(*mut jackctl_parameter_t) -> jackctl_param_type_t,
+        fn jackctl_parameter_get_id(*mut jackctl_parameter_t) -> ::libc::c_char,
+        fn jackctl_parameter_is_set(*mut jackctl_parameter_t) -> u8,
+        fn jackctl_parameter_reset(*mut jackctl_parameter_t) -> u8,
+        fn jackctl_parameter_get_value(
+            *mut jackctl_parameter_t
+        ) -> Union_jackctl_parameter_value,
+        fn jackctl_parameter_set_value(
+            *mut jackctl_parameter_t,
+            *const Union_jackctl_parameter_value
+        ) -> u8,
+        fn jackctl_parameter_get_default_value(
+            *mut jackctl_parameter_t
+        ) -> Union_jackctl_parameter_value,
+        fn jackctl_parameter_has_range_constraint(*mut jackctl_parameter_t) -> u8,
+        fn jackctl_parameter_has_enum_constraint(*mut jackctl_parameter_t) -> u8,
+        fn jackctl_parameter_get_enum_constraints_count(*mut jackctl_parameter_t)
+            -> u32,
+        fn jackctl_parameter_get_enum_constraint_value(
+            *mut jackctl_parameter_t,
+            u32
+        ) -> Union_jackctl_parameter_value,
+        fn jackctl_parameter_get_enum_constraint_description(
+            *mut jackctl_parameter_t,
+            u32
+        ) -> *const ::libc::c_char,
+        fn jackctl_parameter_get_range_constraint(
+            *mut jackctl_parameter_t,
+            *mut Union_jackctl_parameter_value,
+            *mut Union_jackctl_parameter_value
+        ) -> (),
+        fn jackctl_parameter_constraint_is_strict(*mut jackctl_parameter_t) -> u8,
+        fn jackctl_parameter_constraint_is_fake_value(*mut jackctl_parameter_t) -> u8,
+);
+
+external_library!(
     JackLib,
     "jack",
         functions:
@@ -859,95 +954,6 @@ external_library!(
             *mut jack_client_t,
             *const ::libc::c_char
         ) -> ::libc::c_int,
-        fn jackctl_setup_signals(::libc::c_uint) -> *mut jackctl_sigmask_t,
-        fn jackctl_wait_signals(*mut jackctl_sigmask_t) -> (),
-        fn jackctl_server_create(
-            ::std::option::Option<
-                unsafe extern "C" fn(*const ::libc::c_char) -> u8,
-            >,
-            ::std::option::Option<
-                unsafe extern "C" fn(*const ::libc::c_char) -> (),
-            >
-        ) -> *mut jackctl_server_t,
-        fn jackctl_server_destroy(*mut jackctl_server_t) -> (),
-        fn jackctl_server_open(*mut jackctl_server_t, *mut jackctl_driver_t) -> u8,
-        fn jackctl_server_start(*mut jackctl_server_t) -> u8,
-        fn jackctl_server_stop(*mut jackctl_server_t) -> u8,
-        fn jackctl_server_close(*mut jackctl_server_t) -> u8,
-        fn jackctl_server_get_drivers_list(*mut jackctl_server_t) -> *const JSList,
-        fn jackctl_server_get_parameters(*mut jackctl_server_t) -> *const JSList,
-        fn jackctl_server_get_internals_list(*mut jackctl_server_t) -> *const JSList,
-        fn jackctl_server_load_internal(
-            *mut jackctl_server_t,
-            *mut jackctl_internal_t
-        ) -> u8,
-        fn jackctl_server_unload_internal(
-            *mut jackctl_server_t,
-            *mut jackctl_internal_t
-        ) -> u8,
-        fn jackctl_server_add_slave(
-            *mut jackctl_server_t,
-            *mut jackctl_driver_t
-        ) -> u8,
-        fn jackctl_server_remove_slave(
-            *mut jackctl_server_t,
-            *mut jackctl_driver_t
-        ) -> u8,
-        fn jackctl_server_switch_master(
-            *mut jackctl_server_t,
-            *mut jackctl_driver_t
-        ) -> u8,
-        fn jackctl_driver_get_name( *mut jackctl_driver_t) -> *const ::libc::c_char,
-        fn jackctl_driver_get_type( *mut jackctl_driver_t) -> jackctl_driver_type_t,
-        fn jackctl_driver_get_parameters( *mut jackctl_driver_t) -> *const JSList,
-        fn jackctl_driver_params_parse(
-            *mut jackctl_driver_t,
-            ::libc::c_int,
-            *mut *mut ::libc::c_char
-        ) -> ::libc::c_int,
-        fn jackctl_internal_get_name(*mut jackctl_internal_t) -> *const ::libc::c_char,
-        fn jackctl_internal_get_parameters(*mut jackctl_internal_t) -> *const JSList,
-        fn jackctl_parameter_get_name(*mut jackctl_parameter_t)
-            -> *const ::libc::c_char,
-        fn jackctl_parameter_get_short_description(
-            *mut jackctl_parameter_t
-        ) -> *const ::libc::c_char,
-        fn jackctl_parameter_get_long_description(
-            *mut jackctl_parameter_t
-        ) -> *const ::libc::c_char,
-        fn jackctl_parameter_get_type(*mut jackctl_parameter_t) -> jackctl_param_type_t,
-        fn jackctl_parameter_get_id(*mut jackctl_parameter_t) -> ::libc::c_char,
-        fn jackctl_parameter_is_set(*mut jackctl_parameter_t) -> u8,
-        fn jackctl_parameter_reset(*mut jackctl_parameter_t) -> u8,
-        fn jackctl_parameter_get_value(
-            *mut jackctl_parameter_t
-        ) -> Union_jackctl_parameter_value,
-        fn jackctl_parameter_set_value(
-            *mut jackctl_parameter_t,
-            *const Union_jackctl_parameter_value
-        ) -> u8,
-        fn jackctl_parameter_get_default_value(
-            *mut jackctl_parameter_t
-        ) -> Union_jackctl_parameter_value,
-        fn jackctl_parameter_has_range_constraint(*mut jackctl_parameter_t) -> u8,
-        fn jackctl_parameter_has_enum_constraint(*mut jackctl_parameter_t) -> u8,
-        fn jackctl_parameter_get_enum_constraints_count(*mut jackctl_parameter_t)
-            -> u32,
-        fn jackctl_parameter_get_enum_constraint_value(
-            *mut jackctl_parameter_t,
-            u32
-        ) -> Union_jackctl_parameter_value,
-        fn jackctl_parameter_get_enum_constraint_description(
-            *mut jackctl_parameter_t,
-            u32
-        ) -> *const ::libc::c_char,
-        fn jackctl_parameter_get_range_constraint(
-            *mut jackctl_parameter_t,
-            *mut Union_jackctl_parameter_value,
-            *mut Union_jackctl_parameter_value
-        ) -> (),
-        fn jackctl_parameter_constraint_is_strict(*mut jackctl_parameter_t) -> u8,
-        fn jackctl_parameter_constraint_is_fake_value(*mut jackctl_parameter_t) -> u8,
         // fn jack_error(format: *const ::libc::c_char, ...) -> (),
         // fn jack_info(format: *const ::libc::c_char, ...) -> (),
         // fn jack_log(format: *const ::libc::c_char, ...) -> (),
@@ -1087,10 +1093,10 @@ external_library!(
 // Load optional functions:
 
 #[cfg(windows)]
-const jack_lib: &'static str = "libjack.dll";
+pub const JACK_LIB: &'static str = "libjack.dll";
 
-#[cfg(unix)]
-const jack_lib: &'static str = "libjack.so\0";
+#[cfg(not(windows))]
+pub const JACK_LIB: &'static str = "libjack.so\0";
 
 type jack_get_cycle_times_t = unsafe extern "C" fn(
     client: *const jack_client_t,
@@ -1102,7 +1108,7 @@ type jack_get_cycle_times_t = unsafe extern "C" fn(
 
 lazy_static! {
     pub static ref jack_get_cycle_times: Option<jack_get_cycle_times_t> = {
-        unsafe { libloading::Library::new(jack_lib) }
+        unsafe { libloading::Library::new(JACK_LIB) }
             .ok()
             .and_then(|lib| unsafe {
                 lib.get::<jack_get_cycle_times_t>(b"jack_get_cycle_times\0")
