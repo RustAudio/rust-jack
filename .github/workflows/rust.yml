@@ -24,5 +24,7 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D clippy::all
       - name: Build
         run: cargo build --verbose
-      - name: Run tests
+      - name: Run Tests
         run: RUST_TEST_THREADS=1 cargo test --verbose
+      - name: Internal Client Test
+        run: cargo run --example internal_client </dev/null

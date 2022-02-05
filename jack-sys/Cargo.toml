@@ -19,4 +19,6 @@ libloading = "0.7"
 pkg-config = "0.3"
 
 [features]
+# If dlopen is set, then dlib must be used to call jack-sys functions.  See
+# https://github.com/vberger/dlib.
 default = []

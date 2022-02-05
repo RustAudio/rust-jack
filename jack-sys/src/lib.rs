@@ -487,12 +487,7 @@ impl ::std::default::Default for Struct_Unnamed12 {
     }
 }
 pub type jack_ringbuffer_t = Struct_Unnamed12;
-extern "C" {
-    pub static mut jack_error_callback:
-        ::std::option::Option<unsafe extern "C" fn(msg: *const ::libc::c_char) -> ()>;
-    pub static mut jack_info_callback:
-        ::std::option::Option<unsafe extern "C" fn(msg: *const ::libc::c_char) -> ()>;
-}
+extern "C" {}
 
 external_library!(
     JackMetadata,
@@ -504,12 +499,24 @@ external_library!(
     JACK_METADATA_ICON_SMALL: *const ::libc::c_char,
     JACK_METADATA_ICON_LARGE: *const ::libc::c_char,
 );
+// statics:
+// // jack_error_callback:
+// //     ::std::option::Option<unsafe extern "C" fn(*const ::libc::c_char) -> ()>,
+// // jack_info_callback:
+// //     ::std::option::Option<unsafe extern "C" fn(*const ::libc::c_char) -> ()>,
+
+external_library!(
+    JackError,
+    "jack",
+    statics: jack_error_callback: Option<unsafe extern "C" fn(*const ::libc::c_char) -> ()>,
+    jack_info_callback: Option<unsafe extern "C" fn(*const ::libc::c_char) -> ()>,
+);
 
 external_library!(
     JackLib,
     "jack",
         functions:
-            fn jack_release_timebase(*mut jack_client_t) -> ::libc::c_int,
+        fn jack_release_timebase(*mut jack_client_t) -> ::libc::c_int,
         fn jack_set_sync_callback(
              *mut jack_client_t,
              JackSyncCallback,
@@ -1061,18 +1068,21 @@ external_library!(
         fn jack_client_open(*const ::libc::c_char, jack_options_t, *mut jack_status_t) -> *mut jack_client_t,
 );
 
-extern "C" {
-    pub fn jack_uuid_to_index(arg1: jack_uuid_t) -> u32;
-    pub fn jack_uuid_compare(arg1: jack_uuid_t, arg2: jack_uuid_t) -> ::std::os::raw::c_int;
-    pub fn jack_uuid_copy(dst: *mut jack_uuid_t, src: jack_uuid_t);
-    pub fn jack_uuid_clear(arg1: *mut jack_uuid_t);
-    pub fn jack_uuid_parse(
-        buf: *const ::std::os::raw::c_char,
-        arg1: *mut jack_uuid_t,
-    ) -> ::std::os::raw::c_int;
-    pub fn jack_uuid_unparse(arg1: jack_uuid_t, buf: *mut ::std::os::raw::c_char);
-    pub fn jack_uuid_empty(arg1: jack_uuid_t) -> ::std::os::raw::c_int;
-}
+external_library!(
+    JackUuid,
+    "jack",
+    functions:
+    fn jack_uuid_to_index(jack_uuid_t) -> u32,
+    fn jack_uuid_copy(*mut jack_uuid_t, jack_uuid_t) -> (),
+    fn jack_uuid_compare(jack_uuid_t, jack_uuid_t) -> ::std::os::raw::c_int,
+    fn jack_uuid_clear(*mut jack_uuid_t) -> (),
+    fn jack_uuid_parse(
+        *const ::std::os::raw::c_char,
+        *mut jack_uuid_t
+    ) -> ::std::os::raw::c_int,
+    fn jack_uuid_unparse(jack_uuid_t, *mut ::std::os::raw::c_char) -> (),
+    fn jack_uuid_empty(jack_uuid_t) -> ::std::os::raw::c_int,
+);
 
 // Load optional functions:
 
