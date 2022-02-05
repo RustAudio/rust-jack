@@ -1056,8 +1056,7 @@ external_library!(
             *const ::libc::c_char,
             jack_options_t,
             *mut jack_status_t,
-            *mut jack_status_t,
-            *mut jack_status_t
+            jack_intclient_t
         ) -> jack_intclient_t,
         fn jack_client_open(*const ::libc::c_char, jack_options_t, *mut jack_status_t) -> *mut jack_client_t,
 );
