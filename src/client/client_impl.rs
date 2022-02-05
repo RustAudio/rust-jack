@@ -1,5 +1,7 @@
 #[cfg(feature = "dlopen")]
 use crate::LIB;
+#[cfg(all(feature = "dlopen", feature = "metadata"))]
+use crate::UUID;
 use dlib::ffi_dispatch;
 #[cfg(not(feature = "dlopen"))]
 use jack_sys::*;
@@ -162,7 +164,7 @@ impl Client {
             let mut uuid: jack_sys::jack_uuid_t = Default::default();
             let uuid_s = ffi_dispatch!(LIB, jack_client_get_uuid, self.raw());
             assert!(!uuid_s.is_null());
-            assert_eq!(0, ffi_dispatch!(LIB, jack_uuid_parse, uuid_s, &mut uuid));
+            assert_eq!(0, ffi_dispatch!(UUID, jack_uuid_parse, uuid_s, &mut uuid));
             ffi_dispatch!(LIB, jack_free, uuid_s as _);
             uuid
         }
@@ -207,7 +209,7 @@ impl Client {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
 
         unsafe {
-            ffi_dispatch!(LIB, jack_uuid_unparse, uuid, uuid_s.as_mut_ptr());
+            ffi_dispatch!(UUID, jack_uuid_unparse, uuid, uuid_s.as_mut_ptr());
             self.name_by_uuid_raw(uuid_s.as_ptr())
         }
     }
