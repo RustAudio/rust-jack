@@ -315,7 +315,7 @@ impl Client {
                 ffi_client_name.as_ptr(),
                 options,
                 &mut status_bits,
-                ffi_client_bin.as_ptr(),
+                ffi_client_bin.as_ptr() as _,
                 ffi_client_args.as_ptr(),
             )
         };

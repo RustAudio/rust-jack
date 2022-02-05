@@ -6,7 +6,7 @@ use crate::{Error, Frames, Port, PortFlags, PortSpec, ProcessScope};
 
 /// Contains 8bit raw midi information along with a timestamp relative to the
 /// process cycle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RawMidi<'a> {
     /// The amount of time passed, in frames, relative to the start of the
     /// process cycle
@@ -14,15 +14,6 @@ pub struct RawMidi<'a> {
 
     /// Midi data
     pub bytes: &'a [u8],
-}
-
-impl<'a> Default for RawMidi<'a> {
-    fn default() -> Self {
-        RawMidi {
-            time: 0,
-            bytes: &[],
-        }
-    }
 }
 
 /// `MidiIn` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
