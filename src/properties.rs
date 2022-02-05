@@ -47,7 +47,7 @@ pub use metadata::*;
 #[cfg(feature = "metadata")]
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
-    use crate::Error;
+    use crate::{Error, LIB};
     use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
 
     use crate::Client;
@@ -141,7 +141,7 @@ mod metadata {
                     ),
                 );
             }
-            j::jack_free_description(description, 0);
+            (LIB.jack_free_description)(description, 0);
             Some(properties)
         }
     }
@@ -186,8 +186,12 @@ mod metadata {
             let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
 
             unsafe {
-                if j::jack_get_property(subject, key.as_ptr(), value.as_mut_ptr(), typ.as_mut_ptr())
-                    == 0
+                if (LIB.jack_get_property)(
+                    subject,
+                    key.as_ptr(),
+                    value.as_mut_ptr(),
+                    typ.as_mut_ptr(),
+                ) == 0
                 {
                     let value = value.assume_init();
                     let typ = typ.assume_init();
@@ -199,9 +203,9 @@ mod metadata {
                             Some(ffi::CStr::from_ptr(typ).to_str().unwrap().to_string())
                         },
                     ));
-                    j::jack_free(value as _);
+                    (LIB.jack_free)(value as _);
                     if !typ.is_null() {
-                        j::jack_free(typ as _)
+                        (LIB.jack_free)(typ as _)
                     }
                     r
                 } else {
@@ -222,7 +226,7 @@ mod metadata {
         pub fn property_get_subject(&self, subject: uuid) -> Option<PropertyMap> {
             let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::uninit();
             unsafe {
-                let _ = j::jack_get_properties(subject, description.as_mut_ptr());
+                let _ = (LIB.jack_get_properties)(subject, description.as_mut_ptr());
                 description_to_map_free(description.as_mut_ptr())
             }
         }
@@ -236,7 +240,7 @@ mod metadata {
             let mut map = HashMap::new();
             let mut descriptions: MaybeUninit<*mut j::jack_description_t> = MaybeUninit::uninit();
             unsafe {
-                let cnt = j::jack_get_all_properties(descriptions.as_mut_ptr());
+                let cnt = (LIB.jack_get_all_properties)(descriptions.as_mut_ptr());
                 if cnt > 0 {
                     let descriptions = descriptions.assume_init();
                     for des in std::slice::from_raw_parts_mut(descriptions, cnt as usize) {
@@ -245,7 +249,7 @@ mod metadata {
                             map.insert(uuid, dmap);
                         }
                     }
-                    j::jack_free(descriptions as _);
+                    (LIB.jack_free)(descriptions as _);
                 }
             }
             map
@@ -269,7 +273,7 @@ mod metadata {
             map_error(|| unsafe {
                 if let Some(t) = property.typ() {
                     let t = ffi::CString::new(t).unwrap();
-                    j::jack_set_property(
+                    (LIB.jack_set_property)(
                         self.raw(),
                         subject,
                         key.as_ptr(),
@@ -277,7 +281,7 @@ mod metadata {
                         t.as_ptr(),
                     )
                 } else {
-                    j::jack_set_property(
+                    (LIB.jack_set_property)(
                         self.raw(),
                         subject,
                         key.as_ptr(),
@@ -296,7 +300,7 @@ mod metadata {
         /// * `key` - The key of the property to be removed. A URI string.
         pub fn property_remove(&self, subject: uuid, key: &str) -> Result<(), Error> {
             let key = ffi::CString::new(key).expect("to create cstring from key");
-            map_error(|| unsafe { j::jack_remove_property(self.raw(), subject, key.as_ptr()) })
+            map_error(|| unsafe { (LIB.jack_remove_property)(self.raw(), subject, key.as_ptr()) })
         }
 
         /// Remove all properties from a subject.
@@ -306,7 +310,7 @@ mod metadata {
         /// * `subject` - The subject to remove all properties from.
         pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
             unsafe {
-                if j::jack_remove_properties(self.raw(), subject) == -1 {
+                if (LIB.jack_remove_properties)(self.raw(), subject) == -1 {
                     Err(Error::UnknownError)
                 } else {
                     Ok(())
@@ -320,7 +324,7 @@ mod metadata {
         ///
         /// * **WARNING!!** This deletes all Metadata managed by a running JACK server.
         pub fn property_remove_all(&self) -> Result<(), Error> {
-            map_error(|| unsafe { j::jack_remove_all_properties(self.raw()) })
+            map_error(|| unsafe { (LIB.jack_remove_all_properties)(self.raw()) })
         }
     }
 

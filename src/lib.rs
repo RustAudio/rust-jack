@@ -106,6 +106,18 @@ lazy_static! {
     };
 }
 
+#[cfg(feature = "metadata")]
+lazy_static! {
+    pub(crate) static ref METADATA: jack_sys::JackMetadata =
+        unsafe { jack_sys::JackMetadata::open(jack_sys::JACK_LIB).unwrap() };
+}
+
+#[cfg(feature = "metadata")]
+lazy_static! {
+    pub(crate) static ref UUID: jack_sys::JackUuid =
+        unsafe { jack_sys::JackUuid::open(jack_sys::JACK_LIB).unwrap() };
+}
+
 /// Dynamically loads the JACK library. This is libjack.so on Linux and
 /// libjack.dll on Windows.
 pub fn load_jack_library() -> Result<(), Error> {

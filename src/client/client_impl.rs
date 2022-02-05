@@ -138,10 +138,10 @@ impl Client {
     pub fn uuid(&self) -> j::jack_uuid_t {
         unsafe {
             let mut uuid: j::jack_uuid_t = Default::default();
-            let uuid_s = j::jack_client_get_uuid(self.raw());
+            let uuid_s = (LIB.jack_client_get_uuid)(self.raw());
             assert!(!uuid_s.is_null());
-            assert_eq!(0, j::jack_uuid_parse(uuid_s, &mut uuid));
-            j::jack_free(uuid_s as _);
+            assert_eq!(0, (crate::UUID.jack_uuid_parse)(uuid_s, &mut uuid));
+            (LIB.jack_free)(uuid_s as _);
             uuid
         }
     }
@@ -183,8 +183,9 @@ impl Client {
     #[cfg(feature = "metadata")]
     pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
+
         unsafe {
-            j::jack_uuid_unparse(uuid, uuid_s.as_mut_ptr());
+            (crate::UUID.jack_uuid_unparse)(uuid, uuid_s.as_mut_ptr());
             self.name_by_uuid_raw(uuid_s.as_ptr())
         }
     }
@@ -600,7 +601,7 @@ impl Client {
         let handler = Box::into_raw(Box::new(handler));
         unsafe {
             self.2 = Some(Box::from_raw(handler));
-            if j::jack_set_property_change_callback(
+            if (LIB.jack_set_property_change_callback)(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
                 std::mem::transmute::<_, _>(handler),
