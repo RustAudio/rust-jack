@@ -1,4 +1,4 @@
-use jack_sys as j;
+use crate::LIB;
 use std::fmt;
 use std::fmt::Debug;
 use std::mem;
@@ -61,7 +61,7 @@ where
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             sleep_on_test();
-            let res = j::jack_activate(callback_context.client.raw());
+            let res = (LIB.jack_activate)(callback_context.client.raw());
             for _ in 0..4 {
                 sleep_on_test();
             }
@@ -116,7 +116,7 @@ impl<N, P> AsyncClient<N, P> {
 
         // deactivate
         sleep_on_test();
-        if j::jack_deactivate(client) != 0 {
+        if (LIB.jack_deactivate)(client) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 

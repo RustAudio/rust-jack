@@ -1,3 +1,4 @@
+use crate::LIB;
 use jack_sys as j;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -48,12 +49,11 @@ impl Client {
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-        crate::logging::initialize_logging();
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
+            (LIB.jack_client_open)(client_name.as_ptr(), options.bits(), &mut status_bits)
         };
         sleep_on_test();
         let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
@@ -81,7 +81,7 @@ impl Client {
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     pub fn sample_rate(&self) -> usize {
-        let srate = unsafe { j::jack_get_sample_rate(self.raw()) };
+        let srate = unsafe { (LIB.jack_get_sample_rate)(self.raw()) };
         srate as usize
     }
 
@@ -91,7 +91,7 @@ impl Client {
     /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
     pub fn cpu_load(&self) -> f32 {
-        let load = unsafe { j::jack_cpu_load(self.raw()) };
+        let load = unsafe { (LIB.jack_cpu_load)(self.raw()) };
         load as f32
     }
 
@@ -101,7 +101,7 @@ impl Client {
     /// `NAME_NOT_UNIQUE`.
     pub fn name(&self) -> &str {
         unsafe {
-            let ptr = j::jack_get_client_name(self.raw());
+            let ptr = (LIB.jack_get_client_name)(self.raw());
             let cstr = ffi::CStr::from_ptr(ptr);
             cstr.to_str().unwrap()
         }
@@ -110,7 +110,7 @@ impl Client {
     /// The current maximum size that will every be passed to the process
     /// callback.
     pub fn buffer_size(&self) -> Frames {
-        unsafe { j::jack_get_buffer_size(self.raw()) }
+        unsafe { (LIB.jack_get_buffer_size)(self.raw()) }
     }
 
     /// Change the buffer size passed to the process callback.
@@ -119,7 +119,7 @@ impl Client {
     /// callback functions before restarting the process cycle. This will cause a gap in the audio
     /// flow, so it should only be done at appropriate stopping points.
     pub fn set_buffer_size(&self, n_frames: Frames) -> Result<(), Error> {
-        let res = unsafe { j::jack_set_buffer_size(self.raw(), n_frames) };
+        let res = unsafe { (LIB.jack_set_buffer_size)(self.raw(), n_frames) };
         match res {
             0 => Ok(()),
             _ => Err(Error::SetBufferSizeError),
@@ -150,20 +150,20 @@ impl Client {
     /// * Allocates & deallocates, not realtime safe.
     pub fn uuid_string(&self) -> String {
         unsafe {
-            let uuid_s = j::jack_client_get_uuid(self.raw());
+            let uuid_s = (LIB.jack_client_get_uuid)(self.raw());
             assert!(!uuid_s.is_null());
             let uuid = ffi::CStr::from_ptr(uuid_s)
                 .to_str()
                 .expect("uuid is valid string")
                 .to_string();
-            j::jack_free(uuid_s as _);
+            (LIB.jack_free)(uuid_s as _);
             uuid
         }
     }
 
     //helper to get client name from uuid string.
     unsafe fn name_by_uuid_raw(&self, uuid: *const ::libc::c_char) -> Option<String> {
-        let name_ptr = j::jack_get_client_name_by_uuid(self.raw(), uuid);
+        let name_ptr = (LIB.jack_get_client_name_by_uuid)(self.raw(), uuid);
         if name_ptr.is_null() {
             None
         } else {
@@ -214,7 +214,7 @@ impl Client {
         let type_name_pattern_cstr = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
         let flags = libc::c_ulong::from(flags.bits());
         unsafe {
-            let ports = j::jack_get_ports(
+            let ports = (LIB.jack_get_ports)(
                 self.raw(),
                 port_name_pattern_cstr.as_ptr(),
                 type_name_pattern_cstr.as_ptr(),
@@ -247,7 +247,7 @@ impl Client {
         let port_flags = port_spec.jack_flags().bits();
         let buffer_size = port_spec.jack_buffer_size();
         let pp = unsafe {
-            j::jack_port_register(
+            (LIB.jack_port_register)(
                 self.raw(),
                 port_name_c.as_ptr(),
                 port_type_c.as_ptr(),
@@ -264,7 +264,7 @@ impl Client {
 
     /// Get a `Port` by its port id.
     pub fn port_by_id(&self, port_id: PortId) -> Option<Port<Unowned>> {
-        let pp = unsafe { j::jack_port_by_id(self.raw(), port_id) };
+        let pp = unsafe { (LIB.jack_port_by_id)(self.raw(), port_id) };
         if pp.is_null() {
             None
         } else {
@@ -275,7 +275,7 @@ impl Client {
     /// Get a `Port` by its port name.
     pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
         let port_name = ffi::CString::new(port_name).unwrap();
-        let pp = unsafe { j::jack_port_by_name(self.raw(), port_name.as_ptr()) };
+        let pp = unsafe { (LIB.jack_port_by_name)(self.raw(), port_name.as_ptr()) };
         if pp.is_null() {
             None
         } else {
@@ -310,7 +310,7 @@ impl Client {
         let options: j::Enum_JackOptions = j::JackLoadName | j::JackLoadInit;
 
         let intclient = unsafe {
-            j::jack_internal_client_load(
+            (LIB.jack_internal_client_load)(
                 self.raw(),
                 ffi_client_name.as_ptr(),
                 options,
@@ -338,7 +338,7 @@ impl Client {
     /// It returns a ClientError on error.
     pub fn unload_internal_client(&self, client: InternalClientID) -> Result<(), Error> {
         let status = unsafe {
-            let status = j::jack_internal_client_unload(self.raw(), client);
+            let status = (LIB.jack_internal_client_unload)(self.raw(), client);
             ClientStatus::from_bits_unchecked(status)
         };
         if status.is_empty() {
@@ -351,7 +351,7 @@ impl Client {
     /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> Frames {
-        unsafe { j::jack_frames_since_cycle_start(self.raw()) }
+        unsafe { (LIB.jack_frames_since_cycle_start)(self.raw()) }
     }
 
     /// The estimated current time in frames. This function is intended for use in other threads
@@ -362,7 +362,7 @@ impl Client {
     /// # TODO
     /// - test
     pub fn frame_time(&self) -> Frames {
-        unsafe { j::jack_frame_time(self.raw()) }
+        unsafe { (LIB.jack_frame_time)(self.raw()) }
     }
 
     /// The estimated time in microseconds of the specified frame time
@@ -370,7 +370,7 @@ impl Client {
     /// # TODO
     /// - Improve test
     pub fn frames_to_time(&self, n_frames: Frames) -> Time {
-        unsafe { j::jack_frames_to_time(self.raw(), n_frames) }
+        unsafe { (LIB.jack_frames_to_time)(self.raw(), n_frames) }
     }
 
     /// The estimated time in frames for the specified system time.
@@ -378,12 +378,15 @@ impl Client {
     /// # TODO
     /// - Improve test
     pub fn time_to_frames(&self, t: Time) -> Frames {
-        unsafe { j::jack_time_to_frames(self.raw(), t) }
+        unsafe { (LIB.jack_time_to_frames)(self.raw(), t) }
     }
 
     /// Returns `true` if the port `port` belongs to this client.
     pub fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
-        matches!(unsafe { j::jack_port_is_mine(self.raw(), port.raw()) }, 1)
+        matches!(
+            unsafe { (LIB.jack_port_is_mine)(self.raw(), port.raw()) },
+            1
+        )
     }
 
     /// Toggle input monitoring for the port with name `port_name`.
@@ -398,7 +401,7 @@ impl Client {
     ) -> Result<(), Error> {
         let port_name_cstr = ffi::CString::new(port_name).unwrap();
         let res = unsafe {
-            j::jack_port_request_monitor_by_name(
+            (LIB.jack_port_request_monitor_by_name)(
                 self.raw(),
                 port_name_cstr.as_ptr(),
                 if enable_monitor { 1 } else { 0 },
@@ -459,8 +462,9 @@ impl Client {
         let source_cstr = ffi::CString::new(source_port).unwrap();
         let destination_cstr = ffi::CString::new(destination_port).unwrap();
 
-        let res =
-            unsafe { j::jack_connect(self.raw(), source_cstr.as_ptr(), destination_cstr.as_ptr()) };
+        let res = unsafe {
+            (LIB.jack_connect)(self.raw(), source_cstr.as_ptr(), destination_cstr.as_ptr())
+        };
         match res {
             0 => Ok(()),
             ::libc::EEXIST => Err(Error::PortAlreadyConnected(
@@ -497,7 +501,7 @@ impl Client {
 
     /// Remove all connections to/from the port.
     pub fn disconnect<PS>(&self, port: &Port<PS>) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_disconnect(self.raw(), port.raw()) };
+        let res = unsafe { (LIB.jack_port_disconnect)(self.raw(), port.raw()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -505,7 +509,7 @@ impl Client {
     }
 
     pub fn unregister_port<PS>(&self, port: Port<PS>) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_unregister(self.raw(), port.raw()) };
+        let res = unsafe { (LIB.jack_port_unregister)(self.raw(), port.raw()) };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -530,7 +534,7 @@ impl Client {
         let source_port = ffi::CString::new(source_port).unwrap();
         let destination_port = ffi::CString::new(destination_port).unwrap();
         let res = unsafe {
-            j::jack_disconnect(self.raw(), source_port.as_ptr(), destination_port.as_ptr())
+            (LIB.jack_disconnect)(self.raw(), source_port.as_ptr(), destination_port.as_ptr())
         };
         match res {
             0 => Ok(()),
@@ -545,7 +549,7 @@ impl Client {
     /// * This function may only be called in a buffer size callback.
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         let port_type = ffi::CString::new(port_type).unwrap();
-        j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr())
+        (LIB.jack_port_type_get_buffer_size)(self.raw(), port_type.as_ptr())
     }
 
     /// Expose the underlying ffi pointer.
@@ -615,7 +619,7 @@ impl Drop for Client {
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();
-        let res = unsafe { j::jack_client_close(self.raw()) }; // close the client
+        let res = unsafe { (LIB.jack_client_close)(self.raw()) }; // close the client
         sleep_on_test();
         assert_eq!(res, 0);
         self.0 = ptr::null_mut();
@@ -655,13 +659,13 @@ impl ProcessScope {
     /// from the process callback, and can be used to interpret timestamps generated by
     /// `self.frame_time()` in other threads, with respect to the current process cycle.
     pub fn last_frame_time(&self) -> Frames {
-        unsafe { j::jack_last_frame_time(self.client_ptr()) }
+        unsafe { (LIB.jack_last_frame_time)(self.client_ptr()) }
     }
 
     /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> Frames {
-        unsafe { j::jack_frames_since_cycle_start(self.client_ptr()) }
+        unsafe { (LIB.jack_frames_since_cycle_start)(self.client_ptr()) }
     }
 
     /// Provides the internal cycle timing information as used by most of the other time related

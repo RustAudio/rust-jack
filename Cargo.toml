@@ -13,7 +13,7 @@ version = "0.8.4"
 [dependencies]
 bitflags = "1"
 dlib = "0.5"
-jack-sys = {path = "./jack-sys"}
+jack-sys = {version = "0.3", path = "./jack-sys", features = ["dlopen"]}
 lazy_static = "1.4"
 libc = "0.2"
 log = "0.4"

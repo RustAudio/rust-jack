@@ -1,3 +1,4 @@
+use crate::LIB;
 use jack_sys as j;
 use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,7 +27,7 @@ impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, crate::Error> {
         let insize = size as libc::size_t;
-        let handle = unsafe { j::jack_ringbuffer_create(insize) };
+        let handle = unsafe { (LIB.jack_ringbuffer_create)(insize) };
 
         if handle.is_null() {
             return Err(crate::Error::RingbufferCreateFailed);
@@ -37,12 +38,12 @@ impl RingBuffer {
 
     /// Lock a ringbuffer data block into memory.
     pub fn mlock(&mut self) {
-        unsafe { j::jack_ringbuffer_mlock(self.0) };
+        unsafe { (LIB.jack_ringbuffer_mlock)(self.0) };
     }
 
     /// Resets the ring buffer, making an empty buffer.
     pub fn reset(&mut self) {
-        unsafe { j::jack_ringbuffer_reset(self.0) };
+        unsafe { (LIB.jack_ringbuffer_reset)(self.0) };
     }
 
     /// Create a reader and writer, to use the ring buffer.
@@ -78,7 +79,7 @@ impl RingBuffer {
 impl Drop for RingBuffer {
     fn drop(&mut self) {
         if !self.0.is_null() {
-            unsafe { j::jack_ringbuffer_free(self.0) };
+            unsafe { (LIB.jack_ringbuffer_free)(self.0) };
         }
         self.0 = std::ptr::null_mut();
     }
@@ -131,7 +132,7 @@ impl RingBufferReader {
         ];
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe { j::jack_ringbuffer_get_read_vector(self.ringbuffer_handle, vecstart) };
+        unsafe { (LIB.jack_ringbuffer_get_read_vector)(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];
@@ -162,7 +163,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) };
+        let read = unsafe { (LIB.jack_ringbuffer_read)(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -179,7 +180,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle, bufstart, insize) };
+        let read = unsafe { (LIB.jack_ringbuffer_peek)(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -187,12 +188,12 @@ impl RingBufferReader {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle, incnt) };
+        unsafe { (LIB.jack_ringbuffer_read_advance)(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
-        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle) as usize }
+        unsafe { (LIB.jack_ringbuffer_read_space)(self.ringbuffer_handle) as usize }
     }
 
     /// Iterator that goes over all the data available to read.
@@ -245,7 +246,7 @@ impl RingBufferWriter {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &buf[0] as *const _ as *const libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle, bufstart, insize) };
+        let read = unsafe { (LIB.jack_ringbuffer_write)(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -253,12 +254,12 @@ impl RingBufferWriter {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle, incnt) };
+        unsafe { (LIB.jack_ringbuffer_write_advance)(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for writing.
     pub fn space(&mut self) -> usize {
-        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle) as usize }
+        unsafe { (LIB.jack_ringbuffer_write_space)(self.ringbuffer_handle) as usize }
     }
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
@@ -271,7 +272,7 @@ impl RingBufferWriter {
         ];
         let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe { j::jack_ringbuffer_get_write_vector(self.ringbuffer_handle, vecstart) };
+        unsafe { (LIB.jack_ringbuffer_get_write_vector)(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];

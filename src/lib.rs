@@ -49,6 +49,8 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+use lazy_static::lazy_static;
+
 //only expose metadata if enabled
 #[cfg(feature = "metadata")]
 pub use crate::properties::*;
@@ -58,9 +60,6 @@ mod client;
 
 /// Create and manage JACK ring buffers.
 mod ringbuffer;
-
-/// Control error and info logging from JACK.
-mod logging;
 
 /// Enum types in jack.
 mod jack_enums;
@@ -79,10 +78,33 @@ mod transport;
 /// Properties
 mod properties;
 
+unsafe extern "C" fn error_fn(msg: *const libc::c_char) {
+    match std::ffi::CStr::from_ptr(msg).to_str() {
+        Ok(msg) => log::error!("{}", msg),
+        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
+    }
+}
+
+unsafe extern "C" fn info_fn(msg: *const libc::c_char) {
+    match std::ffi::CStr::from_ptr(msg).to_str() {
+        Ok(msg) => log::info!("{}", msg),
+        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
+    }
+}
+
+lazy_static! {
+    pub static ref LIB: jack_sys::JackLib = unsafe {
+        let j = jack_sys::JackLib::open("jack").unwrap();
+        (j.jack_set_error_function)(Some(error_fn));
+        (j.jack_set_info_function)(Some(info_fn));
+        j
+    };
+}
+
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
 pub fn get_time() -> primitive_types::Time {
-    unsafe { jack_sys::jack_get_time() }
+    unsafe { (LIB.jack_get_time)() }
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use crate::LIB;
 use jack_sys as j;
 use std::ffi;
 
@@ -313,23 +314,27 @@ where
     pub unsafe fn register_callbacks(b: &mut Box<Self>) -> Result<(), Error> {
         let data_ptr = CallbackContext::raw(b);
         let client = b.client.raw();
-        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
-        j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
-        j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
-        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
-        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
-        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
-        j::jack_set_client_registration_callback(
+        (LIB.jack_set_thread_init_callback)(client, Some(thread_init_callback::<N, P>), data_ptr);
+        (LIB.jack_on_info_shutdown)(client, Some(shutdown::<N, P>), data_ptr);
+        (LIB.jack_set_process_callback)(client, Some(process::<N, P>), data_ptr);
+        (LIB.jack_set_freewheel_callback)(client, Some(freewheel::<N, P>), data_ptr);
+        (LIB.jack_set_buffer_size_callback)(client, Some(buffer_size::<N, P>), data_ptr);
+        (LIB.jack_set_sample_rate_callback)(client, Some(sample_rate::<N, P>), data_ptr);
+        (LIB.jack_set_client_registration_callback)(
             client,
             Some(client_registration::<N, P>),
             data_ptr,
         );
-        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
+        (LIB.jack_set_port_registration_callback)(
+            client,
+            Some(port_registration::<N, P>),
+            data_ptr,
+        );
         // doesn't compile for testing since it is a weak export
         // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
-        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
-        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
-        j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
+        (LIB.jack_set_port_connect_callback)(client, Some(port_connect::<N, P>), data_ptr);
+        (LIB.jack_set_graph_order_callback)(client, Some(graph_order::<N, P>), data_ptr);
+        (LIB.jack_set_xrun_callback)(client, Some(xrun::<N, P>), data_ptr);
         Ok(())
     }
 }

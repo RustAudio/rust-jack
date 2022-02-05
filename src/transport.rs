@@ -1,6 +1,6 @@
 ///! JACK transport wrappers.
 ///! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
-use crate::{Frames, Time};
+use crate::{Frames, Time, LIB};
 use jack_sys as j;
 use std::sync::Weak;
 
@@ -104,7 +104,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn start(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            j::jack_transport_start(ptr);
+            (LIB.jack_transport_start)(ptr);
         })
     }
 
@@ -117,7 +117,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn stop(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            j::jack_transport_stop(ptr);
+            (LIB.jack_transport_stop)(ptr);
         })
     }
 
@@ -136,7 +136,7 @@ impl Transport {
     pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
         Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
-                j::jack_transport_reposition(
+                (LIB.jack_transport_reposition)(
                     ptr,
                     std::mem::transmute::<&TransportPosition, *const j::jack_position_t>(pos),
                 )
@@ -159,7 +159,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn locate(&self, frame: Frames) -> Result<()> {
         Self::result_from_ffi(
-            self.with_client(|ptr| unsafe { j::jack_transport_locate(ptr, frame) }),
+            self.with_client(|ptr| unsafe { (LIB.jack_transport_locate)(ptr, frame) }),
             (),
         )
     }
@@ -193,7 +193,7 @@ impl Transport {
         self.with_client(|ptr| {
             let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
             let state = Self::state_from_ffi(unsafe {
-                j::jack_transport_query(
+                (LIB.jack_transport_query)(
                     ptr,
                     pos.as_mut_ptr() as *mut jack_sys::Struct__jack_position,
                 )
@@ -213,7 +213,7 @@ impl Transport {
     /// * If called from the process thread, the state returned is valid for the entire cycle.
     pub fn query_state(&self) -> Result<TransportState> {
         self.with_client(|ptr| {
-            Self::state_from_ffi(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
+            Self::state_from_ffi(unsafe { (LIB.jack_transport_query)(ptr, std::ptr::null_mut()) })
         })
     }
 }
