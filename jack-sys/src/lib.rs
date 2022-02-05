@@ -648,12 +648,13 @@ external_library!(
              *mut jack_client_t,
              *mut jack_transport_info_t
         ) -> (),
-        fn jack_get_version(
-             *mut ::libc::c_int,
-             *mut ::libc::c_int,
-             *mut ::libc::c_int,
-             *mut ::libc::c_int
-        ) -> (),
+        // This isn't present on some systems.
+        // fn jack_get_version(
+        //      *mut ::libc::c_int,
+        //      *mut ::libc::c_int,
+        //      *mut ::libc::c_int,
+        //      *mut ::libc::c_int
+        // ) -> (),
         fn jack_get_version_string() -> *const ::libc::c_char,
         fn jack_client_new( *const ::libc::c_char) -> *mut jack_client_t,
         fn jack_client_close( *mut jack_client_t) -> ::libc::c_int,
