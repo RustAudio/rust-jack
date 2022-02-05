@@ -12,7 +12,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -21,8 +20,20 @@ jobs:
       - name: Start dummy JACK server
         run: jackd -r -ddummy -r44100 -p1024 &
       - name: Lint
-        run: cargo clippy --all-targets --all-features -- -D clippy::all
+        run: |
+          cargo clippy --all-targets -- -D clippy::all
+          cargo clippy --all-targets --features dlopen -- -D clippy::all
+          cargo clippy --all-targets --features metadata -- -D clippy::all
+          cargo clippy --all-targets --features dlopen,metadata -- -D clippy::all
       - name: Build
-        run: cargo build --verbose
+        run: |
+          cargo build --verbose
+          cargo build --verbose --features dlopen
+          cargo build --verbose --features metadata
+          cargo build --verbose --features dlopen,metadata
       - name: Run Tests
-        run: RUST_TEST_THREADS=1 cargo test --verbose
+        run: |
+          RUST_TEST_THREADS=1 cargo test --verbose
+          RUST_TEST_THREADS=1 cargo test --features dlopen --verbose
+          RUST_TEST_THREADS=1 cargo test --features metadata --verbose
+          RUST_TEST_THREADS=1 cargo test --features dlopen,metadata --verbose
