@@ -655,7 +655,7 @@ external_library!(
         //      *mut ::libc::c_int,
         //      *mut ::libc::c_int
         // ) -> (),
-        fn jack_get_version_string() -> *const ::libc::c_char,
+        // fn jack_get_version_string() -> *const ::libc::c_char,
         fn jack_client_new( *const ::libc::c_char) -> *mut jack_client_t,
         fn jack_client_close( *mut jack_client_t) -> ::libc::c_int,
         fn jack_client_name_size() -> ::libc::c_int,
