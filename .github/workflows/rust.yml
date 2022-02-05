@@ -26,5 +26,3 @@ jobs:
         run: cargo build --verbose
       - name: Run Tests
         run: RUST_TEST_THREADS=1 cargo test --verbose
-      - name: Internal Client Test
-        run: cargo run --example internal_client </dev/null
