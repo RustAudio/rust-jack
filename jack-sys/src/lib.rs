@@ -1059,7 +1059,8 @@ external_library!(
         fn jack_ringbuffer_read_space( *const jack_ringbuffer_t) -> ::libc::size_t,
         fn jack_ringbuffer_mlock( *mut jack_ringbuffer_t) -> ::libc::c_int,
         fn jack_ringbuffer_reset( *mut jack_ringbuffer_t) -> (),
-        fn jack_ringbuffer_reset_size( *mut jack_ringbuffer_t,  ::libc::size_t) -> (),
+        // Not present in some systems.
+        // fn jack_ringbuffer_reset_size( *mut jack_ringbuffer_t,  ::libc::size_t) -> (),
         fn jack_ringbuffer_write(
              *mut jack_ringbuffer_t,
              *const ::libc::c_char,
