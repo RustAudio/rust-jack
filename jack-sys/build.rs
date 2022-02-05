@@ -3,5 +3,6 @@ fn main() {
     // Refer to https://github.com/RustAudio/rust-jack/issues/142 for details.
     // Do not unwrap this because linking might still work if pkg-config is
     // not installed, for example on Windows.
+    #[cfg(not(feature = "dlopen"))]
     let _ = pkg_config::probe_library("jack");
 }
