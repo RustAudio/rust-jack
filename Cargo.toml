@@ -22,6 +22,6 @@ log = "0.4"
 crossbeam-channel = "0.5"
 
 [features]
-default = ["dlopen", "metadata"]
+default = []
 dlopen = ["jack-sys/dlopen"]
 metadata = []

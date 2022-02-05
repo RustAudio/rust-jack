@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 pub const JACK_LIB: &'static str = "libjack.dll";
 
 #[cfg(not(windows))]
-pub const JACK_LIB: &'static str = "libjack.so\0";
+pub const JACK_LIB: &'static str = "libjack.so.0\0";
 
 /// JACK port type for 8 bit raw midi
 pub static RAW_MIDI_TYPE: &str = "8 bit raw midi";
