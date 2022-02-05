@@ -32,8 +32,10 @@ jobs:
           cargo build --verbose --features metadata
           cargo build --verbose --features dlopen,metadata
       - name: Run Tests
-        run: |
-          RUST_TEST_THREADS=1 cargo test --verbose
-          RUST_TEST_THREADS=1 cargo test --features dlopen --verbose
-          RUST_TEST_THREADS=1 cargo test --features metadata --verbose
-          RUST_TEST_THREADS=1 cargo test --features dlopen,metadata --verbose
+        run: RUST_TEST_THREADS=1 cargo test --verbose
+      - name: Run Tests with dlopen
+        run: RUST_TEST_THREADS=1 cargo test --features dlopen --verbose
+      - name: Run Tests with metadata
+        run: RUST_TEST_THREADS=1 cargo test --features metadata --verbose
+      - name: Run Tests with dlopen and metadata
+        run: RUST_TEST_THREADS=1 cargo test --features dlopen,metadata --verbose
