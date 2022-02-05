@@ -1,7 +1,13 @@
-#![allow(non_camel_case_types, non_upper_case_globals)]
+#![allow(non_camel_case_types, non_upper_case_globals, non_snake_case)]
 
 use dlib::external_library;
 use lazy_static::lazy_static;
+
+#[cfg(windows)]
+pub const JACK_LIB: &'static str = "libjack.dll";
+
+#[cfg(not(windows))]
+pub const JACK_LIB: &'static str = "libjack.so\0";
 
 /// JACK port type for 8 bit raw midi
 pub static RAW_MIDI_TYPE: &str = "8 bit raw midi";
@@ -648,14 +654,6 @@ external_library!(
              *mut jack_client_t,
              *mut jack_transport_info_t
         ) -> (),
-        // This isn't present on some systems.
-        // fn jack_get_version(
-        //      *mut ::libc::c_int,
-        //      *mut ::libc::c_int,
-        //      *mut ::libc::c_int,
-        //      *mut ::libc::c_int
-        // ) -> (),
-        // fn jack_get_version_string() -> *const ::libc::c_char,
         fn jack_client_new( *const ::libc::c_char) -> *mut jack_client_t,
         fn jack_client_close( *mut jack_client_t) -> ::libc::c_int,
         fn jack_client_name_size() -> ::libc::c_int,
@@ -676,8 +674,6 @@ external_library!(
         fn jack_internal_client_close( *const ::libc::c_char) -> (),
         fn jack_activate( *mut jack_client_t) -> ::libc::c_int,
         fn jack_deactivate( *mut jack_client_t) -> ::libc::c_int,
-        // This isn't present in some systems.
-        // fn jack_get_client_pid( *const ::libc::c_char) -> ::libc::c_int,
         // #[cfg(not(target_os = "windows"))]
         // fn jack_client_thread_id( *mut jack_client_t) -> jack_native_thread_t,
         fn jack_is_realtime( *mut jack_client_t) -> ::libc::c_int,
@@ -788,8 +784,6 @@ external_library!(
         fn jack_port_short_name( *const jack_port_t) -> *const ::libc::c_char,
         fn jack_port_flags( *const jack_port_t) -> ::libc::c_int,
         fn jack_port_type( *const jack_port_t) -> *const ::libc::c_char,
-        // Not present in some systems.
-        // fn jack_port_type_id( *const jack_port_t) -> jack_port_type_id_t,
         fn jack_port_is_mine(
              *const jack_client_t,
              *const jack_port_t
@@ -1020,8 +1014,6 @@ external_library!(
              u32
         ) -> ::libc::c_int,
         fn jack_midi_clear_buffer(*mut ::libc::c_void) -> (),
-        // Not present in some systems.
-        // fn jack_midi_reset_buffer(*mut ::libc::c_void) -> (),
         fn jack_midi_max_event_size(*mut ::libc::c_void) -> ::libc::size_t,
         fn jack_midi_event_reserve(
             *mut ::libc::c_void,
@@ -1059,8 +1051,6 @@ external_library!(
         fn jack_ringbuffer_read_space( *const jack_ringbuffer_t) -> ::libc::size_t,
         fn jack_ringbuffer_mlock( *mut jack_ringbuffer_t) -> ::libc::c_int,
         fn jack_ringbuffer_reset( *mut jack_ringbuffer_t) -> (),
-        // Not present in some systems.
-        // fn jack_ringbuffer_reset_size( *mut jack_ringbuffer_t,  ::libc::size_t) -> (),
         fn jack_ringbuffer_write(
              *mut jack_ringbuffer_t,
              *const ::libc::c_char,
@@ -1095,13 +1085,23 @@ external_library!(
     fn jack_uuid_empty(jack_uuid_t) -> ::std::os::raw::c_int,
 );
 
-// Load optional functions:
-
-#[cfg(windows)]
-pub const JACK_LIB: &'static str = "libjack.dll";
-
-#[cfg(not(windows))]
-pub const JACK_LIB: &'static str = "libjack.so\0";
+// The following functions are not available in some JACK versions. Use with caution.
+external_library!(
+JackOptional,
+"jack",
+functions:
+    fn jack_get_version(
+         *mut ::libc::c_int,
+         *mut ::libc::c_int,
+         *mut ::libc::c_int,
+         *mut ::libc::c_int
+    ) -> (),
+    fn jack_get_version_string() -> *const ::libc::c_char,
+    fn jack_get_client_pid( *const ::libc::c_char) -> ::libc::c_int,
+    fn jack_port_type_id( *const jack_port_t) -> jack_port_type_id_t,
+    fn jack_midi_reset_buffer(*mut ::libc::c_void) -> (),
+    fn jack_ringbuffer_reset_size( *mut jack_ringbuffer_t,  ::libc::size_t) -> (),
+);
 
 type jack_get_cycle_times_t = unsafe extern "C" fn(
     client: *const jack_client_t,
