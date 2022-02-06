@@ -17,19 +17,29 @@ jobs:
         uses: actions/checkout@v2
       - name: Install dependencies
         run: sudo apt update && sudo apt install jackd libjack0 libjack-dev
+
+      # This is required for the tests, but we start it earlier since it may
+      # take a while to initialize.
       - name: Start dummy JACK server
         run: jackd -r -ddummy -r44100 -p1024 &
-      - name: Lint
-        run: |
-          cargo clippy --all-targets -- -D clippy::all
-          cargo clippy --all-targets --features dlopen -- -D clippy::all
-          cargo clippy --all-targets --features metadata -- -D clippy::all
-          cargo clippy --all-targets --features dlopen,metadata -- -D clippy::all
-      - name: Build
-        run: |
-          cargo build --verbose
-          cargo build --verbose --features dlopen
-          cargo build --verbose --features metadata
-          cargo build --verbose --features dlopen,metadata
+
+      - name: Lint (No Features)
+        run: cargo clippy --all-targets --no-default-features -- -D clippy::all
+      - name: Lint (All Features)
+        run: cargo clippy --all-targets --no-default-features --features dlopen,metadata -- -D clippy::all
+      - name: Lint (dlopen)
+        run: cargo clippy --all-targets --no-default-features --features dlopen -- -D clippy::all
+      - name: Lint (metadata)
+        run: cargo clippy --all-targets --no-default-features --features metadata -- -D clippy::all
+
+      - name: Build (No Features)
+        run: cargo build --verbose --no-default-features
+      - name: Build (All Features)
+        run: cargo build --verbose --no-default-features --features dlopen,metadata
+      - name: Build (dlopen)
+        run: cargo build --verbose --no-default-features --features dlopen
+      - name: Build (metadata)
+        run: cargo build --verbose --no-default-features --features metadata
+
       - name: Run Tests
-        run: RUST_TEST_THREADS=1 cargo test --verbose --features dlopen,metadata
+        run: RUST_TEST_THREADS=1 cargo test --verbose --all-features
