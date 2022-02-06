@@ -30,7 +30,8 @@ impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, crate::Error> {
         let insize = size as libc::size_t;
-        let handle = unsafe { ffi_dispatch!(LIB, jack_ringbuffer_create, insize) };
+        let handle =
+            unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_create, insize) };
 
         if handle.is_null() {
             return Err(crate::Error::RingbufferCreateFailed);
@@ -41,12 +42,12 @@ impl RingBuffer {
 
     /// Lock a ringbuffer data block into memory.
     pub fn mlock(&mut self) {
-        unsafe { ffi_dispatch!(LIB, jack_ringbuffer_mlock, self.0) };
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_mlock, self.0) };
     }
 
     /// Resets the ring buffer, making an empty buffer.
     pub fn reset(&mut self) {
-        unsafe { ffi_dispatch!(LIB, jack_ringbuffer_reset, self.0) };
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_reset, self.0) };
     }
 
     /// Create a reader and writer, to use the ring buffer.
@@ -82,7 +83,7 @@ impl RingBuffer {
 impl Drop for RingBuffer {
     fn drop(&mut self) {
         if !self.0.is_null() {
-            unsafe { ffi_dispatch!(LIB, jack_ringbuffer_free, self.0) };
+            unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_free, self.0) };
         }
         self.0 = std::ptr::null_mut();
     }
@@ -137,6 +138,7 @@ impl RingBufferReader {
 
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_get_read_vector,
                 self.ringbuffer_handle,
@@ -175,6 +177,7 @@ impl RingBufferReader {
 
         let read = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_read,
                 self.ringbuffer_handle,
@@ -200,6 +203,7 @@ impl RingBufferReader {
 
         let read = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_peek,
                 self.ringbuffer_handle,
@@ -216,6 +220,7 @@ impl RingBufferReader {
         let incnt = cnt as libc::size_t;
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_read_advance,
                 self.ringbuffer_handle,
@@ -226,7 +231,14 @@ impl RingBufferReader {
 
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
-        unsafe { ffi_dispatch!(LIB, jack_ringbuffer_read_space, self.ringbuffer_handle) as usize }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_ringbuffer_read_space,
+                self.ringbuffer_handle
+            ) as usize
+        }
     }
 
     /// Iterator that goes over all the data available to read.
@@ -281,6 +293,7 @@ impl RingBufferWriter {
 
         let read = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_write,
                 self.ringbuffer_handle,
@@ -297,6 +310,7 @@ impl RingBufferWriter {
         let incnt = cnt as libc::size_t;
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_write_advance,
                 self.ringbuffer_handle,
@@ -307,7 +321,14 @@ impl RingBufferWriter {
 
     /// Return the number of bytes available for writing.
     pub fn space(&mut self) -> usize {
-        unsafe { ffi_dispatch!(LIB, jack_ringbuffer_write_space, self.ringbuffer_handle) as usize }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_ringbuffer_write_space,
+                self.ringbuffer_handle
+            ) as usize
+        }
     }
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
@@ -322,6 +343,7 @@ impl RingBufferWriter {
 
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_ringbuffer_get_write_vector,
                 self.ringbuffer_handle,

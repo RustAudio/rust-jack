@@ -318,6 +318,7 @@ where
         let data_ptr = CallbackContext::raw(b);
         let client = b.client.raw();
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_thread_init_callback,
             client,
@@ -325,6 +326,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_on_info_shutdown,
             client,
@@ -332,6 +334,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_process_callback,
             client,
@@ -339,6 +342,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_freewheel_callback,
             client,
@@ -346,6 +350,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_buffer_size_callback,
             client,
@@ -353,6 +358,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_sample_rate_callback,
             client,
@@ -360,6 +366,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_client_registration_callback,
             client,
@@ -367,6 +374,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_port_registration_callback,
             client,
@@ -376,6 +384,7 @@ where
         // doesn't compile for testing since it is a weak export
         // jack_sys::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_port_connect_callback,
             client,
@@ -383,6 +392,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_graph_order_callback,
             client,
@@ -390,6 +400,7 @@ where
             data_ptr
         );
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_set_xrun_callback,
             client,

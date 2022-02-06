@@ -87,8 +87,16 @@ impl<'a> MidiIter<'a> {
 
     fn absolute_nth(&self, n: u32) -> Option<RawMidi<'a>> {
         let mut ev = mem::MaybeUninit::<jack_sys::jack_midi_event_t>::uninit();
-        let res =
-            unsafe { ffi_dispatch!(LIB, jack_midi_event_get, ev.as_mut_ptr(), self.buffer, n) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_midi_event_get,
+                ev.as_mut_ptr(),
+                self.buffer,
+                n
+            )
+        };
         if res != 0 {
             return None;
         }
@@ -102,7 +110,14 @@ impl<'a> MidiIter<'a> {
         if self.buffer.is_null() {
             0
         } else {
-            unsafe { ffi_dispatch!(LIB, jack_midi_get_event_count, self.buffer) as usize }
+            unsafe {
+                ffi_dispatch!(
+                    feature = "dlopen",
+                    LIB,
+                    jack_midi_get_event_count,
+                    self.buffer
+                ) as usize
+            }
         }
     }
 }
@@ -161,7 +176,7 @@ impl Port<MidiOut> {
     pub fn writer<'a>(&'a mut self, ps: &'a ProcessScope) -> MidiWriter<'a> {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         let buffer = unsafe { self.buffer(ps.n_frames()) };
-        unsafe { ffi_dispatch!(LIB, jack_midi_clear_buffer, buffer) };
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_midi_clear_buffer, buffer) };
         MidiWriter {
             buffer,
             _phantom: PhantomData,
@@ -190,6 +205,7 @@ impl<'a> MidiWriter<'a> {
         };
         let res = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_midi_event_write,
                 self.buffer,
@@ -209,7 +225,14 @@ impl<'a> MidiWriter<'a> {
     /// If the return value is greater than 0, than the buffer is full.  Currently, the only way
     /// this can happen is if events are lost on port mixdown.
     pub fn lost_count(&self) -> usize {
-        let n = unsafe { ffi_dispatch!(LIB, jack_midi_get_lost_event_count, self.buffer) };
+        let n = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_midi_get_lost_event_count,
+                self.buffer
+            )
+        };
         n as usize
     }
 
@@ -218,7 +241,14 @@ impl<'a> MidiWriter<'a> {
     /// This function returns the current space available, taking into account events already stored
     /// in the port.
     pub fn max_event_size(&self) -> usize {
-        let n = unsafe { ffi_dispatch!(LIB, jack_midi_max_event_size, self.buffer) };
+        let n = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_midi_max_event_size,
+                self.buffer
+            )
+        };
         n as usize
     }
 }

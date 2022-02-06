@@ -90,9 +90,14 @@ impl<PS> Port<PS> {
     pub fn name(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_name, self.raw()))
-                .to_string_lossy()
-                .to_string()
+            ffi::CStr::from_ptr(ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_name,
+                self.raw()
+            ))
+            .to_string_lossy()
+            .to_string()
         };
         Ok(s)
     }
@@ -102,9 +107,14 @@ impl<PS> Port<PS> {
     pub fn short_name(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_short_name, self.raw()))
-                .to_string_lossy()
-                .to_string()
+            ffi::CStr::from_ptr(ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_short_name,
+                self.raw()
+            ))
+            .to_string_lossy()
+            .to_string()
         };
         Ok(s)
     }
@@ -112,7 +122,7 @@ impl<PS> Port<PS> {
     /// The flags for the port. These are set when the port is registered with
     /// its client.
     pub fn flags(&self) -> PortFlags {
-        let bits = unsafe { ffi_dispatch!(LIB, jack_port_flags, self.raw()) };
+        let bits = unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_port_flags, self.raw()) };
         PortFlags::from_bits(bits as jack_sys::Enum_JackPortFlags).unwrap()
     }
 
@@ -121,9 +131,14 @@ impl<PS> Port<PS> {
     pub fn port_type(&self) -> Result<String, Error> {
         self.check_client_life()?;
         let s = unsafe {
-            ffi::CStr::from_ptr(ffi_dispatch!(LIB, jack_port_type, self.raw()))
-                .to_string_lossy()
-                .to_string()
+            ffi::CStr::from_ptr(ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_type,
+                self.raw()
+            ))
+            .to_string_lossy()
+            .to_string()
         };
         Ok(s)
     }
@@ -131,7 +146,7 @@ impl<PS> Port<PS> {
     /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> Result<usize, Error> {
         self.check_client_life()?;
-        let n = unsafe { ffi_dispatch!(LIB, jack_port_connected, self.raw()) };
+        let n = unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_port_connected, self.raw()) };
         Ok(n as usize)
     }
 
@@ -141,7 +156,13 @@ impl<PS> Port<PS> {
         self.check_client_life()?;
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
-            ffi_dispatch!(LIB, jack_port_connected_to, self.raw(), port_name.as_ptr())
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_connected_to,
+                self.raw(),
+                port_name.as_ptr()
+            )
         };
         match res {
             0 => Ok(false),
@@ -158,7 +179,13 @@ impl<PS> Port<PS> {
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
-            ffi_dispatch!(LIB, jack_port_get_aliases, self.raw(), ptrs.as_mut_ptr());
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_get_aliases,
+                self.raw(),
+                ptrs.as_mut_ptr()
+            );
         };
         Ok([a, b]
             .iter()
@@ -171,7 +198,14 @@ impl<PS> Port<PS> {
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> Result<bool, Error> {
         self.check_client_life()?;
-        match unsafe { ffi_dispatch!(LIB, jack_port_monitoring_input, self.raw()) } {
+        match unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_monitoring_input,
+                self.raw()
+            )
+        } {
             0 => Ok(false),
             _ => Ok(true),
         }
@@ -183,7 +217,15 @@ impl<PS> Port<PS> {
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
         let onoff = if enable_monitor { 1 } else { 0 };
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_request_monitor, self.raw(), onoff) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_request_monitor,
+                self.raw(),
+                onoff
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -196,7 +238,15 @@ impl<PS> Port<PS> {
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
         let onoff = if enable_monitor { 1 } else { 0 };
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_ensure_monitor, self.raw(), onoff) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_ensure_monitor,
+                self.raw(),
+                onoff
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortMonitorError),
@@ -208,8 +258,15 @@ impl<PS> Port<PS> {
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let short_name = ffi::CString::new(short_name).unwrap();
-        let res =
-            unsafe { ffi_dispatch!(LIB, jack_port_set_name, self.raw(), short_name.as_ptr()) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_set_name,
+                self.raw(),
+                short_name.as_ptr()
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortNamingError),
@@ -229,7 +286,15 @@ impl<PS> Port<PS> {
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_set_alias, self.raw(), alias.as_ptr()) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_set_alias,
+                self.raw(),
+                alias.as_ptr()
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -242,7 +307,15 @@ impl<PS> Port<PS> {
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
         self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_unset_alias, self.raw(), alias.as_ptr()) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_unset_alias,
+                self.raw(),
+                alias.as_ptr()
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortAliasError),
@@ -297,7 +370,13 @@ impl<PS> Port<PS> {
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
         // We don't check for life to improve performance in a very hot codepath.
         // self.check_client_life()?;
-        ffi_dispatch!(LIB, jack_port_get_buffer, self.port_ptr, n_frames)
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_port_get_buffer,
+            self.port_ptr,
+            n_frames
+        )
     }
 
     /// Set the minimum and maximum latencies defined by mode for port, in frames.
@@ -314,6 +393,7 @@ impl<PS> Port<PS> {
         };
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_port_set_latency_range,
                 self.port_ptr,
@@ -333,6 +413,7 @@ impl<PS> Port<PS> {
         let mut ffi_range = jack_sys::Struct__jack_latency_range { min: 0, max: 0 };
         unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_port_get_latency_range,
                 self.port_ptr,

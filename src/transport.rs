@@ -108,7 +108,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn start(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            ffi_dispatch!(LIB, jack_transport_start, ptr);
+            ffi_dispatch!(feature = "dlopen", LIB, jack_transport_start, ptr);
         })
     }
 
@@ -121,7 +121,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn stop(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            ffi_dispatch!(LIB, jack_transport_stop, ptr);
+            ffi_dispatch!(feature = "dlopen", LIB, jack_transport_stop, ptr);
         })
     }
 
@@ -141,6 +141,7 @@ impl Transport {
         Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
                 ffi_dispatch!(
+                    feature = "dlopen",
                     LIB,
                     jack_transport_reposition,
                     ptr,
@@ -168,7 +169,7 @@ impl Transport {
     pub fn locate(&self, frame: Frames) -> Result<()> {
         Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
-                ffi_dispatch!(LIB, jack_transport_locate, ptr, frame)
+                ffi_dispatch!(feature = "dlopen", LIB, jack_transport_locate, ptr, frame)
             }),
             (),
         )
@@ -204,6 +205,7 @@ impl Transport {
             let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
             let state = Self::state_from_ffi(unsafe {
                 ffi_dispatch!(
+                    feature = "dlopen",
                     LIB,
                     jack_transport_query,
                     ptr,
@@ -226,7 +228,13 @@ impl Transport {
     pub fn query_state(&self) -> Result<TransportState> {
         self.with_client(|ptr| {
             Self::state_from_ffi(unsafe {
-                ffi_dispatch!(LIB, jack_transport_query, ptr, std::ptr::null_mut())
+                ffi_dispatch!(
+                    feature = "dlopen",
+                    LIB,
+                    jack_transport_query,
+                    ptr,
+                    std::ptr::null_mut()
+                )
             })
         })
     }

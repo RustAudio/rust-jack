@@ -60,15 +60,26 @@ impl Client {
             .as_ref()
             .map_err(|e| Error::LoadLibraryError(format!("{}", e)))?;
         unsafe {
-            ffi_dispatch!(lib, jack_set_error_function, Some(error_fn));
-            ffi_dispatch!(lib, jack_set_info_function, Some(info_fn));
+            ffi_dispatch!(
+                feature = "dlopen",
+                lib,
+                jack_set_error_function,
+                Some(error_fn)
+            );
+            ffi_dispatch!(
+                feature = "dlopen",
+                lib,
+                jack_set_info_function,
+                Some(info_fn)
+            );
         }
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
             ffi_dispatch!(
-                LIB,
+                feature = "dlopen",
+                lib,
                 jack_client_open,
                 client_name.as_ptr(),
                 options.bits(),
@@ -108,7 +119,8 @@ impl Client {
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     pub fn sample_rate(&self) -> usize {
-        let srate = unsafe { ffi_dispatch!(LIB, jack_get_sample_rate, self.raw()) };
+        let srate =
+            unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_get_sample_rate, self.raw()) };
         srate as usize
     }
 
@@ -118,7 +130,7 @@ impl Client {
     /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
     pub fn cpu_load(&self) -> f32 {
-        let load = unsafe { ffi_dispatch!(LIB, jack_cpu_load, self.raw()) };
+        let load = unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_cpu_load, self.raw()) };
         load as f32
     }
 
@@ -128,7 +140,7 @@ impl Client {
     /// `NAME_NOT_UNIQUE`.
     pub fn name(&self) -> &str {
         unsafe {
-            let ptr = ffi_dispatch!(LIB, jack_get_client_name, self.raw());
+            let ptr = ffi_dispatch!(feature = "dlopen", LIB, jack_get_client_name, self.raw());
             let cstr = ffi::CStr::from_ptr(ptr);
             cstr.to_str().unwrap()
         }
@@ -137,7 +149,7 @@ impl Client {
     /// The current maximum size that will every be passed to the process
     /// callback.
     pub fn buffer_size(&self) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_get_buffer_size, self.raw()) }
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_get_buffer_size, self.raw()) }
     }
 
     /// Change the buffer size passed to the process callback.
@@ -146,7 +158,15 @@ impl Client {
     /// callback functions before restarting the process cycle. This will cause a gap in the audio
     /// flow, so it should only be done at appropriate stopping points.
     pub fn set_buffer_size(&self, n_frames: Frames) -> Result<(), Error> {
-        let res = unsafe { ffi_dispatch!(LIB, jack_set_buffer_size, self.raw(), n_frames) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_set_buffer_size,
+                self.raw(),
+                n_frames
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::SetBufferSizeError),
@@ -162,10 +182,10 @@ impl Client {
     pub fn uuid(&self) -> jack_sys::jack_uuid_t {
         unsafe {
             let mut uuid: jack_sys::jack_uuid_t = Default::default();
-            let uuid_s = ffi_dispatch!(LIB, jack_client_get_uuid, self.raw());
+            let uuid_s = ffi_dispatch!(feature = "dlopen", LIB, jack_client_get_uuid, self.raw());
             assert!(!uuid_s.is_null());
             assert_eq!(0, ffi_dispatch!(UUID, jack_uuid_parse, uuid_s, &mut uuid));
-            ffi_dispatch!(LIB, jack_free, uuid_s as _);
+            ffi_dispatch!(feature = "dlopen", LIB, jack_free, uuid_s as _);
             uuid
         }
     }
@@ -177,20 +197,26 @@ impl Client {
     /// * Allocates & deallocates, not realtime safe.
     pub fn uuid_string(&self) -> String {
         unsafe {
-            let uuid_s = ffi_dispatch!(LIB, jack_client_get_uuid, self.raw());
+            let uuid_s = ffi_dispatch!(feature = "dlopen", LIB, jack_client_get_uuid, self.raw());
             assert!(!uuid_s.is_null());
             let uuid = ffi::CStr::from_ptr(uuid_s)
                 .to_str()
                 .expect("uuid is valid string")
                 .to_string();
-            ffi_dispatch!(LIB, jack_free, uuid_s as _);
+            ffi_dispatch!(feature = "dlopen", LIB, jack_free, uuid_s as _);
             uuid
         }
     }
 
     //helper to get client name from uuid string.
     unsafe fn name_by_uuid_raw(&self, uuid: *const ::libc::c_char) -> Option<String> {
-        let name_ptr = ffi_dispatch!(LIB, jack_get_client_name_by_uuid, self.raw(), uuid);
+        let name_ptr = ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_get_client_name_by_uuid,
+            self.raw(),
+            uuid
+        );
         if name_ptr.is_null() {
             None
         } else {
@@ -244,6 +270,7 @@ impl Client {
         let ptr = self.raw();
         unsafe {
             let ports = ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_get_ports,
                 ptr,
@@ -279,6 +306,7 @@ impl Client {
         let buffer_size = port_spec.jack_buffer_size();
         let pp = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_port_register,
                 self.raw(),
@@ -297,7 +325,15 @@ impl Client {
 
     /// Get a `Port` by its port id.
     pub fn port_by_id(&self, port_id: PortId) -> Option<Port<Unowned>> {
-        let pp = unsafe { ffi_dispatch!(LIB, jack_port_by_id, self.raw(), port_id) };
+        let pp = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_by_id,
+                self.raw(),
+                port_id
+            )
+        };
         if pp.is_null() {
             None
         } else {
@@ -308,7 +344,15 @@ impl Client {
     /// Get a `Port` by its port name.
     pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
         let port_name = ffi::CString::new(port_name).unwrap();
-        let pp = unsafe { ffi_dispatch!(LIB, jack_port_by_name, self.raw(), port_name.as_ptr()) };
+        let pp = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_by_name,
+                self.raw(),
+                port_name.as_ptr()
+            )
+        };
         if pp.is_null() {
             None
         } else {
@@ -344,6 +388,7 @@ impl Client {
 
         let intclient = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_internal_client_load,
                 self.raw(),
@@ -373,7 +418,13 @@ impl Client {
     /// It returns a ClientError on error.
     pub fn unload_internal_client(&self, client: InternalClientID) -> Result<(), Error> {
         let status = unsafe {
-            let status = ffi_dispatch!(LIB, jack_internal_client_unload, self.raw(), client);
+            let status = ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_internal_client_unload,
+                self.raw(),
+                client
+            );
             ClientStatus::from_bits_unchecked(status)
         };
         if status.is_empty() {
@@ -386,7 +437,14 @@ impl Client {
     /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_frames_since_cycle_start, self.raw()) }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_frames_since_cycle_start,
+                self.raw()
+            )
+        }
     }
 
     /// The estimated current time in frames. This function is intended for use in other threads
@@ -397,7 +455,7 @@ impl Client {
     /// # TODO
     /// - test
     pub fn frame_time(&self) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_frame_time, self.raw()) }
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_frame_time, self.raw()) }
     }
 
     /// The estimated time in microseconds of the specified frame time
@@ -405,7 +463,15 @@ impl Client {
     /// # TODO
     /// - Improve test
     pub fn frames_to_time(&self, n_frames: Frames) -> Time {
-        unsafe { ffi_dispatch!(LIB, jack_frames_to_time, self.raw(), n_frames) }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_frames_to_time,
+                self.raw(),
+                n_frames
+            )
+        }
     }
 
     /// The estimated time in frames for the specified system time.
@@ -413,13 +479,21 @@ impl Client {
     /// # TODO
     /// - Improve test
     pub fn time_to_frames(&self, t: Time) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_time_to_frames, self.raw(), t) }
+        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_time_to_frames, self.raw(), t) }
     }
 
     /// Returns `true` if the port `port` belongs to this client.
     pub fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
         matches!(
-            unsafe { ffi_dispatch!(LIB, jack_port_is_mine, self.raw(), port.raw()) },
+            unsafe {
+                ffi_dispatch!(
+                    feature = "dlopen",
+                    LIB,
+                    jack_port_is_mine,
+                    self.raw(),
+                    port.raw()
+                )
+            },
             1
         )
     }
@@ -437,6 +511,7 @@ impl Client {
         let port_name_cstr = ffi::CString::new(port_name).unwrap();
         let res = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_port_request_monitor_by_name,
                 self.raw(),
@@ -501,6 +576,7 @@ impl Client {
 
         let res = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_connect,
                 self.raw(),
@@ -544,7 +620,15 @@ impl Client {
 
     /// Remove all connections to/from the port.
     pub fn disconnect<PS>(&self, port: &Port<PS>) -> Result<(), Error> {
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_disconnect, self.raw(), port.raw()) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_disconnect,
+                self.raw(),
+                port.raw()
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -552,7 +636,15 @@ impl Client {
     }
 
     pub fn unregister_port<PS>(&self, port: Port<PS>) -> Result<(), Error> {
-        let res = unsafe { ffi_dispatch!(LIB, jack_port_unregister, self.raw(), port.raw()) };
+        let res = unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_port_unregister,
+                self.raw(),
+                port.raw()
+            )
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -578,6 +670,7 @@ impl Client {
         let destination_port = ffi::CString::new(destination_port).unwrap();
         let res = unsafe {
             ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_disconnect,
                 self.raw(),
@@ -599,6 +692,7 @@ impl Client {
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         let port_type = ffi::CString::new(port_type).unwrap();
         ffi_dispatch!(
+            feature = "dlopen",
             LIB,
             jack_port_type_get_buffer_size,
             self.raw(),
@@ -656,6 +750,7 @@ impl Client {
         unsafe {
             self.property_change_handler = Some(Box::from_raw(handler));
             if ffi_dispatch!(
+                feature = "dlopen",
                 LIB,
                 jack_set_property_change_callback,
                 self.raw(),
@@ -679,7 +774,7 @@ impl Drop for Client {
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();
-        let res = unsafe { ffi_dispatch!(LIB, jack_client_close, self.raw()) }; // close the client
+        let res = unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_client_close, self.raw()) }; // close the client
         sleep_on_test();
         assert_eq!(res, 0);
         self.inner = ptr::null_mut();
@@ -719,13 +814,27 @@ impl ProcessScope {
     /// from the process callback, and can be used to interpret timestamps generated by
     /// `self.frame_time()` in other threads, with respect to the current process cycle.
     pub fn last_frame_time(&self) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_last_frame_time, self.client_ptr()) }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_last_frame_time,
+                self.client_ptr()
+            )
+        }
     }
 
     /// The estimated time in frames that has passed since the JACK server began the current process
     /// cycle.
     pub fn frames_since_cycle_start(&self) -> Frames {
-        unsafe { ffi_dispatch!(LIB, jack_frames_since_cycle_start, self.client_ptr()) }
+        unsafe {
+            ffi_dispatch!(
+                feature = "dlopen",
+                LIB,
+                jack_frames_since_cycle_start,
+                self.client_ptr()
+            )
+        }
     }
 
     /// Provides the internal cycle timing information as used by most of the other time related
