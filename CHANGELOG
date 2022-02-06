@@ -1,12 +1,16 @@
 # Changelog
 
-## HEAD
-- Updated dependencies to latest as of 2021/11/17.
+## 0.9.0
+
+- Jack library can be loaded dynamically from libjack.so.0 or libjack.dll.
+- Updated dependencies to latest as of 2022/02/05.
 
 ## 0.8.2
+
 - `MidiIter` is now `Sync`.
 
 ## 0.8.1
+
 - `AsyncClient` and `Client` are `Sync`.
 
 ## 0.8.0

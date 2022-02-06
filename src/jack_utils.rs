@@ -1,4 +1,8 @@
-use jack_sys as j;
+#[cfg(feature = "dlopen")]
+use crate::LIB;
+use dlib::ffi_dispatch;
+#[cfg(not(feature = "dlopen"))]
+use jack_sys::*;
 use std::ffi;
 
 /// Collects strings from an array of c-strings into a Rust vector of strings
@@ -22,6 +26,11 @@ pub unsafe fn collect_strs(ptr: *const *const libc::c_char) -> Vec<String> {
         let s = ffi::CStr::from_ptr(cstr_ptr).to_string_lossy().into_owned();
         strs.push(s);
     }
-    j::jack_free(ptr as *mut ::libc::c_void);
+    ffi_dispatch!(
+        feature = "dlopen",
+        LIB,
+        jack_free,
+        ptr as *mut ::libc::c_void
+    );
     strs
 }

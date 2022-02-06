@@ -1,4 +1,8 @@
-use jack_sys as j;
+#[cfg(feature = "dlopen")]
+use crate::LIB;
+use dlib::ffi_dispatch;
+#[cfg(not(feature = "dlopen"))]
+use jack_sys::*;
 use std::ffi;
 
 use crate::{Client, ClientStatus, Control, Error, Frames, PortId, ProcessScope};
@@ -108,7 +112,7 @@ where
 }
 
 unsafe extern "C" fn shutdown<N, P>(
-    code: j::jack_status_t,
+    code: jack_sys::jack_status_t,
     reason: *const libc::c_char,
     data: *mut libc::c_void,
 ) where
@@ -256,9 +260,9 @@ where
 /// # TODO
 ///
 /// * Implement correctly. Freezes on my system.
-pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Error> {
-    // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
-    // j::jack_set_process_callback(client, None, ptr::null_mut());
+pub unsafe fn clear_callbacks(_client: *mut jack_sys::jack_client_t) -> Result<(), Error> {
+    // jack_sys::jack_set_thread_init_callback(client, None, ptr::null_mut());
+    // jack_sys::jack_set_process_callback(client, None, ptr::null_mut());
     Ok(())
 }
 
@@ -292,7 +296,7 @@ where
     /// `Err(Error::CallbackRegistrationError)` on failure.
     ///
     /// `handler_ptr` here is a pointer to a heap-allocated pair `(T, *mut
-    /// j::jack_client_t)`.
+    /// jack_sys::jack_client_t)`.
     ///
     /// Registers `handler` with JACK. All JACK calls to `client` will be handled by
     /// `handler`. `handler` is consumed, but it is not deallocated. `handler`
@@ -313,23 +317,96 @@ where
     pub unsafe fn register_callbacks(b: &mut Box<Self>) -> Result<(), Error> {
         let data_ptr = CallbackContext::raw(b);
         let client = b.client.raw();
-        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
-        j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
-        j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
-        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
-        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
-        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
-        j::jack_set_client_registration_callback(
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_thread_init_callback,
+            client,
+            Some(thread_init_callback::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_on_info_shutdown,
+            client,
+            Some(shutdown::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_process_callback,
+            client,
+            Some(process::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_freewheel_callback,
+            client,
+            Some(freewheel::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_buffer_size_callback,
+            client,
+            Some(buffer_size::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_sample_rate_callback,
+            client,
+            Some(sample_rate::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_client_registration_callback,
             client,
             Some(client_registration::<N, P>),
-            data_ptr,
+            data_ptr
         );
-        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_port_registration_callback,
+            client,
+            Some(port_registration::<N, P>),
+            data_ptr
+        );
         // doesn't compile for testing since it is a weak export
-        // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
-        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
-        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
-        j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
+        // jack_sys::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_port_connect_callback,
+            client,
+            Some(port_connect::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_graph_order_callback,
+            client,
+            Some(graph_order::<N, P>),
+            data_ptr
+        );
+        ffi_dispatch!(
+            feature = "dlopen",
+            LIB,
+            jack_set_xrun_callback,
+            client,
+            Some(xrun::<N, P>),
+            data_ptr
+        );
         Ok(())
     }
 }

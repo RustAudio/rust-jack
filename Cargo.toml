@@ -8,7 +8,7 @@ license = "MIT"
 name = "jack"
 readme = "README.md"
 repository = "https://github.com/RustAudio/rust-jack"
-version = "0.8.4"
+version = "0.9.0"
 
 [dependencies]
 bitflags = "1"
@@ -22,5 +22,6 @@ log = "0.4"
 crossbeam-channel = "0.5"
 
 [features]
-default = []
+default = ["dlopen"]
+dlopen = ["jack-sys/dlopen"]
 metadata = []

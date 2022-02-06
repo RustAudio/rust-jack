@@ -49,6 +49,9 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+#[cfg(feature = "dlopen")]
+use lazy_static::lazy_static;
+
 //only expose metadata if enabled
 #[cfg(feature = "metadata")]
 pub use crate::properties::*;
@@ -58,9 +61,6 @@ mod client;
 
 /// Create and manage JACK ring buffers.
 mod ringbuffer;
-
-/// Control error and info logging from JACK.
-mod logging;
 
 /// Enum types in jack.
 mod jack_enums;
@@ -79,10 +79,46 @@ mod transport;
 /// Properties
 mod properties;
 
+#[cfg(feature = "dlopen")]
+lazy_static! {
+    pub(crate) static ref LIB: &'static jack_sys::JackLib = {
+        let j = LIB_RESULT.as_ref().unwrap();
+        j
+    };
+    static ref LIB_RESULT: Result<jack_sys::JackLib, dlib::DlError> =
+        unsafe { jack_sys::JackLib::open(jack_sys::JACK_LIB) };
+}
+
+#[cfg(all(feature = "dlopen", feature = "metadata"))]
+lazy_static! {
+    pub(crate) static ref METADATA: jack_sys::JackMetadata =
+        unsafe { jack_sys::JackMetadata::open(jack_sys::JACK_LIB).unwrap() };
+}
+
+#[cfg(all(feature = "dlopen", feature = "metadata"))]
+lazy_static! {
+    pub(crate) static ref UUID: jack_sys::JackUuid =
+        unsafe { jack_sys::JackUuid::open(jack_sys::JACK_LIB).unwrap() };
+}
+
+/// Dynamically loads the JACK library. This is libjack.so on Linux and
+/// libjack.dll on Windows.
+#[cfg(feature = "dlopen")]
+pub fn load_jack_library() -> Result<(), Error> {
+    LIB_RESULT
+        .as_ref()
+        .map(|_| ())
+        .map_err(|e| Error::LoadLibraryError(format!("{}", e)))
+}
+
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
 pub fn get_time() -> primitive_types::Time {
-    unsafe { jack_sys::jack_get_time() }
+    #[cfg(feature = "dlopen")]
+    let t = unsafe { (LIB.jack_get_time)() };
+    #[cfg(not(feature = "dlopen"))]
+    let t = unsafe { jack_sys::jack_get_time() };
+    t
 }
 
 #[cfg(test)]

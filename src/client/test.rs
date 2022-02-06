@@ -46,10 +46,15 @@ fn client_can_activate() {
 #[test]
 fn client_can_set_buffer_size() {
     let (c, _) = open_test_client("client_can_set_buffer_size");
-    let initial_size = c.buffer_size();
-    let new_size = 2 * initial_size;
+
+    // 1024 - As started by dummy_jack_server.sh
+    let initial_size = 1024;
+    assert_eq!(c.buffer_size(), initial_size);
+
+    let new_size = 2048;
     c.set_buffer_size(new_size).unwrap();
     assert_eq!(c.buffer_size(), new_size);
+
     c.set_buffer_size(initial_size).unwrap();
     assert_eq!(c.buffer_size(), initial_size);
 }
@@ -68,13 +73,6 @@ fn client_can_deactivate() {
     let (c, _) = open_test_client("client_can_deactivate");
     let a = c.activate_async((), ()).unwrap();
     a.deactivate().unwrap();
-}
-
-#[test]
-fn client_knows_buffer_size() {
-    let (c, _) = open_test_client("client_knows_buffer_size");
-    // 1024 - As started by dummy_jack_server.sh
-    assert_eq!(c.buffer_size(), 1024);
 }
 
 #[test]

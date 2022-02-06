@@ -1,4 +1,5 @@
-use jack_sys as j;
+#[cfg(feature = "dlopen")]
+use crate::LIB;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
@@ -6,7 +7,10 @@ use std::sync::Mutex;
 /// into account the final `NULL` character and instead corresponds directly to `.len()`. This value
 /// is constant.
 fn client_name_size() -> usize {
-    let s = unsafe { j::jack_client_name_size() - 1 };
+    #[cfg(feature = "dlopen")]
+    let s = unsafe { (LIB.jack_client_name_size)() } - 1;
+    #[cfg(not(feature = "dlopen"))]
+    let s = unsafe { jack_sys::jack_client_name_size() - 1 };
     s as usize
 }
 
