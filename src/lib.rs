@@ -32,6 +32,10 @@
 //! jack = { version = "0.9", default-features = false }
 //! ```
 //!
+//! You can set the environment variable `RUST_JACK_DLOPEN` to `on` to enable the `dlopen` feature
+//! without needing to edit your application's Cargo.toml. This can be useful for cross compiling
+//! to Linux with a different CPU architecture.
+//!
 //! # Server
 //!
 //! JACK provides a high priority server to manipulate audio and midi across applications. The rust
