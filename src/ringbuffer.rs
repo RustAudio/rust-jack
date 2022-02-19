@@ -66,7 +66,7 @@ impl RingBuffer {
     pub fn from_reader_writer(r: RingBufferReader, w: RingBufferWriter) -> Self {
         if r.ringbuffer_handle != w.ringbuffer_handle {
             // drops will be valid during unwinding - assuming that all reader/writer pairs are
-            // consisitent.
+            // consistent.
             panic!("mismatching read and write handles!")
         }
 
@@ -189,7 +189,7 @@ impl RingBufferReader {
     }
 
     /// Read data from the ringbuffer. Opposed to read_buffer() this function does not move the read
-    /// pointer.  Thus it's a convenient way to inspect data in the ringbuffer in a continous
+    /// pointer.  Thus it's a convenient way to inspect data in the ringbuffer in a continuous
     /// fashion.  The price is that the data is copied into a user provided buffer.  For "raw"
     /// non-copy inspection of the data in the ringbuffer use get_vector() or peek_iter.  Returns:
     /// the number of bytes read, which may range from 0 to buf.len()

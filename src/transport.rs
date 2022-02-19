@@ -303,7 +303,7 @@ impl TransportPosition {
     /// # Remarks
     /// * This is only set by the server so it will be `None` if this struct hasn't come from the
     /// sever.
-    /// * Guaranteed to be monotonic, but not neccessarily linear.
+    /// * Guaranteed to be monotonic, but not necessarily linear.
     /// * The absolute value is implementation-dependent (i.e. it could be wall-clock, time since
     /// jack started, uptime, etc).
     pub fn usecs(&self) -> Option<Time> {

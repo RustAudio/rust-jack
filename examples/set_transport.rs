@@ -86,7 +86,7 @@ fn main() {
 
         if let Some(bbt) = new_bbt {
             let bbt = bbt.validated().expect("transport bbt failed to validate");
-            pos.set_bbt(Some(bbt)).expect("error settting bbt");
+            pos.set_bbt(Some(bbt)).expect("error setting bbt");
             transport.reposition(&pos).expect("failed to reposition");
         }
     }
