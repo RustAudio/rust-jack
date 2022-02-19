@@ -43,7 +43,7 @@ unsafe impl<N, P> Sync for AsyncClient<N, P> {}
 
 impl<N, P> AsyncClient<N, P>
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     /// Tell the JACK server that the program is ready to start processing audio. JACK will call the
