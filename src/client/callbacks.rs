@@ -14,7 +14,7 @@ pub trait NotificationHandler: Send {
     /// handled.
     ///
     /// It does not need to be suitable for real-time execution.
-    fn thread_init(&self, _: &Client) {}
+    fn thread_init(&mut self, _: &Client) {}
 
     /// Called when the JACK server shuts down the client thread. The function
     /// must be written as if

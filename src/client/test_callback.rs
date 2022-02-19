@@ -23,7 +23,7 @@ pub struct Counter {
 }
 
 impl NotificationHandler for Counter {
-    fn thread_init(&self, _: &Client) {
+    fn thread_init(&mut self, _: &Client) {
         self.thread_init_count.fetch_add(1, Ordering::Relaxed);
     }
 
