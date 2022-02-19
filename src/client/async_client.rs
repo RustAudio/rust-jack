@@ -39,7 +39,7 @@ pub struct AsyncClient<N, P> {
 }
 
 unsafe impl<N, P> Send for AsyncClient<N, P> {}
-unsafe impl<N, P> Sync for AsyncClient<N, P> {}
+//unsafe impl<N, P> Sync for AsyncClient<N, P> {}
 
 impl<N, P> AsyncClient<N, P>
 where
