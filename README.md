@@ -28,7 +28,7 @@ libjack64.dll (or libjack.dll for 32bit) is required for Windows to work.
 
 - `libjack` is required. Consult your package manager or the [official](http://jackaudio.org/downloads/) website.
 
-- The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convinient way to configure and bring up a JACK server through a GUI.
+- The general workflow for a JACK application is to start up a JACK daemon and connect the client to it. [qjackctl](http://qjackctl.sourceforge.net/) is a convenient way to configure and bring up a JACK server through a GUI.
 
 - [JACK FAQ](http://jackaudio.org/faq/)
 

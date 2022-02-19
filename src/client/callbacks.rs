@@ -20,7 +20,7 @@ pub trait NotificationHandler: Send {
     /// must be written as if
     /// it were an asynchronous POSIX signal handler --- use only async-safe
     /// functions, and remember
-    /// that it is executed from another thread. A typical funcion might set a
+    /// that it is executed from another thread. A typical function might set a
     /// flag or write to a
     /// pipe so that the rest of the application knows that the JACK client
     /// thread has shut down.
@@ -96,7 +96,7 @@ pub trait ProcessHandler: Send {
     ///
     /// It is called on the same thread as `process`, but as an exception, does
     /// not need to be suitable for real-time execution, so it is allowed to
-    /// allocate new buffers to accomodate the buffer size for example.
+    /// allocate new buffers to accommodate the buffer size for example.
     fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
         Control::Continue
     }
