@@ -1,4 +1,36 @@
-//! Rust bindings for JACK, a real-time audio and midi library.
+//! Rust bindings for JACK, a real-time audio and midi library. These bindings are compatible with
+//! all implementations of JACK (Pipewire JACK, JACK1, and JACK2).
+//!
+//! # Linking, dynamic loading, and packaging
+//!
+//! libjack is shared among all clients on the system, so there must only be a single
+//! system-wide version of it. Applications typically should not ship their own copy of libjack.
+//! This is an issue for distributing JACK compatible applications on Windows and macOS. On Linux
+//! and BSDs, this is not an issue for system packages because the application and JACK server are
+//! both distributed by the system package manager.
+//!
+//! To handle this, use the `dlopen` Cargo feature, which is enabled by default. This feature
+//! dynamically loads libjack at runtime rather than linking libjack at build time. If the
+//! user does not have JACK installed at runtime, [Client::new] will return [Error::LoadLibraryError].
+//! In this case, have your application show an error message directing the user to install JACK from
+//! <https://jackaudio.org/downloads/> and, if available, fall back to another audio API.
+//!
+//! With the `dlopen` feature, neither libjack nor the JACK pkgconfig file need to be present at build
+//! time. This is convenient for automated Windows and macOS builds as well as cross compiling.
+//!
+//! If your application cannot be used without JACK, Linux and BSD packagers may prefer
+//! to link libjack at build time. To do this, disable the `dlopen` feature by using
+//! `default-features = false` in your application's Cargo.toml. For example:
+//!
+//! ```toml
+//! [target.'cfg(any(windows, target_vendor = "apple"))'.dependencies]
+//! # Load libjack at runtime.
+//! jack = "0.9"
+//!
+//! [target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
+//! # Link libjack at build time.
+//! jack = { version = "0.9", default-features = false }
+//! ```
 //!
 //! # Server
 //!

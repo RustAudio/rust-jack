@@ -4,7 +4,7 @@ use dlib::external_library;
 use lazy_static::lazy_static;
 
 pub const JACK_LIB: &'static str =
-    if cfg!(target_family = "windows") {
+    if cfg!(windows) {
         if cfg!(target_arch = "x86") {
             "libjack.dll"
         } else {
