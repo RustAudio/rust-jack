@@ -46,7 +46,7 @@ fn main() {
 struct Notifications;
 
 impl jack::NotificationHandler for Notifications {
-    fn thread_init(&self, _: &jack::Client) {
+    fn thread_init(&mut self, _: &jack::Client) {
         println!("JACK: thread init");
     }
 

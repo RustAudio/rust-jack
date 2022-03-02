@@ -14,7 +14,7 @@ pub trait NotificationHandler: Send {
     /// handled.
     ///
     /// It does not need to be suitable for real-time execution.
-    fn thread_init(&self, _: &Client) {}
+    fn thread_init(&mut self, _: &Client) {}
 
     /// Called when the JACK server shuts down the client thread. The function
     /// must be written as if
@@ -104,7 +104,7 @@ pub trait ProcessHandler: Send {
 
 unsafe extern "C" fn thread_init_callback<N, P>(data: *mut libc::c_void)
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -116,7 +116,7 @@ unsafe extern "C" fn shutdown<N, P>(
     reason: *const libc::c_char,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -130,7 +130,7 @@ unsafe extern "C" fn shutdown<N, P>(
 
 unsafe extern "C" fn process<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -140,7 +140,7 @@ where
 
 unsafe extern "C" fn freewheel<N, P>(starting: libc::c_int, data: *mut libc::c_void)
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -150,7 +150,7 @@ where
 
 unsafe extern "C" fn buffer_size<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -159,7 +159,7 @@ where
 
 unsafe extern "C" fn sample_rate<N, P>(n_frames: Frames, data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -171,7 +171,7 @@ unsafe extern "C" fn client_registration<N, P>(
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -186,7 +186,7 @@ unsafe extern "C" fn port_registration<N, P>(
     register: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -203,7 +203,7 @@ unsafe extern "C" fn port_rename<N, P>(
     data: *mut libc::c_void,
 ) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -220,7 +220,7 @@ unsafe extern "C" fn port_connect<N, P>(
     connect: libc::c_int,
     data: *mut libc::c_void,
 ) where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -231,7 +231,7 @@ unsafe extern "C" fn port_connect<N, P>(
 
 unsafe extern "C" fn graph_order<N, P>(data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -240,7 +240,7 @@ where
 
 unsafe extern "C" fn xrun<N, P>(data: *mut libc::c_void) -> libc::c_int
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     let ctx = CallbackContext::<N, P>::from_raw(data);
@@ -274,7 +274,7 @@ pub struct CallbackContext<N, P> {
 
 impl<N, P> CallbackContext<N, P>
 where
-    N: 'static + Send + Sync + NotificationHandler,
+    N: 'static + Send + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
     pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> &'a mut CallbackContext<N, P> {
