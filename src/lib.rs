@@ -92,6 +92,9 @@ use lazy_static::lazy_static;
 #[cfg(feature = "metadata")]
 pub use crate::properties::*;
 
+/// Re-export of jack_sys, to ensure compatibility
+pub use jack_sys;
+
 /// Create and manage client connections to a JACK server.
 mod client;
 
@@ -140,10 +143,9 @@ lazy_static! {
 /// Dynamically loads the JACK library. This is libjack.so on Linux and
 /// libjack.dll on Windows.
 #[cfg(feature = "dlopen")]
-pub fn load_jack_library() -> Result<(), Error> {
+pub fn load_jack_library() -> Result<&'static jack_sys::JackLib, Error> {
     LIB_RESULT
         .as_ref()
-        .map(|_| ())
         .map_err(|e| Error::LoadLibraryError(format!("{}", e)))
 }
 
