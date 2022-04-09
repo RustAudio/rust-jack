@@ -642,7 +642,7 @@ const FUNCTIONS: &[Function] = &[
         name: "jack_port_type_id",
         args: &[("port", "*const jack_port_t")],
         ret: "jack_port_type_id_t",
-        flags: FunctionFlags::NONE,
+        flags: FunctionFlags::WEAK,
     },
     Function {
         name: "jack_port_is_mine",

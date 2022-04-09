@@ -60,7 +60,7 @@ pub struct JackFunctions {
     jack_port_short_name_impl: unsafe extern "C" fn(*mut jack_port_t) -> *const ::libc::c_char,
     jack_port_flags_impl: unsafe extern "C" fn(*mut jack_port_t) -> ::libc::c_int,
     jack_port_type_impl: unsafe extern "C" fn(*const jack_port_t) -> *const ::libc::c_char,
-    jack_port_type_id_impl: unsafe extern "C" fn(*const jack_port_t) -> jack_port_type_id_t,
+    jack_port_type_id_impl: Option<unsafe extern "C" fn(*const jack_port_t) -> jack_port_type_id_t>,
     jack_port_is_mine_impl: unsafe extern "C" fn(*const jack_client_t, *const jack_port_t) -> ::libc::c_int,
     jack_port_connected_impl: unsafe extern "C" fn(*const jack_port_t) -> ::libc::c_int,
     jack_port_connected_to_impl: unsafe extern "C" fn(*const jack_port_t, *const ::libc::c_char) -> ::libc::c_int,
@@ -375,9 +375,9 @@ lazy_static! {
         let jack_port_type_impl = library.get::<unsafe extern "C" fn(port: *const jack_port_t) -> *const ::libc::c_char>(b"jack_port_type").unwrap();
         let jack_port_type_impl = jack_port_type_impl.into_raw();
         let jack_port_type_impl = *jack_port_type_impl.deref() as unsafe extern "C" fn(port: *const jack_port_t) -> *const ::libc::c_char;
-        let jack_port_type_id_impl = library.get::<unsafe extern "C" fn(port: *const jack_port_t) -> jack_port_type_id_t>(b"jack_port_type_id").unwrap();
-        let jack_port_type_id_impl = jack_port_type_id_impl.into_raw();
-        let jack_port_type_id_impl = *jack_port_type_id_impl.deref() as unsafe extern "C" fn(port: *const jack_port_t) -> jack_port_type_id_t;
+        let jack_port_type_id_impl = library.get::<unsafe extern "C" fn(port: *const jack_port_t) -> jack_port_type_id_t>(b"jack_port_type_id").ok();
+        let jack_port_type_id_impl = jack_port_type_id_impl.map(|sym| sym.into_raw());
+        let jack_port_type_id_impl = jack_port_type_id_impl.map(|sym| *sym.deref() as unsafe extern "C" fn(port: *const jack_port_t) -> jack_port_type_id_t);
         let jack_port_is_mine_impl = library.get::<unsafe extern "C" fn(client: *const jack_client_t, port: *const jack_port_t) -> ::libc::c_int>(b"jack_port_is_mine").unwrap();
         let jack_port_is_mine_impl = jack_port_is_mine_impl.into_raw();
         let jack_port_is_mine_impl = *jack_port_is_mine_impl.deref() as unsafe extern "C" fn(client: *const jack_client_t, port: *const jack_port_t) -> ::libc::c_int;
@@ -1216,9 +1216,9 @@ pub unsafe fn jack_port_type(port: *const jack_port_t) -> *const ::libc::c_char 
     let f = LIB.jack_port_type_impl;
     f(port)
 }
-pub unsafe fn jack_port_type_id(port: *const jack_port_t) -> jack_port_type_id_t {
-    let f = LIB.jack_port_type_id_impl;
-    f(port)
+pub unsafe fn jack_port_type_id(port: *const jack_port_t) -> Option<jack_port_type_id_t> {
+    let f = LIB.jack_port_type_id_impl?;
+    Some(f(port))
 }
 pub unsafe fn jack_port_is_mine(client: *const jack_client_t, port: *const jack_port_t) -> ::libc::c_int {
     let f = LIB.jack_port_is_mine_impl;
