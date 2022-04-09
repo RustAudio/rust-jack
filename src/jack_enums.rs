@@ -23,7 +23,6 @@ pub enum Error {
     WeakFunctionNotFound,
     ClientIsNoLongerAlive,
     RingbufferCreateFailed,
-    LoadLibraryError(String),
     UnknownError,
 }
 

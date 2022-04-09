@@ -1,24 +1,20 @@
 ///! JACK transport wrappers.
 ///! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
-#[cfg(feature = "dlopen")]
-use crate::LIB;
 use crate::{Frames, Time};
-use dlib::ffi_dispatch;
-#[cfg(not(feature = "dlopen"))]
-use jack_sys::*;
+use jack_sys as j;
 use std::sync::Weak;
 
 pub type Result<T> = ::std::result::Result<T, crate::Error>;
 
 /// A structure for querying and manipulating the JACK transport.
 pub struct Transport {
-    pub(crate) client_ptr: *mut jack_sys::jack_client_t,
+    pub(crate) client_ptr: *mut j::jack_client_t,
     pub(crate) client_life: Weak<()>,
 }
 
 /// A structure representing the transport position.
 #[repr(transparent)]
-pub struct TransportPosition(jack_sys::jack_position_t);
+pub struct TransportPosition(j::jack_position_t);
 
 /// A representation of transport state.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -90,7 +86,7 @@ impl std::fmt::Display for TransportBBTValidationError {
 impl std::error::Error for TransportBBTValidationError {}
 
 impl Transport {
-    fn with_client<F: Fn(*mut jack_sys::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
+    fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
         if self.client_life.upgrade().is_some() {
             Ok(func(self.client_ptr))
         } else {
@@ -108,7 +104,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn start(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            ffi_dispatch!(feature = "dlopen", LIB, jack_transport_start, ptr);
+            j::jack_transport_start(ptr);
         })
     }
 
@@ -121,7 +117,7 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn stop(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
-            ffi_dispatch!(feature = "dlopen", LIB, jack_transport_stop, ptr);
+            j::jack_transport_stop(ptr);
         })
     }
 
@@ -140,14 +136,9 @@ impl Transport {
     pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
         Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
-                ffi_dispatch!(
-                    feature = "dlopen",
-                    LIB,
-                    jack_transport_reposition,
+                j::jack_transport_reposition(
                     ptr,
-                    std::mem::transmute::<&TransportPosition, *const jack_sys::jack_position_t>(
-                        pos,
-                    )
+                    std::mem::transmute::<&TransportPosition, *const j::jack_position_t>(pos),
                 )
             }),
             (),
@@ -168,18 +159,16 @@ impl Transport {
     /// * This function is realtime-safe.
     pub fn locate(&self, frame: Frames) -> Result<()> {
         Self::result_from_ffi(
-            self.with_client(|ptr| unsafe {
-                ffi_dispatch!(feature = "dlopen", LIB, jack_transport_locate, ptr, frame)
-            }),
+            self.with_client(|ptr| unsafe { j::jack_transport_locate(ptr, frame) }),
             (),
         )
     }
 
     //helper to convert to TransportState
-    fn state_from_ffi(state: jack_sys::jack_transport_state_t) -> TransportState {
+    fn state_from_ffi(state: j::jack_transport_state_t) -> TransportState {
         match state {
-            jack_sys::JackTransportStopped => TransportState::Stopped,
-            jack_sys::JackTransportStarting => TransportState::Starting,
+            j::JackTransportStopped => TransportState::Stopped,
+            j::JackTransportStarting => TransportState::Starting,
             //the JackTransportLooping state is no longer used
             _ => TransportState::Rolling,
         }
@@ -204,12 +193,9 @@ impl Transport {
         self.with_client(|ptr| {
             let mut pos: std::mem::MaybeUninit<TransportPosition> = std::mem::MaybeUninit::zeroed();
             let state = Self::state_from_ffi(unsafe {
-                ffi_dispatch!(
-                    feature = "dlopen",
-                    LIB,
-                    jack_transport_query,
+                j::jack_transport_query(
                     ptr,
-                    pos.as_mut_ptr() as *mut jack_sys::Struct__jack_position
+                    pos.as_mut_ptr() as *mut jack_sys::Struct__jack_position,
                 )
             });
             TransportStatePosition {
@@ -227,15 +213,7 @@ impl Transport {
     /// * If called from the process thread, the state returned is valid for the entire cycle.
     pub fn query_state(&self) -> Result<TransportState> {
         self.with_client(|ptr| {
-            Self::state_from_ffi(unsafe {
-                ffi_dispatch!(
-                    feature = "dlopen",
-                    LIB,
-                    jack_transport_query,
-                    ptr,
-                    std::ptr::null_mut()
-                )
-            })
+            Self::state_from_ffi(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
         })
     }
 }
@@ -247,28 +225,28 @@ unsafe impl Sync for Transport {}
 impl TransportPosition {
     /// Query to see if the BarBeatsTick data is valid.
     pub fn valid_bbt(&self) -> bool {
-        (self.0.valid & jack_sys::JackPositionBBT) != 0
+        (self.0.valid & j::JackPositionBBT) != 0
     }
 
     /// Query to see if the frame offset of BarBeatsTick data is valid.
     pub fn valid_bbt_frame_offset(&self) -> bool {
-        (self.0.valid & jack_sys::JackBBTFrameOffset) != 0
+        (self.0.valid & j::JackBBTFrameOffset) != 0
     }
 
     /*
     /// Query to see if the Timecode data is valid.
     pub fn valid_timecode(&self) -> bool {
-        (self.0.valid & jack_sys::JackPositionTimecode) != 0
+        (self.0.valid & j::JackPositionTimecode) != 0
     }
 
     /// Query to see if the Audio/Video ratio is valid.
     pub fn valid_avr(&self) -> bool {
-        (self.0.valid & jack_sys::JackAudioVideoRatio) != 0
+        (self.0.valid & j::JackAudioVideoRatio) != 0
     }
 
     /// Query to see if the Video frame offset is valid.
     pub fn valid_video_frame_offset(&self) -> bool {
-        (self.0.valid & jack_sys::JackVideoFrameOffset) != 0
+        (self.0.valid & j::JackVideoFrameOffset) != 0
     }
     */
 
@@ -303,7 +281,7 @@ impl TransportPosition {
     /// # Remarks
     /// * This is only set by the server so it will be `None` if this struct hasn't come from the
     /// sever.
-    /// * Guaranteed to be monotonic, but not necessarily linear.
+    /// * Guaranteed to be monotonic, but not neccessarily linear.
     /// * The absolute value is implementation-dependent (i.e. it could be wall-clock, time since
     /// jack started, uptime, etc).
     pub fn usecs(&self) -> Option<Time> {
@@ -348,7 +326,7 @@ impl TransportPosition {
     ) -> std::result::Result<(), TransportBBTValidationError> {
         match bbt {
             None => {
-                self.0.valid &= !jack_sys::JackPositionBBT;
+                self.0.valid &= !j::JackPositionBBT;
                 Ok(())
             }
             Some(bbt) => match bbt.validated() {
@@ -361,7 +339,7 @@ impl TransportPosition {
                     self.0.ticks_per_beat = bbt.ticks_per_beat;
                     self.0.beats_per_minute = bbt.bpm;
                     self.0.bar_start_tick = bbt.bar_start_tick;
-                    self.0.valid |= jack_sys::JackPositionBBT;
+                    self.0.valid |= j::JackPositionBBT;
                     Ok(())
                 }
                 Err(e) => Err(e),
@@ -396,12 +374,12 @@ impl TransportPosition {
     pub fn set_bbt_offset(&mut self, frame: Option<Frames>) -> std::result::Result<(), Frames> {
         match frame {
             None => {
-                self.0.valid &= !jack_sys::JackBBTFrameOffset;
+                self.0.valid &= !j::JackBBTFrameOffset;
                 Ok(())
             }
             Some(frame) => {
                 self.0.bbt_offset = frame;
-                self.0.valid |= jack_sys::JackBBTFrameOffset;
+                self.0.valid |= j::JackBBTFrameOffset;
                 Ok(())
             }
         }

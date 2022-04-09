@@ -1,6 +1,7 @@
 //! Properties, AKA [Meta Data](https://jackaudio.org/api/group__Metadata.html)
 //!
-use jack_sys::jack_uuid_t as uuid;
+use j::jack_uuid_t as uuid;
+use jack_sys as j;
 
 /// A description of a Metadata change describint a creation, change or deletion, its owner
 /// `subject` and `key`.
@@ -22,9 +23,9 @@ pub trait PropertyChangeHandler: Send {
 
 #[allow(dead_code)] //dead if we haven't enabled metadata
 pub(crate) unsafe extern "C" fn property_changed<P>(
-    subject: jack_sys::jack_uuid_t,
+    subject: j::jack_uuid_t,
     key: *const ::libc::c_char,
-    change: jack_sys::jack_property_change_t,
+    change: j::jack_property_change_t,
     arg: *mut ::libc::c_void,
 ) where
     P: PropertyChangeHandler,
@@ -33,8 +34,8 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
     let key_c = std::ffi::CStr::from_ptr(key);
     let key = key_c.to_str().expect("to convert key to valid str");
     let c = match change {
-        jack_sys::PropertyCreated => PropertyChange::Created { subject, key },
-        jack_sys::PropertyDeleted => PropertyChange::Deleted { subject, key },
+        j::PropertyCreated => PropertyChange::Created { subject, key },
+        j::PropertyDeleted => PropertyChange::Deleted { subject, key },
         _ => PropertyChange::Changed { subject, key },
     };
     h.property_changed(&c);
@@ -45,14 +46,8 @@ pub use metadata::*;
 
 #[cfg(feature = "metadata")]
 mod metadata {
-    use dlib::ffi_dispatch;
-    #[cfg(not(feature = "dlopen"))]
-    use jack_sys::*;
-
-    use super::{uuid, PropertyChange, PropertyChangeHandler};
+    use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
-    #[cfg(feature = "dlopen")]
-    use crate::LIB;
     use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
 
     use crate::Client;
@@ -115,7 +110,7 @@ mod metadata {
 
     //helper to convert to an Option<PropertyMap> and free
     unsafe fn description_to_map_free(
-        description: *mut jack_sys::jack_description_t,
+        description: *mut j::jack_description_t,
     ) -> Option<PropertyMap> {
         if description.is_null() {
             None
@@ -146,7 +141,7 @@ mod metadata {
                     ),
                 );
             }
-            ffi_dispatch!(LIB, jack_free_description, description, 0);
+            j::jack_free_description(description, 0);
             Some(properties)
         }
     }
@@ -191,14 +186,8 @@ mod metadata {
             let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
 
             unsafe {
-                if ffi_dispatch!(
-                    LIB,
-                    jack_get_property,
-                    subject,
-                    key.as_ptr(),
-                    value.as_mut_ptr(),
-                    typ.as_mut_ptr()
-                ) == 0
+                if j::jack_get_property(subject, key.as_ptr(), value.as_mut_ptr(), typ.as_mut_ptr())
+                    == 0
                 {
                     let value = value.assume_init();
                     let typ = typ.assume_init();
@@ -210,9 +199,9 @@ mod metadata {
                             Some(ffi::CStr::from_ptr(typ).to_str().unwrap().to_string())
                         },
                     ));
-                    ffi_dispatch!(LIB, jack_free, value as _);
+                    j::jack_free(value as _);
                     if !typ.is_null() {
-                        ffi_dispatch!(LIB, jack_free, typ as _)
+                        j::jack_free(typ as _)
                     }
                     r
                 } else {
@@ -231,9 +220,9 @@ mod metadata {
         ///
         /// * The Jack API calls this data a 'description'.
         pub fn property_get_subject(&self, subject: uuid) -> Option<PropertyMap> {
-            let mut description: MaybeUninit<jack_sys::jack_description_t> = MaybeUninit::uninit();
+            let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::uninit();
             unsafe {
-                let _ = ffi_dispatch!(LIB, jack_get_properties, subject, description.as_mut_ptr());
+                let _ = j::jack_get_properties(subject, description.as_mut_ptr());
                 description_to_map_free(description.as_mut_ptr())
             }
         }
@@ -245,10 +234,9 @@ mod metadata {
         /// * The Jack API calls these maps 'descriptions'.
         pub fn property_get_all(&self) -> HashMap<uuid, PropertyMap> {
             let mut map = HashMap::new();
-            let mut descriptions: MaybeUninit<*mut jack_sys::jack_description_t> =
-                MaybeUninit::uninit();
+            let mut descriptions: MaybeUninit<*mut j::jack_description_t> = MaybeUninit::uninit();
             unsafe {
-                let cnt = ffi_dispatch!(LIB, jack_get_all_properties, descriptions.as_mut_ptr());
+                let cnt = j::jack_get_all_properties(descriptions.as_mut_ptr());
                 if cnt > 0 {
                     let descriptions = descriptions.assume_init();
                     for des in std::slice::from_raw_parts_mut(descriptions, cnt as usize) {
@@ -257,7 +245,7 @@ mod metadata {
                             map.insert(uuid, dmap);
                         }
                     }
-                    ffi_dispatch!(LIB, jack_free, descriptions as _);
+                    j::jack_free(descriptions as _);
                 }
             }
             map
@@ -281,24 +269,20 @@ mod metadata {
             map_error(|| unsafe {
                 if let Some(t) = property.typ() {
                     let t = ffi::CString::new(t).unwrap();
-                    ffi_dispatch!(
-                        LIB,
-                        jack_set_property,
+                    j::jack_set_property(
                         self.raw(),
                         subject,
                         key.as_ptr(),
                         value.as_ptr(),
-                        t.as_ptr()
+                        t.as_ptr(),
                     )
                 } else {
-                    ffi_dispatch!(
-                        LIB,
-                        jack_set_property,
+                    j::jack_set_property(
                         self.raw(),
                         subject,
                         key.as_ptr(),
                         value.as_ptr(),
-                        ptr::null()
+                        ptr::null(),
                     )
                 }
             })
@@ -312,9 +296,7 @@ mod metadata {
         /// * `key` - The key of the property to be removed. A URI string.
         pub fn property_remove(&self, subject: uuid, key: &str) -> Result<(), Error> {
             let key = ffi::CString::new(key).expect("to create cstring from key");
-            map_error(|| unsafe {
-                ffi_dispatch!(LIB, jack_remove_property, self.raw(), subject, key.as_ptr())
-            })
+            map_error(|| unsafe { j::jack_remove_property(self.raw(), subject, key.as_ptr()) })
         }
 
         /// Remove all properties from a subject.
@@ -324,7 +306,7 @@ mod metadata {
         /// * `subject` - The subject to remove all properties from.
         pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
             unsafe {
-                if ffi_dispatch!(LIB, jack_remove_properties, self.raw(), subject) == -1 {
+                if j::jack_remove_properties(self.raw(), subject) == -1 {
                     Err(Error::UnknownError)
                 } else {
                     Ok(())
@@ -338,7 +320,7 @@ mod metadata {
         ///
         /// * **WARNING!!** This deletes all Metadata managed by a running JACK server.
         pub fn property_remove_all(&self) -> Result<(), Error> {
-            map_error(|| unsafe { ffi_dispatch!(LIB, jack_remove_all_properties, self.raw()) })
+            map_error(|| unsafe { j::jack_remove_all_properties(self.raw()) })
         }
     }
 
