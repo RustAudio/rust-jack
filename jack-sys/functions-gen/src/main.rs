@@ -356,7 +356,7 @@ const FUNCTIONS: &[Function] = &[
         name: "jack_get_client_pid",
         args: &[("name", "*const ::libc::c_char")],
         ret: "::libc::c_int",
-        flags: FunctionFlags::NONE,
+        flags: FunctionFlags::WEAK,
     },
     // #[cfg(not(target_os = "windows"))]
     // pub fn jack_client_thread_id(client: *mut jack_client_t) -> jack_native_thread_t;

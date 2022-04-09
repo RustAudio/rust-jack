@@ -26,7 +26,7 @@ pub struct JackFunctions {
     jack_internal_client_close_impl: Option<unsafe extern "C" fn(*const ::libc::c_char) -> ()>,
     jack_activate_impl: unsafe extern "C" fn(*mut jack_client_t) -> ::libc::c_int,
     jack_deactivate_impl: unsafe extern "C" fn(*mut jack_client_t) -> ::libc::c_int,
-    jack_get_client_pid_impl: unsafe extern "C" fn(*const ::libc::c_char) -> ::libc::c_int,
+    jack_get_client_pid_impl: Option<unsafe extern "C" fn(*const ::libc::c_char) -> ::libc::c_int>,
     jack_is_realtime_impl: unsafe extern "C" fn(*mut jack_client_t) -> ::libc::c_int,
     jack_thread_wait_impl: unsafe extern "C" fn(*mut jack_client_t, ::libc::c_int) -> jack_nframes_t,
     jack_cycle_wait_impl: unsafe extern "C" fn(*mut jack_client_t) -> jack_nframes_t,
@@ -273,9 +273,9 @@ lazy_static! {
         let jack_deactivate_impl = library.get::<unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int>(b"jack_deactivate").unwrap();
         let jack_deactivate_impl = jack_deactivate_impl.into_raw();
         let jack_deactivate_impl = *jack_deactivate_impl.deref() as unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int;
-        let jack_get_client_pid_impl = library.get::<unsafe extern "C" fn(name: *const ::libc::c_char) -> ::libc::c_int>(b"jack_get_client_pid").unwrap();
-        let jack_get_client_pid_impl = jack_get_client_pid_impl.into_raw();
-        let jack_get_client_pid_impl = *jack_get_client_pid_impl.deref() as unsafe extern "C" fn(name: *const ::libc::c_char) -> ::libc::c_int;
+        let jack_get_client_pid_impl = library.get::<unsafe extern "C" fn(name: *const ::libc::c_char) -> ::libc::c_int>(b"jack_get_client_pid").ok();
+        let jack_get_client_pid_impl = jack_get_client_pid_impl.map(|sym| sym.into_raw());
+        let jack_get_client_pid_impl = jack_get_client_pid_impl.map(|sym| *sym.deref() as unsafe extern "C" fn(name: *const ::libc::c_char) -> ::libc::c_int);
         let jack_is_realtime_impl = library.get::<unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int>(b"jack_is_realtime").unwrap();
         let jack_is_realtime_impl = jack_is_realtime_impl.into_raw();
         let jack_is_realtime_impl = *jack_is_realtime_impl.deref() as unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int;
@@ -1080,9 +1080,9 @@ pub unsafe fn jack_deactivate(client: *mut jack_client_t) -> ::libc::c_int {
     let f = LIB.jack_deactivate_impl;
     f(client)
 }
-pub unsafe fn jack_get_client_pid(name: *const ::libc::c_char) -> ::libc::c_int {
-    let f = LIB.jack_get_client_pid_impl;
-    f(name)
+pub unsafe fn jack_get_client_pid(name: *const ::libc::c_char) -> Option<::libc::c_int> {
+    let f = LIB.jack_get_client_pid_impl?;
+    Some(f(name))
 }
 pub unsafe fn jack_is_realtime(client: *mut jack_client_t) -> ::libc::c_int {
     let f = LIB.jack_is_realtime_impl;
