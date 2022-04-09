@@ -84,21 +84,25 @@ fn print_src(fns: &[Function]) {
     println!("}}\n");
 
     for f in fns.iter() {
-        println!(
-            "pub unsafe fn {}({}) -> {} {{",
-            f.name,
-            f.args_full(),
-            f.ret
-        );
         if f.flags.contains(FunctionFlags::WEAK) {
             println!(
-                "    let f = LIB.{}_impl.expect(\"function {} not found\");",
-                f.name, f.name
+                "pub unsafe fn {}({}) -> Option<{}> {{",
+                f.name,
+                f.args_full(),
+                f.ret
             );
+            println!("    let f = LIB.{}_impl?;", f.name);
+            println!("    Some(f({}))", f.arg_names());
         } else {
+            println!(
+                "pub unsafe fn {}({}) -> {} {{",
+                f.name,
+                f.args_full(),
+                f.ret
+            );
             println!("    let f = LIB.{}_impl;", f.name);
+            println!("    f({})", f.arg_names());
         }
-        println!("    f({})", f.arg_names());
         println!("}}");
     }
 }

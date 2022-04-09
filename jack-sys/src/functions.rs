@@ -988,9 +988,9 @@ pub unsafe fn jack_release_timebase(client: *mut jack_client_t) -> ::libc::c_int
     let f = LIB.jack_release_timebase_impl;
     f(client)
 }
-pub unsafe fn jack_get_cycle_times(client: *const jack_client_t, current_frames: *mut jack_nframes_t, current_usecs: *mut jack_time_t, next_usecs: *mut jack_time_t, period_usecs: *mut ::libc::c_float) -> ::libc::c_int {
-    let f = LIB.jack_get_cycle_times_impl.expect("function jack_get_cycle_times not found");
-    f(client, current_frames, current_usecs, next_usecs, period_usecs)
+pub unsafe fn jack_get_cycle_times(client: *const jack_client_t, current_frames: *mut jack_nframes_t, current_usecs: *mut jack_time_t, next_usecs: *mut jack_time_t, period_usecs: *mut ::libc::c_float) -> Option<::libc::c_int> {
+    let f = LIB.jack_get_cycle_times_impl?;
+    Some(f(client, current_frames, current_usecs, next_usecs, period_usecs))
 }
 pub unsafe fn jack_set_sync_callback(client: *mut jack_client_t, sync_callback: JackSyncCallback, sync_arg: *mut ::libc::c_void) -> ::libc::c_int {
     let f = LIB.jack_set_sync_callback_impl;
@@ -1064,13 +1064,13 @@ pub unsafe fn jack_get_client_name_by_uuid(client: *mut jack_client_t, client_uu
     let f = LIB.jack_get_client_name_by_uuid_impl;
     f(client, client_uuid)
 }
-pub unsafe fn jack_internal_client_new(client_name: *const ::libc::c_char, load_name: *const ::libc::c_char, load_init: *const ::libc::c_char) -> ::libc::c_int {
-    let f = LIB.jack_internal_client_new_impl.expect("function jack_internal_client_new not found");
-    f(client_name, load_name, load_init)
+pub unsafe fn jack_internal_client_new(client_name: *const ::libc::c_char, load_name: *const ::libc::c_char, load_init: *const ::libc::c_char) -> Option<::libc::c_int> {
+    let f = LIB.jack_internal_client_new_impl?;
+    Some(f(client_name, load_name, load_init))
 }
-pub unsafe fn jack_internal_client_close(client_name: *const ::libc::c_char) -> () {
-    let f = LIB.jack_internal_client_close_impl.expect("function jack_internal_client_close not found");
-    f(client_name)
+pub unsafe fn jack_internal_client_close(client_name: *const ::libc::c_char) -> Option<()> {
+    let f = LIB.jack_internal_client_close_impl?;
+    Some(f(client_name))
 }
 pub unsafe fn jack_activate(client: *mut jack_client_t) -> ::libc::c_int {
     let f = LIB.jack_activate_impl;
@@ -1420,165 +1420,165 @@ pub unsafe fn jack_client_has_session_callback(client: *mut jack_client_t, clien
     let f = LIB.jack_client_has_session_callback_impl;
     f(client, client_name)
 }
-pub unsafe fn jackctl_setup_signals(flags: ::libc::c_uint) -> *mut jackctl_sigmask_t {
-    let f = LIB.jackctl_setup_signals_impl.expect("function jackctl_setup_signals not found");
-    f(flags)
+pub unsafe fn jackctl_setup_signals(flags: ::libc::c_uint) -> Option<*mut jackctl_sigmask_t> {
+    let f = LIB.jackctl_setup_signals_impl?;
+    Some(f(flags))
 }
-pub unsafe fn jackctl_wait_signals(signals: *mut jackctl_sigmask_t) -> () {
-    let f = LIB.jackctl_wait_signals_impl.expect("function jackctl_wait_signals not found");
-    f(signals)
+pub unsafe fn jackctl_wait_signals(signals: *mut jackctl_sigmask_t) -> Option<()> {
+    let f = LIB.jackctl_wait_signals_impl?;
+    Some(f(signals))
 }
-pub unsafe fn jackctl_server_create(on_device_acquire: ::std::option::Option<unsafe extern "C" fn(device_name: *const ::libc::c_char) -> u8>, on_device_release: ::std::option::Option<unsafe extern "C" fn(device_name: *const ::libc::c_char) -> ()>) -> *mut jackctl_server_t {
-    let f = LIB.jackctl_server_create_impl.expect("function jackctl_server_create not found");
-    f(on_device_acquire, on_device_release)
+pub unsafe fn jackctl_server_create(on_device_acquire: ::std::option::Option<unsafe extern "C" fn(device_name: *const ::libc::c_char) -> u8>, on_device_release: ::std::option::Option<unsafe extern "C" fn(device_name: *const ::libc::c_char) -> ()>) -> Option<*mut jackctl_server_t> {
+    let f = LIB.jackctl_server_create_impl?;
+    Some(f(on_device_acquire, on_device_release))
 }
-pub unsafe fn jackctl_server_destroy(server: *mut jackctl_server_t) -> () {
-    let f = LIB.jackctl_server_destroy_impl.expect("function jackctl_server_destroy not found");
-    f(server)
+pub unsafe fn jackctl_server_destroy(server: *mut jackctl_server_t) -> Option<()> {
+    let f = LIB.jackctl_server_destroy_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_open(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> u8 {
-    let f = LIB.jackctl_server_open_impl.expect("function jackctl_server_open not found");
-    f(server, driver)
+pub unsafe fn jackctl_server_open(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> Option<u8> {
+    let f = LIB.jackctl_server_open_impl?;
+    Some(f(server, driver))
 }
-pub unsafe fn jackctl_server_start(server: *mut jackctl_server_t) -> u8 {
-    let f = LIB.jackctl_server_start_impl.expect("function jackctl_server_start not found");
-    f(server)
+pub unsafe fn jackctl_server_start(server: *mut jackctl_server_t) -> Option<u8> {
+    let f = LIB.jackctl_server_start_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_stop(server: *mut jackctl_server_t) -> u8 {
-    let f = LIB.jackctl_server_stop_impl.expect("function jackctl_server_stop not found");
-    f(server)
+pub unsafe fn jackctl_server_stop(server: *mut jackctl_server_t) -> Option<u8> {
+    let f = LIB.jackctl_server_stop_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_close(server: *mut jackctl_server_t) -> u8 {
-    let f = LIB.jackctl_server_close_impl.expect("function jackctl_server_close not found");
-    f(server)
+pub unsafe fn jackctl_server_close(server: *mut jackctl_server_t) -> Option<u8> {
+    let f = LIB.jackctl_server_close_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_get_drivers_list(server: *mut jackctl_server_t) -> *const JSList {
-    let f = LIB.jackctl_server_get_drivers_list_impl.expect("function jackctl_server_get_drivers_list not found");
-    f(server)
+pub unsafe fn jackctl_server_get_drivers_list(server: *mut jackctl_server_t) -> Option<*const JSList> {
+    let f = LIB.jackctl_server_get_drivers_list_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_get_parameters(server: *mut jackctl_server_t) -> *const JSList {
-    let f = LIB.jackctl_server_get_parameters_impl.expect("function jackctl_server_get_parameters not found");
-    f(server)
+pub unsafe fn jackctl_server_get_parameters(server: *mut jackctl_server_t) -> Option<*const JSList> {
+    let f = LIB.jackctl_server_get_parameters_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_get_internals_list(server: *mut jackctl_server_t) -> *const JSList {
-    let f = LIB.jackctl_server_get_internals_list_impl.expect("function jackctl_server_get_internals_list not found");
-    f(server)
+pub unsafe fn jackctl_server_get_internals_list(server: *mut jackctl_server_t) -> Option<*const JSList> {
+    let f = LIB.jackctl_server_get_internals_list_impl?;
+    Some(f(server))
 }
-pub unsafe fn jackctl_server_load_internal(server: *mut jackctl_server_t, internal: *mut jackctl_internal_t) -> u8 {
-    let f = LIB.jackctl_server_load_internal_impl.expect("function jackctl_server_load_internal not found");
-    f(server, internal)
+pub unsafe fn jackctl_server_load_internal(server: *mut jackctl_server_t, internal: *mut jackctl_internal_t) -> Option<u8> {
+    let f = LIB.jackctl_server_load_internal_impl?;
+    Some(f(server, internal))
 }
-pub unsafe fn jackctl_server_unload_internal(server: *mut jackctl_server_t, internal: *mut jackctl_internal_t) -> u8 {
-    let f = LIB.jackctl_server_unload_internal_impl.expect("function jackctl_server_unload_internal not found");
-    f(server, internal)
+pub unsafe fn jackctl_server_unload_internal(server: *mut jackctl_server_t, internal: *mut jackctl_internal_t) -> Option<u8> {
+    let f = LIB.jackctl_server_unload_internal_impl?;
+    Some(f(server, internal))
 }
-pub unsafe fn jackctl_server_add_slave(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> u8 {
-    let f = LIB.jackctl_server_add_slave_impl.expect("function jackctl_server_add_slave not found");
-    f(server, driver)
+pub unsafe fn jackctl_server_add_slave(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> Option<u8> {
+    let f = LIB.jackctl_server_add_slave_impl?;
+    Some(f(server, driver))
 }
-pub unsafe fn jackctl_server_remove_slave(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> u8 {
-    let f = LIB.jackctl_server_remove_slave_impl.expect("function jackctl_server_remove_slave not found");
-    f(server, driver)
+pub unsafe fn jackctl_server_remove_slave(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> Option<u8> {
+    let f = LIB.jackctl_server_remove_slave_impl?;
+    Some(f(server, driver))
 }
-pub unsafe fn jackctl_server_switch_master(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> u8 {
-    let f = LIB.jackctl_server_switch_master_impl.expect("function jackctl_server_switch_master not found");
-    f(server, driver)
+pub unsafe fn jackctl_server_switch_master(server: *mut jackctl_server_t, driver: *mut jackctl_driver_t) -> Option<u8> {
+    let f = LIB.jackctl_server_switch_master_impl?;
+    Some(f(server, driver))
 }
-pub unsafe fn jackctl_driver_get_name(driver: *mut jackctl_driver_t) -> *const ::libc::c_char {
-    let f = LIB.jackctl_driver_get_name_impl.expect("function jackctl_driver_get_name not found");
-    f(driver)
+pub unsafe fn jackctl_driver_get_name(driver: *mut jackctl_driver_t) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_driver_get_name_impl?;
+    Some(f(driver))
 }
-pub unsafe fn jackctl_driver_get_type(driver: *mut jackctl_driver_t) -> jackctl_driver_type_t {
-    let f = LIB.jackctl_driver_get_type_impl.expect("function jackctl_driver_get_type not found");
-    f(driver)
+pub unsafe fn jackctl_driver_get_type(driver: *mut jackctl_driver_t) -> Option<jackctl_driver_type_t> {
+    let f = LIB.jackctl_driver_get_type_impl?;
+    Some(f(driver))
 }
-pub unsafe fn jackctl_driver_get_parameters(driver: *mut jackctl_driver_t) -> *const JSList {
-    let f = LIB.jackctl_driver_get_parameters_impl.expect("function jackctl_driver_get_parameters not found");
-    f(driver)
+pub unsafe fn jackctl_driver_get_parameters(driver: *mut jackctl_driver_t) -> Option<*const JSList> {
+    let f = LIB.jackctl_driver_get_parameters_impl?;
+    Some(f(driver))
 }
-pub unsafe fn jackctl_driver_params_parse(driver: *mut jackctl_driver_t, argc: ::libc::c_int, argv: *mut *mut ::libc::c_char) -> ::libc::c_int {
-    let f = LIB.jackctl_driver_params_parse_impl.expect("function jackctl_driver_params_parse not found");
-    f(driver, argc, argv)
+pub unsafe fn jackctl_driver_params_parse(driver: *mut jackctl_driver_t, argc: ::libc::c_int, argv: *mut *mut ::libc::c_char) -> Option<::libc::c_int> {
+    let f = LIB.jackctl_driver_params_parse_impl?;
+    Some(f(driver, argc, argv))
 }
-pub unsafe fn jackctl_internal_get_name(internal: *mut jackctl_internal_t) -> *const ::libc::c_char {
-    let f = LIB.jackctl_internal_get_name_impl.expect("function jackctl_internal_get_name not found");
-    f(internal)
+pub unsafe fn jackctl_internal_get_name(internal: *mut jackctl_internal_t) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_internal_get_name_impl?;
+    Some(f(internal))
 }
-pub unsafe fn jackctl_internal_get_parameters(internal: *mut jackctl_internal_t) -> *const JSList {
-    let f = LIB.jackctl_internal_get_parameters_impl.expect("function jackctl_internal_get_parameters not found");
-    f(internal)
+pub unsafe fn jackctl_internal_get_parameters(internal: *mut jackctl_internal_t) -> Option<*const JSList> {
+    let f = LIB.jackctl_internal_get_parameters_impl?;
+    Some(f(internal))
 }
-pub unsafe fn jackctl_parameter_get_name(parameter: *mut jackctl_parameter_t) -> *const ::libc::c_char {
-    let f = LIB.jackctl_parameter_get_name_impl.expect("function jackctl_parameter_get_name not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_name(parameter: *mut jackctl_parameter_t) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_parameter_get_name_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_short_description(parameter: *mut jackctl_parameter_t) -> *const ::libc::c_char {
-    let f = LIB.jackctl_parameter_get_short_description_impl.expect("function jackctl_parameter_get_short_description not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_short_description(parameter: *mut jackctl_parameter_t) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_parameter_get_short_description_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_long_description(parameter: *mut jackctl_parameter_t) -> *const ::libc::c_char {
-    let f = LIB.jackctl_parameter_get_long_description_impl.expect("function jackctl_parameter_get_long_description not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_long_description(parameter: *mut jackctl_parameter_t) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_parameter_get_long_description_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_type(parameter: *mut jackctl_parameter_t) -> jackctl_param_type_t {
-    let f = LIB.jackctl_parameter_get_type_impl.expect("function jackctl_parameter_get_type not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_type(parameter: *mut jackctl_parameter_t) -> Option<jackctl_param_type_t> {
+    let f = LIB.jackctl_parameter_get_type_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_id(parameter: *mut jackctl_parameter_t) -> ::libc::c_char {
-    let f = LIB.jackctl_parameter_get_id_impl.expect("function jackctl_parameter_get_id not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_id(parameter: *mut jackctl_parameter_t) -> Option<::libc::c_char> {
+    let f = LIB.jackctl_parameter_get_id_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_is_set(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_is_set_impl.expect("function jackctl_parameter_is_set not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_is_set(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_is_set_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_reset(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_reset_impl.expect("function jackctl_parameter_reset not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_reset(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_reset_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_value(parameter: *mut jackctl_parameter_t) -> Union_jackctl_parameter_value {
-    let f = LIB.jackctl_parameter_get_value_impl.expect("function jackctl_parameter_get_value not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_value(parameter: *mut jackctl_parameter_t) -> Option<Union_jackctl_parameter_value> {
+    let f = LIB.jackctl_parameter_get_value_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_set_value(parameter: *mut jackctl_parameter_t, value_ptr: *const Union_jackctl_parameter_value) -> u8 {
-    let f = LIB.jackctl_parameter_set_value_impl.expect("function jackctl_parameter_set_value not found");
-    f(parameter, value_ptr)
+pub unsafe fn jackctl_parameter_set_value(parameter: *mut jackctl_parameter_t, value_ptr: *const Union_jackctl_parameter_value) -> Option<u8> {
+    let f = LIB.jackctl_parameter_set_value_impl?;
+    Some(f(parameter, value_ptr))
 }
-pub unsafe fn jackctl_parameter_get_default_value(parameter: *mut jackctl_parameter_t) -> Union_jackctl_parameter_value {
-    let f = LIB.jackctl_parameter_get_default_value_impl.expect("function jackctl_parameter_get_default_value not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_default_value(parameter: *mut jackctl_parameter_t) -> Option<Union_jackctl_parameter_value> {
+    let f = LIB.jackctl_parameter_get_default_value_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_has_range_constraint(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_has_range_constraint_impl.expect("function jackctl_parameter_has_range_constraint not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_has_range_constraint(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_has_range_constraint_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_has_enum_constraint(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_has_enum_constraint_impl.expect("function jackctl_parameter_has_enum_constraint not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_has_enum_constraint(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_has_enum_constraint_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_enum_constraints_count(parameter: *mut jackctl_parameter_t) -> u32 {
-    let f = LIB.jackctl_parameter_get_enum_constraints_count_impl.expect("function jackctl_parameter_get_enum_constraints_count not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_get_enum_constraints_count(parameter: *mut jackctl_parameter_t) -> Option<u32> {
+    let f = LIB.jackctl_parameter_get_enum_constraints_count_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_get_enum_constraint_value(parameter: *mut jackctl_parameter_t, index: u32) -> Union_jackctl_parameter_value {
-    let f = LIB.jackctl_parameter_get_enum_constraint_value_impl.expect("function jackctl_parameter_get_enum_constraint_value not found");
-    f(parameter, index)
+pub unsafe fn jackctl_parameter_get_enum_constraint_value(parameter: *mut jackctl_parameter_t, index: u32) -> Option<Union_jackctl_parameter_value> {
+    let f = LIB.jackctl_parameter_get_enum_constraint_value_impl?;
+    Some(f(parameter, index))
 }
-pub unsafe fn jackctl_parameter_get_enum_constraint_description(parameter: *mut jackctl_parameter_t, index: u32) -> *const ::libc::c_char {
-    let f = LIB.jackctl_parameter_get_enum_constraint_description_impl.expect("function jackctl_parameter_get_enum_constraint_description not found");
-    f(parameter, index)
+pub unsafe fn jackctl_parameter_get_enum_constraint_description(parameter: *mut jackctl_parameter_t, index: u32) -> Option<*const ::libc::c_char> {
+    let f = LIB.jackctl_parameter_get_enum_constraint_description_impl?;
+    Some(f(parameter, index))
 }
-pub unsafe fn jackctl_parameter_get_range_constraint(parameter: *mut jackctl_parameter_t, min_ptr: *mut Union_jackctl_parameter_value, max_ptr: *mut Union_jackctl_parameter_value) -> () {
-    let f = LIB.jackctl_parameter_get_range_constraint_impl.expect("function jackctl_parameter_get_range_constraint not found");
-    f(parameter, min_ptr, max_ptr)
+pub unsafe fn jackctl_parameter_get_range_constraint(parameter: *mut jackctl_parameter_t, min_ptr: *mut Union_jackctl_parameter_value, max_ptr: *mut Union_jackctl_parameter_value) -> Option<()> {
+    let f = LIB.jackctl_parameter_get_range_constraint_impl?;
+    Some(f(parameter, min_ptr, max_ptr))
 }
-pub unsafe fn jackctl_parameter_constraint_is_strict(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_constraint_is_strict_impl.expect("function jackctl_parameter_constraint_is_strict not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_constraint_is_strict(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_constraint_is_strict_impl?;
+    Some(f(parameter))
 }
-pub unsafe fn jackctl_parameter_constraint_is_fake_value(parameter: *mut jackctl_parameter_t) -> u8 {
-    let f = LIB.jackctl_parameter_constraint_is_fake_value_impl.expect("function jackctl_parameter_constraint_is_fake_value not found");
-    f(parameter)
+pub unsafe fn jackctl_parameter_constraint_is_fake_value(parameter: *mut jackctl_parameter_t) -> Option<u8> {
+    let f = LIB.jackctl_parameter_constraint_is_fake_value_impl?;
+    Some(f(parameter))
 }
 pub unsafe fn jack_set_property(arg1: *mut jack_client_t, subject: jack_uuid_t, key: *const ::libc::c_char, value: *const ::libc::c_char, _type: *const ::libc::c_char) -> ::libc::c_int {
     let f = LIB.jack_set_property_impl;
@@ -1616,21 +1616,21 @@ pub unsafe fn jack_set_property_change_callback(client: *mut jack_client_t, call
     let f = LIB.jack_set_property_change_callback_impl;
     f(client, callback, arg)
 }
-pub unsafe fn jack_get_internal_client_name(client: *mut jack_client_t, intclient: jack_intclient_t) -> *mut ::libc::c_char {
-    let f = LIB.jack_get_internal_client_name_impl.expect("function jack_get_internal_client_name not found");
-    f(client, intclient)
+pub unsafe fn jack_get_internal_client_name(client: *mut jack_client_t, intclient: jack_intclient_t) -> Option<*mut ::libc::c_char> {
+    let f = LIB.jack_get_internal_client_name_impl?;
+    Some(f(client, intclient))
 }
-pub unsafe fn jack_internal_client_handle(client: *mut jack_client_t, client_name: *const ::libc::c_char, status: *mut jack_status_t) -> jack_intclient_t {
-    let f = LIB.jack_internal_client_handle_impl.expect("function jack_internal_client_handle not found");
-    f(client, client_name, status)
+pub unsafe fn jack_internal_client_handle(client: *mut jack_client_t, client_name: *const ::libc::c_char, status: *mut jack_status_t) -> Option<jack_intclient_t> {
+    let f = LIB.jack_internal_client_handle_impl?;
+    Some(f(client, client_name, status))
 }
-pub unsafe fn jack_internal_client_load(client: *mut jack_client_t, client_name: *const ::libc::c_char, options: jack_options_t, status: *mut jack_status_t, load_name: *const ::libc::c_char, load_init: *const ::libc::c_char) -> jack_intclient_t {
-    let f = LIB.jack_internal_client_load_impl.expect("function jack_internal_client_load not found");
-    f(client, client_name, options, status, load_name, load_init)
+pub unsafe fn jack_internal_client_load(client: *mut jack_client_t, client_name: *const ::libc::c_char, options: jack_options_t, status: *mut jack_status_t, load_name: *const ::libc::c_char, load_init: *const ::libc::c_char) -> Option<jack_intclient_t> {
+    let f = LIB.jack_internal_client_load_impl?;
+    Some(f(client, client_name, options, status, load_name, load_init))
 }
-pub unsafe fn jack_internal_client_unload(client: *mut jack_client_t, intclient: jack_intclient_t) -> jack_status_t {
-    let f = LIB.jack_internal_client_unload_impl.expect("function jack_internal_client_unload not found");
-    f(client, intclient)
+pub unsafe fn jack_internal_client_unload(client: *mut jack_client_t, intclient: jack_intclient_t) -> Option<jack_status_t> {
+    let f = LIB.jack_internal_client_unload_impl?;
+    Some(f(client, intclient))
 }
 pub unsafe fn jack_get_max_delayed_usecs(client: *mut jack_client_t) -> ::libc::c_float {
     let f = LIB.jack_get_max_delayed_usecs_impl;

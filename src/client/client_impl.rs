@@ -323,11 +323,13 @@ impl Client {
             )
         };
 
-        if intclient == 0 {
-            let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
-            Err(Error::ClientError(status))
-        } else {
-            Ok(intclient)
+        match intclient {
+            Some(0) => {
+                let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
+                Err(Error::ClientError(status))
+            },
+            Some(i) => Ok(i),
+            None => Err(Error::WeakFunctionNotFound("jack_internal_client_load")),
         }
     }
 
@@ -341,7 +343,10 @@ impl Client {
     /// It returns a ClientError on error.
     pub fn unload_internal_client(&self, client: InternalClientID) -> Result<(), Error> {
         let status = unsafe {
-            let status = j::jack_internal_client_unload(self.raw(), client);
+            let status = match j::jack_internal_client_unload(self.raw(), client) {
+                Some(s) => s,
+                None => return Err(Error::WeakFunctionNotFound("jack_internal_client_unload")),
+            };
             ClientStatus::from_bits_unchecked(status)
         };
         if status.is_empty() {
@@ -691,7 +696,8 @@ impl ProcessScope {
             )
         };
         match res {
-            0 => Ok(CycleTimes {
+            None => Err(Error::WeakFunctionNotFound("jack_get_cycle_times")),
+            Some(0) => Ok(CycleTimes {
                 current_frames,
                 current_usecs,
                 next_usecs,

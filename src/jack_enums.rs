@@ -20,7 +20,7 @@ pub enum Error {
     PortRegistrationError(String),
     SetBufferSizeError,
     TimeError,
-    WeakFunctionNotFound,
+    WeakFunctionNotFound(&'static str),
     ClientIsNoLongerAlive,
     RingbufferCreateFailed,
     UnknownError,
