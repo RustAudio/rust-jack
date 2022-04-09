@@ -25,19 +25,11 @@ jobs:
 
       - name: Lint (No Features)
         run: cargo clippy --all-targets --no-default-features -- -D clippy::all
-      - name: Lint (All Features)
-        run: cargo clippy --all-targets --no-default-features --features dlopen,metadata -- -D clippy::all
-      - name: Lint (dlopen)
-        run: cargo clippy --all-targets --no-default-features --features dlopen -- -D clippy::all
       - name: Lint (metadata)
         run: cargo clippy --all-targets --no-default-features --features metadata -- -D clippy::all
 
       - name: Build (No Features)
         run: cargo build --verbose --no-default-features
-      - name: Build (All Features)
-        run: cargo build --verbose --no-default-features --features dlopen,metadata
-      - name: Build (dlopen)
-        run: cargo build --verbose --no-default-features --features dlopen
       - name: Build (metadata)
         run: cargo build --verbose --no-default-features --features metadata
 
