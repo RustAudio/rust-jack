@@ -170,7 +170,6 @@ pub struct JackFunctions {
     jack_midi_get_event_count_impl: unsafe extern "C" fn(*mut ::libc::c_void) -> u32,
     jack_midi_event_get_impl: unsafe extern "C" fn(*mut jack_midi_event_t, *mut ::libc::c_void, u32) -> ::libc::c_int,
     jack_midi_clear_buffer_impl: unsafe extern "C" fn(*mut ::libc::c_void) -> (),
-    jack_midi_reset_buffer_impl: unsafe extern "C" fn(*mut ::libc::c_void) -> (),
     jack_midi_max_event_size_impl: unsafe extern "C" fn(*mut ::libc::c_void) -> ::libc::size_t,
     jack_midi_event_reserve_impl: unsafe extern "C" fn(*mut ::libc::c_void, jack_nframes_t, ::libc::size_t) -> *mut jack_midi_data_t,
     jack_midi_event_write_impl: unsafe extern "C" fn(*mut ::libc::c_void, jack_nframes_t, *const jack_midi_data_t, ::libc::size_t) -> ::libc::c_int,
@@ -705,9 +704,6 @@ lazy_static! {
         let jack_midi_clear_buffer_impl = library.get::<unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ()>(b"jack_midi_clear_buffer").unwrap();
         let jack_midi_clear_buffer_impl = jack_midi_clear_buffer_impl.into_raw();
         let jack_midi_clear_buffer_impl = *jack_midi_clear_buffer_impl.deref() as unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ();
-        let jack_midi_reset_buffer_impl = library.get::<unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ()>(b"jack_midi_reset_buffer").unwrap();
-        let jack_midi_reset_buffer_impl = jack_midi_reset_buffer_impl.into_raw();
-        let jack_midi_reset_buffer_impl = *jack_midi_reset_buffer_impl.deref() as unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ();
         let jack_midi_max_event_size_impl = library.get::<unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ::libc::size_t>(b"jack_midi_max_event_size").unwrap();
         let jack_midi_max_event_size_impl = jack_midi_max_event_size_impl.into_raw();
         let jack_midi_max_event_size_impl = *jack_midi_max_event_size_impl.deref() as unsafe extern "C" fn(port_buffer: *mut ::libc::c_void) -> ::libc::size_t;
@@ -953,7 +949,6 @@ lazy_static! {
             jack_midi_get_event_count_impl,
             jack_midi_event_get_impl,
             jack_midi_clear_buffer_impl,
-            jack_midi_reset_buffer_impl,
             jack_midi_max_event_size_impl,
             jack_midi_event_reserve_impl,
             jack_midi_event_write_impl,
@@ -1654,10 +1649,6 @@ pub unsafe fn jack_midi_event_get(event: *mut jack_midi_event_t, port_buffer: *m
 }
 pub unsafe fn jack_midi_clear_buffer(port_buffer: *mut ::libc::c_void) -> () {
     let f = LIB.jack_midi_clear_buffer_impl;
-    f(port_buffer)
-}
-pub unsafe fn jack_midi_reset_buffer(port_buffer: *mut ::libc::c_void) -> () {
-    let f = LIB.jack_midi_reset_buffer_impl;
     f(port_buffer)
 }
 pub unsafe fn jack_midi_max_event_size(port_buffer: *mut ::libc::c_void) -> ::libc::size_t {

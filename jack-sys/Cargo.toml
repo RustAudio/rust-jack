@@ -15,4 +15,5 @@ libc = "0.2"
 libloading = "0.7"
 
 [build-dependencies]
+bitflags = "1"
 pkg-config = "0.3"
