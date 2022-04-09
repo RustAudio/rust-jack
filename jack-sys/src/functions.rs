@@ -184,7 +184,6 @@ pub struct JackFunctions {
     jack_ringbuffer_read_space_impl: unsafe extern "C" fn(*const jack_ringbuffer_t) -> ::libc::size_t,
     jack_ringbuffer_mlock_impl: unsafe extern "C" fn(*mut jack_ringbuffer_t) -> ::libc::c_int,
     jack_ringbuffer_reset_impl: unsafe extern "C" fn(*mut jack_ringbuffer_t) -> (),
-    jack_ringbuffer_reset_size_impl: unsafe extern "C" fn(*mut jack_ringbuffer_t, ::libc::size_t) -> (),
     jack_ringbuffer_write_impl: unsafe extern "C" fn(*mut jack_ringbuffer_t, *const ::libc::c_char, ::libc::size_t) -> ::libc::size_t,
     jack_ringbuffer_write_advance_impl: unsafe extern "C" fn(*mut jack_ringbuffer_t, ::libc::size_t) -> (),
     jack_ringbuffer_write_space_impl: unsafe extern "C" fn(*const jack_ringbuffer_t) -> ::libc::size_t,
@@ -746,9 +745,6 @@ lazy_static! {
         let jack_ringbuffer_reset_impl = library.get::<unsafe extern "C" fn(rb: *mut jack_ringbuffer_t) -> ()>(b"jack_ringbuffer_reset").unwrap();
         let jack_ringbuffer_reset_impl = jack_ringbuffer_reset_impl.into_raw();
         let jack_ringbuffer_reset_impl = *jack_ringbuffer_reset_impl.deref() as unsafe extern "C" fn(rb: *mut jack_ringbuffer_t) -> ();
-        let jack_ringbuffer_reset_size_impl = library.get::<unsafe extern "C" fn(rb: *mut jack_ringbuffer_t, sz: ::libc::size_t) -> ()>(b"jack_ringbuffer_reset_size").unwrap();
-        let jack_ringbuffer_reset_size_impl = jack_ringbuffer_reset_size_impl.into_raw();
-        let jack_ringbuffer_reset_size_impl = *jack_ringbuffer_reset_size_impl.deref() as unsafe extern "C" fn(rb: *mut jack_ringbuffer_t, sz: ::libc::size_t) -> ();
         let jack_ringbuffer_write_impl = library.get::<unsafe extern "C" fn(rb: *mut jack_ringbuffer_t, src: *const ::libc::c_char, cnt: ::libc::size_t) -> ::libc::size_t>(b"jack_ringbuffer_write").unwrap();
         let jack_ringbuffer_write_impl = jack_ringbuffer_write_impl.into_raw();
         let jack_ringbuffer_write_impl = *jack_ringbuffer_write_impl.deref() as unsafe extern "C" fn(rb: *mut jack_ringbuffer_t, src: *const ::libc::c_char, cnt: ::libc::size_t) -> ::libc::size_t;
@@ -963,7 +959,6 @@ lazy_static! {
             jack_ringbuffer_read_space_impl,
             jack_ringbuffer_mlock_impl,
             jack_ringbuffer_reset_impl,
-            jack_ringbuffer_reset_size_impl,
             jack_ringbuffer_write_impl,
             jack_ringbuffer_write_advance_impl,
             jack_ringbuffer_write_space_impl,
@@ -1706,10 +1701,6 @@ pub unsafe fn jack_ringbuffer_mlock(rb: *mut jack_ringbuffer_t) -> ::libc::c_int
 pub unsafe fn jack_ringbuffer_reset(rb: *mut jack_ringbuffer_t) -> () {
     let f = LIB.jack_ringbuffer_reset_impl;
     f(rb)
-}
-pub unsafe fn jack_ringbuffer_reset_size(rb: *mut jack_ringbuffer_t, sz: ::libc::size_t) -> () {
-    let f = LIB.jack_ringbuffer_reset_size_impl;
-    f(rb, sz)
 }
 pub unsafe fn jack_ringbuffer_write(rb: *mut jack_ringbuffer_t, src: *const ::libc::c_char, cnt: ::libc::size_t) -> ::libc::size_t {
     let f = LIB.jack_ringbuffer_write_impl;

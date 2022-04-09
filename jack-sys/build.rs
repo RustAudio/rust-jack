@@ -1927,13 +1927,6 @@ const FUNCTIONS: &[Function] = &[
         ret: "()",
         flags: FunctionFlags::NONE,
     },
-    // pub fn jack_ringbuffer_reset_size(rb: *mut jack_ringbuffer_t, sz: ::libc::size_t) -> ();
-    Function {
-        name: "jack_ringbuffer_reset_size",
-        args: &[("rb", "*mut jack_ringbuffer_t"), ("sz", "::libc::size_t")],
-        ret: "()",
-        flags: FunctionFlags::NONE,
-    },
     // pub fn jack_ringbuffer_write(
     //     rb: *mut jack_ringbuffer_t,
     //     src: *const ::libc::c_char,
