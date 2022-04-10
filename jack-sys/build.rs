@@ -12,8 +12,8 @@ bitflags! {
 fn main() {
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
-    match target_os.as_ref().map(|x| &**x).unwrap() {
-        "linux" => {
+    match target_os.as_ref().map(|x| &**x) {
+        Ok("linux") => {
             pkg_config::find_library("jack").unwrap();
         },
         _ => {
@@ -30,7 +30,6 @@ fn write_src(path: &std::path::Path, fns: &[Function]) {
     writeln!(out, "use crate::types::*;").unwrap();
     writeln!(out, "use lazy_static::lazy_static;").unwrap();
     writeln!(out, "pub struct JackFunctions {{").unwrap();
-    writeln!(out, "    pub library: libloading::Library,").unwrap();
     for f in fns.iter() {
         if f.flags.contains(FunctionFlags::WEAK) {
             writeln!(out, 
@@ -51,8 +50,8 @@ fn write_src(path: &std::path::Path, fns: &[Function]) {
     writeln!(out, "}}\n").unwrap();
 
     writeln!(out, "lazy_static! {{").unwrap();
-    writeln!(out, "    static ref LIB: JackFunctions = unsafe {{").unwrap();
-    writeln!(out, "        let library = libloading::Library::new(crate::consts::JACK_LIB).unwrap();").unwrap();
+    writeln!(out, "    static ref FUNCTIONS: JackFunctions = unsafe {{").unwrap();
+    writeln!(out, "        let library = crate::library().unwrap();").unwrap();
     for f in fns.iter() {
         if f.flags.contains(FunctionFlags::WEAK) {
             writeln!(out, 
@@ -90,7 +89,6 @@ fn write_src(path: &std::path::Path, fns: &[Function]) {
         }
     }
     writeln!(out, "        JackFunctions {{").unwrap();
-    writeln!(out, "            library,").unwrap();
     for f in fns.iter() {
         writeln!(out, "            {}_impl,", f.name).unwrap();
     }
@@ -106,7 +104,7 @@ fn write_src(path: &std::path::Path, fns: &[Function]) {
                 f.args_full(),
                 f.ret
             ).unwrap();
-            writeln!(out, "    let f = LIB.{}_impl?;", f.name).unwrap();
+            writeln!(out, "    let f = FUNCTIONS.{}_impl?;", f.name).unwrap();
             writeln!(out, "    Some(f({}))", f.arg_names()).unwrap();
         } else {
             writeln!(out, 
@@ -115,7 +113,7 @@ fn write_src(path: &std::path::Path, fns: &[Function]) {
                 f.args_full(),
                 f.ret
             ).unwrap();
-            writeln!(out, "    let f = LIB.{}_impl;", f.name).unwrap();
+            writeln!(out, "    let f = FUNCTIONS.{}_impl;", f.name).unwrap();
             writeln!(out, "    f({})", f.arg_names()).unwrap();
         }
         writeln!(out, "}}").unwrap();

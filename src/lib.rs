@@ -49,6 +49,10 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
+/// The underlying system bindings for JACK. Can be useful for using possibly
+/// experimental stuff through `jack_sys::library()`.
+pub use jack_sys;
+
 //only expose metadata if enabled
 #[cfg(feature = "metadata")]
 pub use crate::properties::*;
