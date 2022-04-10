@@ -1,8 +1,4 @@
-#[cfg(feature = "dlopen")]
-use crate::LIB;
-use dlib::ffi_dispatch;
-#[cfg(not(feature = "dlopen"))]
-use jack_sys::*;
+use jack_sys as j;
 use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -24,14 +20,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// let mut outbuf = [0_u8; 8];
 /// let num = reader.read_buffer(&mut outbuf);
 /// ```
-pub struct RingBuffer(*mut jack_sys::jack_ringbuffer_t);
+pub struct RingBuffer(*mut j::jack_ringbuffer_t);
 
 impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, crate::Error> {
         let insize = size as libc::size_t;
-        let handle =
-            unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_create, insize) };
+        let handle = unsafe { j::jack_ringbuffer_create(insize) };
 
         if handle.is_null() {
             return Err(crate::Error::RingbufferCreateFailed);
@@ -42,12 +37,12 @@ impl RingBuffer {
 
     /// Lock a ringbuffer data block into memory.
     pub fn mlock(&mut self) {
-        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_mlock, self.0) };
+        unsafe { j::jack_ringbuffer_mlock(self.0) };
     }
 
     /// Resets the ring buffer, making an empty buffer.
     pub fn reset(&mut self) {
-        unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_reset, self.0) };
+        unsafe { j::jack_ringbuffer_reset(self.0) };
     }
 
     /// Create a reader and writer, to use the ring buffer.
@@ -66,7 +61,7 @@ impl RingBuffer {
     pub fn from_reader_writer(r: RingBufferReader, w: RingBufferWriter) -> Self {
         if r.ringbuffer_handle != w.ringbuffer_handle {
             // drops will be valid during unwinding - assuming that all reader/writer pairs are
-            // consistent.
+            // consisitent.
             panic!("mismatching read and write handles!")
         }
 
@@ -83,7 +78,7 @@ impl RingBuffer {
 impl Drop for RingBuffer {
     fn drop(&mut self) {
         if !self.0.is_null() {
-            unsafe { ffi_dispatch!(feature = "dlopen", LIB, jack_ringbuffer_free, self.0) };
+            unsafe { j::jack_ringbuffer_free(self.0) };
         }
         self.0 = std::ptr::null_mut();
     }
@@ -95,7 +90,7 @@ unsafe impl Sync for RingBuffer {}
 /// Read end of the ring buffer. Can only be used from one thread (can be different from the write
 /// thread).
 pub struct RingBufferReader {
-    ringbuffer_handle: *mut jack_sys::jack_ringbuffer_t,
+    ringbuffer_handle: *mut j::jack_ringbuffer_t,
     /// A marker to check if both halves of the ringbuffer are live. Destroying a ringbuffer is not
     /// a realtime operation.
     both_live: AtomicBool,
@@ -107,7 +102,7 @@ unsafe impl Sync for RingBufferReader {}
 /// Write end of the ring buffer. Can only be used from one thread (can be a different from the read
 /// thread).
 pub struct RingBufferWriter {
-    ringbuffer_handle: *mut jack_sys::jack_ringbuffer_t,
+    ringbuffer_handle: *mut j::jack_ringbuffer_t,
     both_live: AtomicBool,
 }
 
@@ -117,7 +112,7 @@ unsafe impl Sync for RingBufferWriter {}
 impl RingBufferReader {
     // safety: this method must be called as part of the splitting of the ringbuffer into 2
     // channels.
-    unsafe fn new(raw: *mut jack_sys::jack_ringbuffer_t) -> Self {
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
         RingBufferReader {
             ringbuffer_handle: raw,
             both_live: AtomicBool::new(true),
@@ -131,20 +126,12 @@ impl RingBufferReader {
     /// data that ended in the first slices. For convenience, consider using peek_iter instead.
     pub fn get_vector(&self) -> (&[u8], &[u8]) {
         let mut vec = [
-            jack_sys::jack_ringbuffer_data_t::default(),
-            jack_sys::jack_ringbuffer_data_t::default(),
+            j::jack_ringbuffer_data_t::default(),
+            j::jack_ringbuffer_data_t::default(),
         ];
-        let vecstart = &mut vec[0] as *mut jack_sys::jack_ringbuffer_data_t;
+        let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_get_read_vector,
-                self.ringbuffer_handle,
-                vecstart
-            )
-        };
+        unsafe { j::jack_ringbuffer_get_read_vector(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];
@@ -175,21 +162,12 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_read,
-                self.ringbuffer_handle,
-                bufstart,
-                insize
-            )
-        };
+        let read = unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
     /// Read data from the ringbuffer. Opposed to read_buffer() this function does not move the read
-    /// pointer.  Thus it's a convenient way to inspect data in the ringbuffer in a continuous
+    /// pointer.  Thus it's a convenient way to inspect data in the ringbuffer in a continous
     /// fashion.  The price is that the data is copied into a user provided buffer.  For "raw"
     /// non-copy inspection of the data in the ringbuffer use get_vector() or peek_iter.  Returns:
     /// the number of bytes read, which may range from 0 to buf.len()
@@ -201,16 +179,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_peek,
-                self.ringbuffer_handle,
-                bufstart,
-                insize
-            )
-        };
+        let read = unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -218,27 +187,12 @@ impl RingBufferReader {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_read_advance,
-                self.ringbuffer_handle,
-                incnt
-            )
-        };
+        unsafe { j::jack_ringbuffer_read_advance(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_read_space,
-                self.ringbuffer_handle
-            ) as usize
-        }
+        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle) as usize }
     }
 
     /// Iterator that goes over all the data available to read.
@@ -274,7 +228,7 @@ impl Drop for RingBufferReader {
 impl RingBufferWriter {
     // safety: this method must be called as part of the splitting of the ringbuffer into 2
     // channels.
-    unsafe fn new(raw: *mut jack_sys::jack_ringbuffer_t) -> Self {
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
         RingBufferWriter {
             ringbuffer_handle: raw,
             both_live: AtomicBool::new(true),
@@ -291,16 +245,7 @@ impl RingBufferWriter {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &buf[0] as *const _ as *const libc::c_char;
 
-        let read = unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_write,
-                self.ringbuffer_handle,
-                bufstart,
-                insize
-            )
-        };
+        let read = unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle, bufstart, insize) };
         read as usize
     }
 
@@ -308,27 +253,12 @@ impl RingBufferWriter {
     /// pointer.
     pub fn advance(&mut self, cnt: usize) {
         let incnt = cnt as libc::size_t;
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_write_advance,
-                self.ringbuffer_handle,
-                incnt
-            )
-        };
+        unsafe { j::jack_ringbuffer_write_advance(self.ringbuffer_handle, incnt) };
     }
 
     /// Return the number of bytes available for writing.
     pub fn space(&mut self) -> usize {
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_write_space,
-                self.ringbuffer_handle
-            ) as usize
-        }
+        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle) as usize }
     }
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
@@ -336,20 +266,12 @@ impl RingBufferWriter {
     /// ringbuffer.  consider using peek_iter for convenience.
     pub fn get_vector(&mut self) -> (&mut [u8], &mut [u8]) {
         let mut vec = [
-            jack_sys::jack_ringbuffer_data_t::default(),
-            jack_sys::jack_ringbuffer_data_t::default(),
+            j::jack_ringbuffer_data_t::default(),
+            j::jack_ringbuffer_data_t::default(),
         ];
-        let vecstart = &mut vec[0] as *mut jack_sys::jack_ringbuffer_data_t;
+        let vecstart = &mut vec[0] as *mut j::jack_ringbuffer_data_t;
 
-        unsafe {
-            ffi_dispatch!(
-                feature = "dlopen",
-                LIB,
-                jack_ringbuffer_get_write_vector,
-                self.ringbuffer_handle,
-                vecstart
-            )
-        };
+        unsafe { j::jack_ringbuffer_get_write_vector(self.ringbuffer_handle, vecstart) };
 
         let view1 = vec[0];
         let view2 = vec[1];

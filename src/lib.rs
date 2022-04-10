@@ -1,40 +1,4 @@
-//! Rust bindings for JACK, a real-time audio and midi library. These bindings are compatible with
-//! all implementations of JACK (Pipewire JACK, JACK1, and JACK2).
-//!
-//! # Linking, dynamic loading, and packaging
-//!
-//! libjack is shared among all clients on the system, so there must only be a single
-//! system-wide version of it. Applications typically should not ship their own copy of libjack.
-//! This is an issue for distributing JACK compatible applications on Windows and macOS. On Linux
-//! and BSDs, this is not an issue for system packages because the application and JACK server are
-//! both distributed by the system package manager.
-//!
-//! To handle this, use the `dlopen` Cargo feature, which is enabled by default. This feature
-//! dynamically loads libjack at runtime rather than linking libjack at build time. If the
-//! user does not have JACK installed at runtime, [Client::new] will return [Error::LoadLibraryError].
-//! In this case, have your application show an error message directing the user to install JACK from
-//! <https://jackaudio.org/downloads/> and, if available, fall back to another audio API.
-//!
-//! With the `dlopen` feature, neither libjack nor the JACK pkgconfig file need to be present at build
-//! time. This is convenient for automated Windows and macOS builds as well as cross compiling.
-//!
-//! If your application cannot be used without JACK, Linux and BSD packagers may prefer
-//! to link libjack at build time. To do this, disable the `dlopen` feature by using
-//! `default-features = false` in your application's Cargo.toml. For example:
-//!
-//! ```toml
-//! [target.'cfg(any(windows, target_vendor = "apple"))'.dependencies]
-//! # Load libjack at runtime.
-//! jack = "0.9"
-//!
-//! [target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
-//! # Link libjack at build time.
-//! jack = { version = "0.9", default-features = false }
-//! ```
-//!
-//! You can set the environment variable `RUST_JACK_DLOPEN` to `on` to enable the `dlopen` feature
-//! without needing to edit your application's Cargo.toml. This can be useful for cross compiling
-//! to Linux with a different CPU architecture.
+//! Rust bindings for JACK, a real-time audio and midi library.
 //!
 //! # Server
 //!
@@ -85,8 +49,9 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
-#[cfg(feature = "dlopen")]
-use lazy_static::lazy_static;
+/// The underlying system bindings for JACK. Can be useful for using possibly
+/// experimental stuff through `jack_sys::library()`.
+pub use jack_sys;
 
 //only expose metadata if enabled
 #[cfg(feature = "metadata")]
@@ -115,46 +80,10 @@ mod transport;
 /// Properties
 mod properties;
 
-#[cfg(feature = "dlopen")]
-lazy_static! {
-    pub(crate) static ref LIB: &'static jack_sys::JackLib = {
-        let j = LIB_RESULT.as_ref().unwrap();
-        j
-    };
-    static ref LIB_RESULT: Result<jack_sys::JackLib, dlib::DlError> =
-        unsafe { jack_sys::JackLib::open(jack_sys::JACK_LIB) };
-}
-
-#[cfg(all(feature = "dlopen", feature = "metadata"))]
-lazy_static! {
-    pub(crate) static ref METADATA: jack_sys::JackMetadata =
-        unsafe { jack_sys::JackMetadata::open(jack_sys::JACK_LIB).unwrap() };
-}
-
-#[cfg(all(feature = "dlopen", feature = "metadata"))]
-lazy_static! {
-    pub(crate) static ref UUID: jack_sys::JackUuid =
-        unsafe { jack_sys::JackUuid::open(jack_sys::JACK_LIB).unwrap() };
-}
-
-/// Dynamically loads the JACK library. This is libjack.so on Linux and
-/// libjack.dll on Windows.
-#[cfg(feature = "dlopen")]
-pub fn load_jack_library() -> Result<(), Error> {
-    LIB_RESULT
-        .as_ref()
-        .map(|_| ())
-        .map_err(|e| Error::LoadLibraryError(format!("{}", e)))
-}
-
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
 pub fn get_time() -> primitive_types::Time {
-    #[cfg(feature = "dlopen")]
-    let t = unsafe { (LIB.jack_get_time)() };
-    #[cfg(not(feature = "dlopen"))]
-    let t = unsafe { jack_sys::jack_get_time() };
-    t
+    unsafe { jack_sys::jack_get_time() }
 }
 
 #[cfg(test)]
