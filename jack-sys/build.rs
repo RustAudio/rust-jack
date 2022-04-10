@@ -10,22 +10,22 @@ bitflags! {
 }
 
 fn main() {
-    println!("cargo:rerun-if-env-changed=RUST_JACK_DLOPEN");
-    let dlopen = std::env::var("RUST_JACK_DLOPEN").is_ok();
-    if dlopen {
-        println!("cargo:rustc-cfg=feature=\"dlopen\"");
-    }
-    if !(dlopen || cfg!(feature = "dlopen")) {
-        // pkg-config is required to find PipeWire's implementation of libjack
-        // Refer to https://github.com/RustAudio/rust-jack/issues/142 for details.
-        // Do not unwrap this because linking might still work if pkg-config is
-        // not installed, for example on Windows.
-        pkg_config::find_library("jack").unwrap();
-    }
-    write_src("src/functions.rs", FUNCTIONS);
+    let out_dir = std::env::var_os("OUT_DIR").unwrap();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS");
+    match target_os.as_ref().map(|x| &**x).unwrap() {
+        "linux" => {
+            pkg_config::find_library("jack").unwrap();
+        },
+        _ => {
+            let _ = pkg_config::find_library("jack");
+        },
+    };
+    let dest_path = std::path::Path::new(&out_dir).join("functions.rs");
+    write_src(&dest_path, FUNCTIONS);
+    println!("cargo:rerun-if-changed=build.rs");
 }
 
-fn write_src(path: &str, fns: &[Function]) {
+fn write_src(path: &std::path::Path, fns: &[Function]) {
     let mut out = std::fs::File::create(path).unwrap();
     writeln!(out, "use crate::types::*;").unwrap();
     writeln!(out, "use lazy_static::lazy_static;").unwrap();
