@@ -146,6 +146,28 @@ impl Client {
         }
     }
 
+    /// Get the numeric `uuid` of a client by name; returns None if client does not exist
+    /// # Remarks
+    /// * Not realtime safe
+    #[cfg(feature = "metadata")]
+    pub fn uuid_of_client_by_name(&self, name:&str) -> Option<jack_sys::jack_uuid_t> {
+        Self::uuid_of_client_by_name_raw(self.raw(), name)
+    }
+
+    #[cfg(feature = "metadata")]
+    pub(crate) fn uuid_of_client_by_name_raw(raw: *mut jack_sys::jack_client_t, name:&str) -> Option<jack_sys::jack_uuid_t> {
+        let name = ffi::CString::new(name).unwrap();
+        let mut uuid: jack_sys::jack_uuid_t = Default::default();
+        unsafe {
+            let uuid_s = ffi_dispatch!(feature = "dlopen", LIB, jack_get_uuid_for_client_name, raw, name.as_ptr());
+            if uuid_s.is_null() {
+                return None;
+            }
+            assert_eq!(0, ffi_dispatch!(UUID, jack_uuid_parse, uuid_s, &mut uuid));
+            ffi_dispatch!(feature = "dlopen", LIB, jack_free, uuid_s as _);
+        }
+        Some(uuid)
+    }
     /// Get a String representation of the `uuid` of this client.
     ///
     /// # Remarks

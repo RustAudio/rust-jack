@@ -73,6 +73,10 @@ pub trait NotificationHandler: Send {
 
 /// Specifies real-time processing.
 pub trait ProcessHandler: Send {
+    /// Indicates whether or not this process handler represents a
+    /// slow-sync client
+    const SLOW_SYNC:bool = false;
+
     /// Called whenever there is work to be done.
     ///
     /// It needs to be suitable for real-time execution. That means that it
@@ -95,6 +99,21 @@ pub trait ProcessHandler: Send {
     /// allocate new buffers to accomodate the buffer size for example.
     fn buffer_size(&mut self, _: &Client, _size: Frames) -> Control {
         Control::Continue
+    }
+
+    /// For slow-sync clients, called periodically when the transport position
+    /// is changed.  The transport will not start rolling until all clients
+    /// indicate they are ready, or a timeout occurs.
+    ///
+    /// It should return `false` until the handler is ready process audio.
+    ///
+    /// Ignored unless Self::SLOW_SYNC == true.
+    fn sync(&mut self,
+            _: &Client,
+            _state: crate::TransportState,
+            _pos: &crate::TransportPosition
+    )->bool {
+        true
     }
 }
 
@@ -132,6 +151,26 @@ where
     let ctx = CallbackContext::<N, P>::from_raw(data);
     let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
     ctx.process.process(&ctx.client, &scope).to_ffi()
+}
+
+unsafe extern "C" fn sync<N, P>(
+    state: jack_sys::jack_transport_state_t,
+    pos: *mut jack_sys::jack_position_t,
+    data: *mut libc::c_void
+) -> libc::c_int
+where
+    N: 'static + Send + Sync + NotificationHandler,
+    P: 'static + Send + ProcessHandler,
+{
+    let ctx = CallbackContext::<N, P>::from_raw(data);
+    match ctx.process.sync(
+        &ctx.client,
+        crate::Transport::state_from_ffi(state),
+        &*(pos as *mut crate::TransportPosition)
+    ) {
+        true => 1,
+        false => 0
+    }
 }
 
 unsafe extern "C" fn freewheel<N, P>(starting: libc::c_int, data: *mut libc::c_void)
@@ -316,6 +355,9 @@ where
         j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
         j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
         j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
+        if P::SLOW_SYNC {
+            j::jack_set_sync_callback(client, Some(sync::<N, P>), data_ptr);
+        }
         j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
         j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
         j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);

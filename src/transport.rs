@@ -165,7 +165,7 @@ impl Transport {
     }
 
     //helper to convert to TransportState
-    fn state_from_ffi(state: j::jack_transport_state_t) -> TransportState {
+    pub(crate) fn state_from_ffi(state: j::jack_transport_state_t) -> TransportState {
         match state {
             j::JackTransportStopped => TransportState::Stopped,
             j::JackTransportStarting => TransportState::Starting,
