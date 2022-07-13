@@ -3,6 +3,7 @@ use crate::ClientStatus;
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
+    LibraryError(String),
     CallbackDeregistrationError,
     CallbackRegistrationError,
     ClientActivationError,
