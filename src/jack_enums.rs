@@ -2,6 +2,7 @@ use crate::ClientStatus;
 
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Error {
     CallbackDeregistrationError,
     CallbackRegistrationError,
@@ -23,6 +24,7 @@ pub enum Error {
     WeakFunctionNotFound(&'static str),
     ClientIsNoLongerAlive,
     RingbufferCreateFailed,
+    SetSyncTimeoutError,
     UnknownError,
 }
 

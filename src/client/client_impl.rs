@@ -129,6 +129,16 @@ impl Client {
         }
     }
 
+    /// Set the maximum length of time that a client can hold transport start as it gets ready.
+    pub fn set_sync_timeout(&self, timeout:std::time::Duration) -> Result<(), Error> {
+        let timeout = timeout.as_micros() as u64;
+        let res = unsafe { j::jack_set_sync_timeout(self.raw(), timeout) };
+        match res {
+            0 => Ok(()),
+            _ => Err(Error::SetSyncTimeoutError),
+        }
+    }
+    
     /// Get the numeric `uuid` of this client.
     ///
     /// # Remarks
