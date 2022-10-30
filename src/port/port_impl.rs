@@ -323,21 +323,22 @@ impl<PS> Port<PS> {
 impl<PS> Port<PS> {
     /// Returns the fully-qualified name of all ports currently connected to this one
     /// Remarks: Not realtime safe
-    pub fn get_connections(&self)->Vec<String> {
+    pub fn get_connections(&self) -> Vec<String> {
         unsafe {
-            crate::jack_utils::collect_strs(ffi_dispatch!(feature = "dlopen", LIB, jack_port_get_connections, self.port_ptr))
+            crate::jack_utils::collect_strs(jack_sys::jack_port_get_connections(self.port_ptr))
         }
     }
 
     /// Returns the UUIDs of all clients currently connected to this one
     /// Remarks: Not realtime safe
-    pub fn get_connected_client_uuids(&self)->Vec<jack_sys::jack_uuid_t> {
+    pub fn get_connected_client_uuids(&self) -> Vec<jack_sys::jack_uuid_t> {
         self.get_connections()
             .into_iter()
             .map(|name| {
                 let (client, _port) = name.split_once(':').unwrap();
                 crate::Client::uuid_of_client_by_name_raw(self.client_ptr(), client).unwrap()
-            }).collect()
+            })
+            .collect()
     }
 }
 

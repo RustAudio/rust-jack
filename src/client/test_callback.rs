@@ -104,6 +104,8 @@ fn client_cback_has_proper_default_callbacks() {
     ().ports_connected(&wc, 2, 3, false);
     assert_eq!(().graph_reorder(&wc), Control::Continue);
     assert_eq!(().xrun(&wc), Control::Continue);
+
+    std::mem::forget(wc);
 }
 
 #[test]

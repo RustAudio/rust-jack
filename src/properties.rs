@@ -53,7 +53,7 @@ mod metadata {
     use crate::Client;
 
     /// A helper enum, allowing for sending changes between threads.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum PropertyChangeOwned {
         Created { subject: uuid, key: String },
         Changed { subject: uuid, key: String },
@@ -62,7 +62,7 @@ mod metadata {
 
     /// A piece of Metadata on a Jack `subject`: either a port or a client.
     /// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Property {
         value: String,
         typ: Option<String>,
