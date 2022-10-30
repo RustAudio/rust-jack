@@ -5,7 +5,7 @@ use jack_sys as j;
 
 /// A description of a Metadata change describint a creation, change or deletion, its owner
 /// `subject` and `key`.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PropertyChange<'a> {
     Created { subject: uuid, key: &'a str },
     Changed { subject: uuid, key: &'a str },

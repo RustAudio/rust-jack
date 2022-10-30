@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{mem, ptr, thread, time};
+use std::{ptr, thread, time};
 
 use super::*;
 use crate::{AudioIn, Client, Control, Frames, NotificationHandler, PortId, ProcessHandler};
@@ -104,9 +104,6 @@ fn client_cback_has_proper_default_callbacks() {
     ().ports_connected(&wc, 2, 3, false);
     assert_eq!(().graph_reorder(&wc), Control::Continue);
     assert_eq!(().xrun(&wc), Control::Continue);
-
-    mem::forget(wc);
-    mem::forget(ps);
 }
 
 #[test]
