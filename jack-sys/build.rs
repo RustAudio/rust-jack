@@ -1,8 +1,4 @@
-use bitflags::bitflags;
-
-use std::io::Write;
-
-bitflags! {
+bitflags::bitflags! {
     struct FunctionFlags: u8 {
         const NONE = 0b00000000;
         const WEAK = 0b00000001;
@@ -15,109 +11,167 @@ fn main() {
     match target_os.as_ref().map(|x| &**x) {
         Ok("linux") => {
             pkg_config::find_library("jack").unwrap();
-        },
+        }
         _ => {
             let _ = pkg_config::find_library("jack");
-        },
+        }
     };
     let dest_path = std::path::Path::new(&out_dir).join("functions.rs");
-    write_src(&dest_path, FUNCTIONS);
+    let mut out = std::fs::File::create(&dest_path).unwrap();
+    wrap_in_module("dynamic_loading", write_dynamic_loading_src, &mut out).unwrap();
+    wrap_in_module("dynamic_linking", write_dynamic_linking_src, &mut out).unwrap();
     println!("cargo:rerun-if-changed=build.rs");
 }
 
-fn write_src(path: &std::path::Path, fns: &[Function]) {
-    let mut out = std::fs::File::create(path).unwrap();
-    writeln!(out, "use crate::types::*;").unwrap();
-    writeln!(out, "use lazy_static::lazy_static;").unwrap();
-    writeln!(out, "pub struct JackFunctions {{").unwrap();
-    for f in fns.iter() {
+type WriterFn<W> = fn(&mut W) -> Result<(), std::io::Error>;
+
+fn wrap_in_module<W: std::io::Write>(
+    module: &str,
+    inner: WriterFn<W>,
+    out: &mut W,
+) -> Result<(), std::io::Error> {
+    writeln!(out, "pub mod {} {{", module)?;
+    inner(out)?;
+    writeln!(out, "}}")?;
+    Ok(())
+}
+
+fn write_dynamic_linking_src<W: std::io::Write>(out: &mut W) -> Result<(), std::io::Error> {
+    writeln!(out, "use crate::types::*;")?;
+    for f in FUNCTIONS
+        .iter()
+        .filter(|f| f.flags.contains(FunctionFlags::WEAK))
+    {
+        writeln!(
+            out,
+            "pub unsafe fn {}({}) -> Option<{}> {{ None }}",
+            f.name,
+            f.args_full(true),
+            f.ret
+        )?;
+    }
+    writeln!(out, "#[link(name=\"jack\")]")?;
+    writeln!(out, "extern \"C\" {{")?;
+    for f in FUNCTIONS
+        .iter()
+        .filter(|f| !f.flags.contains(FunctionFlags::WEAK))
+    {
+        writeln!(
+            out,
+            "    pub fn {}({}) -> {};",
+            f.name,
+            f.args_full(false),
+            f.ret
+        )?;
+    }
+    writeln!(out, "}}")?;
+    Ok(())
+}
+
+fn write_dynamic_loading_src<W: std::io::Write>(out: &mut W) -> Result<(), std::io::Error> {
+    writeln!(out, "use crate::types::*;")?;
+    writeln!(out, "use lazy_static::lazy_static;")?;
+    writeln!(out, "pub struct JackFunctions {{")?;
+    for f in FUNCTIONS.iter() {
         if f.flags.contains(FunctionFlags::WEAK) {
-            writeln!(out, 
+            writeln!(
+                out,
                 "    {}_impl: Option<unsafe extern \"C\" fn({}) -> {}>,",
                 f.name,
                 f.arg_types(),
                 f.ret
-            ).unwrap();
+            )?;
         } else {
-            writeln!(out, 
+            writeln!(
+                out,
                 "    {}_impl: unsafe extern \"C\" fn({}) -> {},",
                 f.name,
                 f.arg_types(),
                 f.ret
-            ).unwrap();
+            )?;
         }
     }
-    writeln!(out, "}}\n").unwrap();
+    writeln!(out, "}}\n")?;
 
-    writeln!(out, "lazy_static! {{").unwrap();
-    writeln!(out, "    static ref FUNCTIONS: JackFunctions = unsafe {{").unwrap();
-    writeln!(out, "        let library = crate::library().unwrap();").unwrap();
-    for f in fns.iter() {
+    writeln!(out, "lazy_static! {{")?;
+    writeln!(out, "    static ref FUNCTIONS: JackFunctions = unsafe {{")?;
+    writeln!(out, "        let library = crate::library().unwrap();")?;
+    for f in FUNCTIONS.iter() {
         if f.flags.contains(FunctionFlags::WEAK) {
-            writeln!(out, 
+            writeln!(out,
                 "        let {}_impl = library.get::<unsafe extern \"C\" fn({}) -> {}>(b\"{}\").ok();",
                 f.name,
-                f.args_full(),
+                f.args_full(false),
                 f.ret,
                 f.name,
-            ).unwrap();
-            writeln!(out, 
+            )?;
+            writeln!(
+                out,
                 "        let {}_impl = {}_impl.map(|sym| sym.into_raw());",
                 f.name, f.name
-            ).unwrap();
-            writeln!(out, 
+            )?;
+            writeln!(
+                out,
                 "        let {}_impl = {}_impl.map(|sym| *sym.deref() as {});",
                 f.name,
                 f.name,
                 f.type_name()
-            ).unwrap();
+            )?;
         } else {
-            writeln!(out, 
+            writeln!(out,
                 "        let {}_impl = library.get::<unsafe extern \"C\" fn({}) -> {}>(b\"{}\").unwrap();",
                 f.name,
-                f.args_full(),
+                f.args_full(false),
                 f.ret,
                 f.name,
-            ).unwrap();
-            writeln!(out, "        let {}_impl = {}_impl.into_raw();", f.name, f.name).unwrap();
-            writeln!(out, 
+            )?;
+            writeln!(
+                out,
+                "        let {}_impl = {}_impl.into_raw();",
+                f.name, f.name
+            )?;
+            writeln!(
+                out,
                 "        let {}_impl = *{}_impl.deref() as {};",
                 f.name,
                 f.name,
                 f.type_name()
-            ).unwrap();
+            )?;
         }
     }
-    writeln!(out, "        JackFunctions {{").unwrap();
-    for f in fns.iter() {
-        writeln!(out, "            {}_impl,", f.name).unwrap();
+    writeln!(out, "        JackFunctions {{")?;
+    for f in FUNCTIONS.iter() {
+        writeln!(out, "            {}_impl,", f.name)?;
     }
-    writeln!(out, "        }}").unwrap();
-    writeln!(out, "    }};\n").unwrap();
-    writeln!(out, "}}\n").unwrap();
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }};\n")?;
+    writeln!(out, "}}\n")?;
 
-    for f in fns.iter() {
+    for f in FUNCTIONS.iter() {
         if f.flags.contains(FunctionFlags::WEAK) {
-            writeln!(out, 
+            writeln!(
+                out,
                 "pub unsafe fn {}({}) -> Option<{}> {{",
                 f.name,
-                f.args_full(),
+                f.args_full(false),
                 f.ret
-            ).unwrap();
-            writeln!(out, "    let f = FUNCTIONS.{}_impl?;", f.name).unwrap();
-            writeln!(out, "    Some(f({}))", f.arg_names()).unwrap();
+            )?;
+            writeln!(out, "    let f = FUNCTIONS.{}_impl?;", f.name)?;
+            writeln!(out, "    Some(f({}))", f.arg_names())?;
         } else {
-            writeln!(out, 
+            writeln!(
+                out,
                 "pub unsafe fn {}({}) -> {} {{",
                 f.name,
-                f.args_full(),
+                f.args_full(false),
                 f.ret
-            ).unwrap();
-            writeln!(out, "    let f = FUNCTIONS.{}_impl;", f.name).unwrap();
-            writeln!(out, "    f({})", f.arg_names()).unwrap();
+            )?;
+            writeln!(out, "    let f = FUNCTIONS.{}_impl;", f.name)?;
+            writeln!(out, "    f({})", f.arg_names())?;
         }
-        writeln!(out, "}}").unwrap();
+        writeln!(out, "}}")?;
     }
+    Ok(())
 }
 
 struct Function {
@@ -128,13 +182,16 @@ struct Function {
 }
 
 impl Function {
-    fn args_full(&self) -> String {
+    fn args_full(&self, prefix_with_underscore: bool) -> String {
         let mut args = String::new();
         for &(name, ty) in self.args.iter() {
             if !args.is_empty() {
                 args.push_str(", ");
             }
             if !name.is_empty() {
+                if prefix_with_underscore {
+                    args.push_str("_");
+                }
                 args.push_str(name);
                 args.push_str(": ");
             }
@@ -168,7 +225,7 @@ impl Function {
     fn type_name(&self) -> String {
         format!(
             "unsafe extern \"C\" fn({}) -> {}",
-            self.args_full(),
+            self.args_full(false),
             self.ret
         )
     }

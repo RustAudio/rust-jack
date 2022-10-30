@@ -4,20 +4,30 @@ use lazy_static::lazy_static;
 mod consts;
 mod types;
 
+// Contains both static and dynamic dispatched functions.
 mod functions {
     include!(concat!(env!("OUT_DIR"), "/functions.rs"));
 }
 
 pub use consts::*;
-pub use functions::*;
+pub use functions::dynamic_linking;
+pub use functions::dynamic_loading;
 pub use types::*;
 
+#[cfg(not(feature = "dynamic_loading"))]
+pub use functions::dynamic_linking::*;
+#[cfg(feature = "dynamic_loading")]
+pub use functions::dynamic_loading::*;
+
 lazy_static! {
-    static ref LIB_RESULT: Result<libloading::Library, libloading::Error> =
-        unsafe { libloading::Library::new(JACK_LIB) };
+    static ref LIB_RESULT: Result<libloading::Library, libloading::Error> = unsafe {
+        log::info!("Loading jack from {}.", JACK_LIB);
+        libloading::Library::new(JACK_LIB)
+    };
 }
 
-/// Get the underlying library handle. Can be used to extract symbols from the library.
+/// Get the underlying library handle used for dynamic loading. Can be used to extract symbols from
+/// the library.
 ///
 /// # Example
 /// ```rust
