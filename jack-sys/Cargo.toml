@@ -6,13 +6,18 @@ license = "MIT OR Apache-2.0"
 links = "jack"
 name = "jack-sys"
 repository = "https://github.com/RustAudio/rust-jack/tree/main/jack-sys"
-version = "0.4.0"
+version = "0.5.0"
 
 [dependencies]
 lazy_static = "1.4"
 libc = "0.2"
 libloading = "0.7"
+log = "0.4"
 
 [build-dependencies]
 bitflags = "1"
 pkg-config = "0.3"
+
+[features]
+default_features = ["dynamic_loading"]
+dynamic_loading = []

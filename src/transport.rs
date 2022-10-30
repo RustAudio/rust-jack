@@ -17,7 +17,7 @@ pub struct Transport {
 pub struct TransportPosition(j::jack_position_t);
 
 /// A representation of transport state.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransportState {
     Stopped,
     Rolling,
@@ -136,10 +136,7 @@ impl Transport {
     pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
         Self::result_from_ffi(
             self.with_client(|ptr| unsafe {
-                j::jack_transport_reposition(
-                    ptr,
-                    std::mem::transmute::<&TransportPosition, *const j::jack_position_t>(pos),
-                )
+                j::jack_transport_reposition(ptr, &pos.0 as *const j::jack_position_t)
             }),
             (),
         )

@@ -37,7 +37,7 @@ pub struct AudioIn;
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AudioOut;
 
-unsafe impl<'a> PortSpec for AudioOut {
+unsafe impl PortSpec for AudioOut {
     fn jack_port_type(&self) -> &'static str {
         j::FLOAT_MONO_AUDIO
     }
