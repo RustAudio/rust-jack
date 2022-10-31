@@ -41,13 +41,23 @@ unsafe impl Sync for Client {}
 
 impl Client {
     /// Opens a JACK client with the given name and options. If the client is successfully opened,
-    /// then `Ok(client)` is returned. If there is a failure, then `Err(Error::ClientError(status))`
-    /// will be returned.
+    /// then `Ok(client)` is returned. If the JACK server returned an error, then
+    /// `Err(Error::ClientError(status))` will be returned. And if the `dynamic_loading` feature is
+    /// enabled and the JACK library could not be loaded, an `Err(Error::LibraryError(message))` is
+    /// returned.
     ///
     /// Although the client may be successful in opening, there still may be some errors minor
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+
+        // All of the jack_sys functions below assume the client library is loaded and will panic if
+        // it is not
+        #[cfg(feature = "dynamic_loading")]
+        if let Err(err) = jack_sys::library() {
+            return Err(Error::LibraryError(err.to_string()));
+        }
+
         unsafe {
             jack_sys::jack_set_error_function(Some(error_handler));
             jack_sys::jack_set_info_function(Some(info_handler));
