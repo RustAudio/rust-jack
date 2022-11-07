@@ -5,21 +5,31 @@ bitflags::bitflags! {
     }
 }
 
+const DYNAMIC_LINKING_GUARD: &str = "#[cfg(not(feature = \"dynamic_loading\"))]";
+
 fn main() {
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
-    match target_os.as_ref().map(|x| &**x) {
-        Ok("linux") => {
-            pkg_config::find_library("jack").unwrap();
-        }
-        _ => {
-            let _ = pkg_config::find_library("jack");
-        }
-    };
+    let library_found = pkg_config::find_library("jack");
+    if target_os.as_ref().map(|s| s.as_str()) == Ok("linux") {
+        library_found.unwrap();
+    }
     let dest_path = std::path::Path::new(&out_dir).join("functions.rs");
     let mut out = std::fs::File::create(&dest_path).unwrap();
-    wrap_in_module("dynamic_loading", write_dynamic_loading_src, &mut out).unwrap();
-    wrap_in_module("dynamic_linking", write_dynamic_linking_src, &mut out).unwrap();
+    wrap_in_module(
+        "dynamic_loading",
+        None,
+        write_dynamic_loading_src,
+        &mut out,
+    )
+    .unwrap();
+    wrap_in_module(
+        "dynamic_linking",
+        Some(DYNAMIC_LINKING_GUARD),
+        write_dynamic_linking_src,
+        &mut out,
+    )
+    .unwrap();
     println!("cargo:rerun-if-changed=build.rs");
 }
 
@@ -27,9 +37,13 @@ type WriterFn<W> = fn(&mut W) -> Result<(), std::io::Error>;
 
 fn wrap_in_module<W: std::io::Write>(
     module: &str,
+    feature_guard: Option<&str>,
     inner: WriterFn<W>,
     out: &mut W,
 ) -> Result<(), std::io::Error> {
+    if let Some(fg) = feature_guard {
+        writeln!(out, "{}", fg)?;
+    }
     writeln!(out, "pub mod {} {{", module)?;
     inner(out)?;
     writeln!(out, "}}")?;
