@@ -10,8 +10,6 @@ mod functions {
 }
 
 pub use consts::*;
-pub use functions::dynamic_linking;
-pub use functions::dynamic_loading;
 pub use types::*;
 
 #[cfg(not(feature = "dynamic_loading"))]
