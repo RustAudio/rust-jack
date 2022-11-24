@@ -5,8 +5,6 @@ bitflags::bitflags! {
     }
 }
 
-const DYNAMIC_LINKING_GUARD: &str = "#[cfg(not(feature = \"dynamic_loading\"))]";
-
 fn main() {
     let out_dir = std::env::var_os("OUT_DIR").unwrap();
     let target_os = std::env::var("CARGO_CFG_TARGET_OS");
@@ -18,14 +16,14 @@ fn main() {
     let mut out = std::fs::File::create(&dest_path).unwrap();
     wrap_in_module(
         "dynamic_loading",
-        None,
+        "#[cfg(feature = \"dynamic_loading\")]",
         write_dynamic_loading_src,
         &mut out,
     )
     .unwrap();
     wrap_in_module(
         "dynamic_linking",
-        Some(DYNAMIC_LINKING_GUARD),
+        "#[cfg(not(feature = \"dynamic_loading\"))]",
         write_dynamic_linking_src,
         &mut out,
     )
@@ -37,13 +35,11 @@ type WriterFn<W> = fn(&mut W) -> Result<(), std::io::Error>;
 
 fn wrap_in_module<W: std::io::Write>(
     module: &str,
-    feature_guard: Option<&str>,
+    feature_guard: &str,
     inner: WriterFn<W>,
     out: &mut W,
 ) -> Result<(), std::io::Error> {
-    if let Some(fg) = feature_guard {
-        writeln!(out, "{}", fg)?;
-    }
+    writeln!(out, "{}", feature_guard)?;
     writeln!(out, "pub mod {} {{", module)?;
     inner(out)?;
     writeln!(out, "}}")?;

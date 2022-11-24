@@ -12,9 +12,6 @@ mod functions {
 pub use consts::*;
 pub use types::*;
 
-/// A dynamic loaded version of the API.
-pub use functions::dynamic_loading;
-
 #[cfg(not(feature = "dynamic_loading"))]
 pub use functions::dynamic_linking::*;
 #[cfg(feature = "dynamic_loading")]
