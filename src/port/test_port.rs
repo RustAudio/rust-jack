@@ -178,11 +178,11 @@ fn port_debug_printing() {
     p.set_alias("this_port_alias").unwrap();
     let got = format!("{:?}", p);
     let parts = [
-        ("name", "\"port_has_debug_string:debug_info\""),
+        ("name", "Ok(\"port_has_debug_string:debug_info\")"),
         ("connections", "0"),
-        ("port_type", "\"32 bit float mono audio\""),
+        ("port_type", "Ok(\"32 bit float mono audio\")"),
         ("port_flags", "IS_INPUT"),
-        ("aliases", "[\"this_port_alias\"]"),
+        ("aliases", "[\"this_port_alias\""),
     ];
     for &(k, v) in parts.iter() {
         let p = format!("{}: {}", k, v);

@@ -445,7 +445,7 @@ impl Client {
             j::jack_port_request_monitor_by_name(
                 self.raw(),
                 port_name_cstr.as_ptr(),
-                if enable_monitor { 1 } else { 0 },
+                i32::from(enable_monitor),
             )
         };
         match res {

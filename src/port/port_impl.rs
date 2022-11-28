@@ -167,7 +167,7 @@ impl<PS> Port<PS> {
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = if enable_monitor { 1 } else { 0 };
+        let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
@@ -180,7 +180,7 @@ impl<PS> Port<PS> {
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = if enable_monitor { 1 } else { 0 };
+        let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
@@ -367,14 +367,12 @@ unsafe impl PortSpec for Unowned {
 impl<PS: PortSpec> Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.debug_struct("Port")
-            .field(
-                "name",
-                &self.name().unwrap_or_else(|e| format!("Error: {:?}", e)),
-            )
+            .field("name", &self.name())
             .field("connections", &self.connected_count().unwrap_or(0))
-            .field("port_type", &self.spec().jack_port_type())
-            .field("port_flags", &self.spec().jack_flags())
+            .field("port_type", &self.port_type())
+            .field("port_flags", &self.flags())
             .field("aliases", &self.aliases().unwrap_or_else(|_| Vec::new()))
+            .field("is_monitoring_input", &self.is_monitoring_input())
             .finish()
     }
 }

@@ -240,7 +240,7 @@ mod metadata {
                 if cnt > 0 {
                     let descriptions = descriptions.assume_init();
                     for des in std::slice::from_raw_parts_mut(descriptions, cnt as usize) {
-                        let uuid = (*des).subject;
+                        let uuid = (des).subject;
                         if let Some(dmap) = description_to_map_free(des) {
                             map.insert(uuid, dmap);
                         }
