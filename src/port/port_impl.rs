@@ -167,7 +167,7 @@ impl<PS> Port<PS> {
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = if enable_monitor { 1 } else { 0 };
+        let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
@@ -180,7 +180,7 @@ impl<PS> Port<PS> {
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
         self.check_client_life()?;
-        let onoff = if enable_monitor { 1 } else { 0 };
+        let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
             0 => Ok(()),
