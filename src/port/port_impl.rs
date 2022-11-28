@@ -367,14 +367,12 @@ unsafe impl PortSpec for Unowned {
 impl<PS: PortSpec> Debug for Port<PS> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.debug_struct("Port")
-            .field(
-                "name",
-                &self.name().unwrap_or_else(|e| format!("Error: {:?}", e)),
-            )
+            .field("name", &self.name())
             .field("connections", &self.connected_count().unwrap_or(0))
-            .field("port_type", &self.spec().jack_port_type())
+            .field("port_type", &self.port_type())
             .field("port_flags", &self.spec().jack_flags())
             .field("aliases", &self.aliases().unwrap_or_else(|_| Vec::new()))
+            .field("is_monitoring_input", &self.is_monitoring_input())
             .finish()
     }
 }
