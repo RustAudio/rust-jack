@@ -101,5 +101,6 @@ mod test {
         let initial_t = get_time();
         thread::sleep(time::Duration::from_millis(100));
         let later_t = get_time();
-       assert!(initial_t < later_t); 
+        assert!(initial_t < later_t);
+    }
 }
