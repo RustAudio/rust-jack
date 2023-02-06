@@ -183,6 +183,6 @@ fn port_debug_printing() {
     ];
     for &(k, v) in parts.iter() {
         let p = format!("{k}: {v}");
-        assert!(got.contains(&p), "Expected {got} to contain \"{}\".", p);
+        assert!(got.contains(&p));
     }
 }
