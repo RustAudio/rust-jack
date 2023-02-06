@@ -104,7 +104,7 @@ fn client_can_estimate_frame_times() {
 #[test]
 fn client_debug_printing() {
     let (c, _) = open_test_client("client_has_debug_string");
-    let got = format!("{:?}", c);
+    let got = format!("{c:?}");
     assert_ne!("", got);
 }
 
