@@ -51,10 +51,7 @@ impl jack::NotificationHandler for Notifications {
     }
 
     fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
-        println!(
-            "JACK: shutdown with status {:?} because \"{}\"",
-            status, reason
-        );
+        println!("JACK: shutdown with status {status:?} because \"{reason}\"",);
     }
 
     fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
@@ -65,7 +62,7 @@ impl jack::NotificationHandler for Notifications {
     }
 
     fn sample_rate(&mut self, _: &jack::Client, srate: jack::Frames) -> jack::Control {
-        println!("JACK: sample rate changed to {}", srate);
+        println!("JACK: sample rate changed to {srate}");
         jack::Control::Continue
     }
 
@@ -92,10 +89,7 @@ impl jack::NotificationHandler for Notifications {
         old_name: &str,
         new_name: &str,
     ) -> jack::Control {
-        println!(
-            "JACK: port with id {} renamed from {} to {}",
-            port_id, old_name, new_name
-        );
+        println!("JACK: port with id {port_id} renamed from {old_name} to {new_name}",);
         jack::Control::Continue
     }
 
