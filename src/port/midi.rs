@@ -204,8 +204,7 @@ impl<'a> MidiWriter<'a> {
     /// This function returns the current space available, taking into account events already stored
     /// in the port.
     pub fn max_event_size(&self) -> usize {
-        let n = unsafe { j::jack_midi_max_event_size(self.buffer) };
-        n as usize
+        unsafe { j::jack_midi_max_event_size(self.buffer) }
     }
 }
 
