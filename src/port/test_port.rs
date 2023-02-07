@@ -40,15 +40,12 @@ fn port_can_rename() {
 
     // initial port
     let (_c, mut p) = open_client_with_port(client_name, original_name);
-    assert_eq!(
-        p.name().unwrap(),
-        format!("{}:{}", client_name, original_name)
-    );
+    assert_eq!(p.name().unwrap(), format!("{client_name}:{original_name}"));
     assert_eq!(p.short_name().unwrap(), original_name);
 
     // renamed port
     p.set_name(new_name).unwrap();
-    assert_eq!(p.name().unwrap(), format!("{}:{}", client_name, new_name));
+    assert_eq!(p.name().unwrap(), format!("{client_name}:{new_name}"));
     assert_eq!(p.short_name().unwrap(), new_name);
 }
 
@@ -176,7 +173,7 @@ fn port_unowned_no_port_size() {
 fn port_debug_printing() {
     let (_c, mut p) = open_client_with_port("port_has_debug_string", "debug_info");
     p.set_alias("this_port_alias").unwrap();
-    let got = format!("{:?}", p);
+    let got = format!("{p:?}");
     let parts = [
         ("name", "Ok(\"port_has_debug_string:debug_info\")"),
         ("connections", "0"),
@@ -185,7 +182,7 @@ fn port_debug_printing() {
         ("aliases", "[\"this_port_alias\""),
     ];
     for &(k, v) in parts.iter() {
-        let p = format!("{}: {}", k, v);
-        assert!(got.contains(&p), "Expected {} to contain \"{}\".", got, p);
+        let p = format!("{k}: {v}");
+        assert!(got.contains(&p));
     }
 }

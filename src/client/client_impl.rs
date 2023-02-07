@@ -104,8 +104,7 @@ impl Client {
     /// clients as a percentage of the real time available per cycle determined by the buffer size
     /// and sample rate.
     pub fn cpu_load(&self) -> f32 {
-        let load = unsafe { j::jack_cpu_load(self.raw()) };
-        load as f32
+        unsafe { j::jack_cpu_load(self.raw()) }
     }
 
     /// Get the name of the current client. This may differ from the name requested by `Client::new`

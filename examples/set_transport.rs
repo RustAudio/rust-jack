@@ -78,7 +78,7 @@ fn main() {
                 );
             }
             c => {
-                println!("unknown command {}", c);
+                println!("unknown command {c}");
                 usage();
                 return;
             }

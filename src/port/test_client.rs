@@ -98,7 +98,7 @@ fn client_port_can_get_port_by_id() {
         .iter()
         .flat_map(|i| c.port_by_id(i))
         .map(|p| p.name().unwrap());
-    let port_name = format!("{}:{}", client_name, port_name);
+    let port_name = format!("{client_name}:{port_name}");
     assert!(registered_ports.any(|n| n == port_name));
 
     // Port that doesn't exist
@@ -373,7 +373,7 @@ fn client_port_can_get_port_by_name_pattern() {
 fn client_port_can_get_port_by_type_pattern() {
     let c_name = "client_port_cgpbtp";
     let p_name = "midip";
-    let full_name = format!("{}:{}", c_name, p_name);
+    let full_name = format!("{c_name}:{p_name}");
     let client = open_test_client(c_name);
 
     // register port with type name, like midi

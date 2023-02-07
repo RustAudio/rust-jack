@@ -137,10 +137,10 @@ impl RingBufferReader {
         let view2 = vec[1];
 
         let buf1 = view1.buf as *mut u8;
-        let len1 = view1.len as usize;
+        let len1 = view1.len;
 
         let mut buf2 = view2.buf as *mut u8;
-        let len2 = view2.len as usize;
+        let len2 = view2.len;
 
         if len2 == 0 {
             // buf2 can't be null even if length is zero, so just use buf1
@@ -162,8 +162,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) };
-        read as usize
+        unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) }
     }
 
     /// Read data from the ringbuffer. Opposed to read_buffer() this function does not move the read
@@ -179,8 +178,7 @@ impl RingBufferReader {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle, bufstart, insize) };
-        read as usize
+        unsafe { j::jack_ringbuffer_peek(self.ringbuffer_handle, bufstart, insize) }
     }
 
     /// Advance the read pointer. use this after peek/peek_iter or get_vector to advance the buffer
@@ -192,7 +190,7 @@ impl RingBufferReader {
 
     /// Return the number of bytes available for reading.
     pub fn space(&self) -> usize {
-        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle) as usize }
+        unsafe { j::jack_ringbuffer_read_space(self.ringbuffer_handle) }
     }
 
     /// Iterator that goes over all the data available to read.
@@ -245,8 +243,7 @@ impl RingBufferWriter {
         let insize: libc::size_t = buf.len() as libc::size_t;
         let bufstart = &buf[0] as *const _ as *const libc::c_char;
 
-        let read = unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle, bufstart, insize) };
-        read as usize
+        unsafe { j::jack_ringbuffer_write(self.ringbuffer_handle, bufstart, insize) }
     }
 
     /// Advance the write pointer. use this after peek_iter or get_vector to advance the buffer
@@ -258,7 +255,7 @@ impl RingBufferWriter {
 
     /// Return the number of bytes available for writing.
     pub fn space(&mut self) -> usize {
-        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle) as usize }
+        unsafe { j::jack_ringbuffer_write_space(self.ringbuffer_handle) }
     }
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
@@ -277,10 +274,10 @@ impl RingBufferWriter {
         let view2 = vec[1];
 
         let buf1 = view1.buf as *mut u8;
-        let len1 = view1.len as usize;
+        let len1 = view1.len;
 
         let mut buf2 = view2.buf as *mut u8;
-        let len2 = view2.len as usize;
+        let len2 = view2.len;
 
         if len2 == 0 {
             // buf2 can't be null even if length is zero, so just use buf1
