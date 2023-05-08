@@ -1,10 +1,14 @@
-# Rust JACK
+#+TITLE: JACK
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://github.com/RustAudio/rust-jack/workflows/Rust/badge.svg)](https://github.com/RustAudio/rust-jack/actions)
+| [[https://opensource.org/licenses/MIT][https://img.shields.io/badge/License-MIT-yellow.svg]] |
+| [[https://github.com/RustAudio/rust-jack/actions][https://github.com/RustAudio/rust-jack/workflows/Rust/badge.svg]] |
+| [[https://crates.io/crates/jack][https://img.shields.io/crates/v/jack.svg]] |
+| [[https://docs.rs/jack][https://docs.rs/jack/badge.svg]] |
 
-[![crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
-[![docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
+** Overview
+:PROPERTIES:
+:CUSTOM_ID: Overview-9s7h6d81ktj0
+:END:
 
 Rust bindings for the [JACK Audio Connection Kit](https://jackaudio.org). These bindings work on every
 operating system that JACK does.
@@ -24,28 +28,34 @@ manager.
 [:heart: Sponsor](https://github.com/sponsors/wmedrano)
 
 Refer to the [documentation](https://docs.rs/jack/) for details about the API, building, and packaging.
-Also take a look at the `examples` directory for usage.
+Also take a look at the =examples= directory for usage.
 
-## Testing
+** Testing
+:PROPERTIES:
+:CUSTOM_ID: Testing-7y451e81ktj0
+:END:
 
 Testing requires setting up a dummy server and running the tests using a single
 thread.
 
-```bash
+#+BEGIN_SRC sh
 # Set up a dummy server for tests. The script is included in this repository.
 ./dummy_jack_server.sh &
 # Run tests with limited concurrency.
 RUST_TEST_THREADS=1 cargo test
-```
+#+END_SRC
 
 **Note:** We use a single thread for tests since too many client
 instantiations in short periods of time cause the JACK server to become flaky.
 
-### Possible Issues
+*** Possible Issues
+:PROPERTIES:
+:CUSTOM_ID: TestingPossibleIssues-8u551e81ktj0
+:END:
 
 If the tests are failing, a possible gotcha may be timing issues.
 
-1. Increase the value used by `sleep_on_test` in `client/common.rs`.
+1. Increase the value used by ~sleep_on_test~ in =client/common.rs=.
 
 Another case is that libjack may be broken on your setup. Try switching between
 libjack and libjack2 (they have the same API and libjack2 isn't necessarily

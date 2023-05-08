@@ -36,11 +36,11 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 /// Specify an option, either to continue processing, or to stop.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Control {
     /// Continue processing.
+    #[default]
     Continue,
-
     /// Stop processing.
     Quit,
 }
@@ -51,12 +51,6 @@ impl Control {
             Control::Continue => 0,
             Control::Quit => -1,
         }
-    }
-}
-
-impl Default for Control {
-    fn default() -> Self {
-        Control::Continue
     }
 }
 
