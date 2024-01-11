@@ -63,8 +63,8 @@ impl Client {
         }
 
         unsafe {
-            jack_sys::jack_set_error_function(Some(silent_handler));
-            jack_sys::jack_set_info_function(Some(silent_handler));
+            jack_sys::jack_set_error_function(Some(error_handler));
+            jack_sys::jack_set_info_function(Some(info_handler));
         }
         sleep_on_test();
         let mut status_bits = 0;
@@ -89,11 +89,6 @@ impl Client {
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            unsafe {
-                jack_sys::jack_set_error_function(Some(error_handler));
-                jack_sys::jack_set_info_function(Some(info_handler));
-            }
-            sleep_on_test();
             Ok((Client(client, Arc::default(), None), status))
         }
     }
@@ -808,8 +803,4 @@ unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
         Ok(msg) => log::info!("{}", msg),
         Err(err) => log::error!("failed to parse JACK error: {:?}", err),
     }
-}
-
-unsafe extern "C" fn silent_handler(_msg: *const libc::c_char) {
-    //silent
 }
