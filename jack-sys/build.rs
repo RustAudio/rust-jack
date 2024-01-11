@@ -128,17 +128,12 @@ fn write_dynamic_loading_src<W: std::io::Write>(out: &mut W) -> Result<(), std::
                 f.type_name()
             )?;
         } else {
-            let mut f_name = f.name;
-            if f_name == "jack_client_open_with_server_name" {
-                f_name = "jack_client_open";
-            }
-
             writeln!(out,
                 "        let {}_impl = library.get::<unsafe extern \"C\" fn({}) -> {}>(b\"{}\").unwrap();",
                 f.name,
                 f.args_full(false),
                 f.ret,
-                f_name,
+                f.name,
             )?;
             writeln!(
                 out,
@@ -363,17 +358,6 @@ const FUNCTIONS: &[Function] = &[
             ("status", "*mut jack_status_t"),
             // Varargs not supported
             // ("", "..."),
-        ],
-        ret: "*mut jack_client_t",
-        flags: FunctionFlags::NONE,
-    },
-    Function {
-        name: "jack_client_open_with_server_name",
-        args: &[
-            ("client_name", "*const ::libc::c_char"),
-            ("options", "jack_options_t"),
-            ("status", "*mut jack_status_t"),
-            ("server_name", "*const ::libc::c_char"),
         ],
         ret: "*mut jack_client_t",
         flags: FunctionFlags::NONE,

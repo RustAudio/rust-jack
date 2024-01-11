@@ -14,7 +14,8 @@ bitflags! {
         const USE_EXACT_NAME  = j::JackUseExactName;
 
         /// Open with optional `server_name` parameter.
-        /// Use Client::new_with_server_name
+        ///
+        /// TODO: implement
         const SERVER_NAME     = j::JackServerName;
 
         /// Load internal client from optional `load_name`, otherwise use the `client_name`.
