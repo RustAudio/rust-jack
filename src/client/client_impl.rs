@@ -659,7 +659,6 @@ impl Client {
 impl Drop for Client {
     fn drop(&mut self) {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();

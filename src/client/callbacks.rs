@@ -75,7 +75,7 @@ pub trait NotificationHandler: Send {
 pub trait ProcessHandler: Send {
     /// Indicates whether or not this process handler represents a
     /// slow-sync client
-    const SLOW_SYNC:bool = false;
+    const SLOW_SYNC: bool = false;
 
     /// Called whenever there is work to be done.
     ///
@@ -108,11 +108,12 @@ pub trait ProcessHandler: Send {
     /// It should return `false` until the handler is ready process audio.
     ///
     /// Ignored unless Self::SLOW_SYNC == true.
-    fn sync(&mut self,
-            _: &Client,
-            _state: crate::TransportState,
-            _pos: &crate::TransportPosition
-    )->bool {
+    fn sync(
+        &mut self,
+        _: &Client,
+        _state: crate::TransportState,
+        _pos: &crate::TransportPosition,
+    ) -> bool {
         true
     }
 }
@@ -156,7 +157,7 @@ where
 unsafe extern "C" fn sync<N, P>(
     state: jack_sys::jack_transport_state_t,
     pos: *mut jack_sys::jack_position_t,
-    data: *mut libc::c_void
+    data: *mut libc::c_void,
 ) -> libc::c_int
 where
     N: 'static + Send + Sync + NotificationHandler,
@@ -166,10 +167,10 @@ where
     match ctx.process.sync(
         &ctx.client,
         crate::Transport::state_from_ffi(state),
-        &*(pos as *mut crate::TransportPosition)
+        &*(pos as *mut crate::TransportPosition),
     ) {
         true => 1,
-        false => 0
+        false => 0,
     }
 }
 
@@ -295,9 +296,11 @@ where
 /// # TODO
 ///
 /// * Implement correctly. Freezes on my system.
-pub unsafe fn clear_callbacks(_client: *mut j::jack_client_t) -> Result<(), Error> {
-    // j::jack_set_thread_init_callback(client, None, ptr::null_mut());
-    // j::jack_set_process_callback(client, None, ptr::null_mut());
+
+//maybe this makes sense now? it doesn't disturb my program
+pub unsafe fn clear_callbacks(client: *mut j::jack_client_t) -> Result<(), Error> {
+    j::jack_set_thread_init_callback(client, None, std::ptr::null_mut());
+    j::jack_set_process_callback(client, None, std::ptr::null_mut());
     Ok(())
 }
 
