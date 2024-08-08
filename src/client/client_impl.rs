@@ -30,6 +30,7 @@ use crate::{
 
 pub type InternalClientID = j::jack_intclient_t;
 
+#[allow(dead_code)]
 pub struct Client(
     *mut j::jack_client_t,
     Arc<()>,

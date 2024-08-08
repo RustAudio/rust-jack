@@ -1,5 +1,5 @@
-///! JACK transport wrappers.
-///! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
+//! JACK transport wrappers.
+//! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
 use crate::{Frames, Time};
 use jack_sys as j;
 use std::sync::Weak;
