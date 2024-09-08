@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types)]
 #[cfg(not(target_os = "windows"))]
 pub type jack_native_thread_t = ::libc::pthread_t;
 pub type jack_uuid_t = u64;

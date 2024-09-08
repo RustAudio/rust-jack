@@ -107,10 +107,10 @@ mod test {
     #[test]
     fn port_audio_can_read_write() {
         let c = open_test_client("port_audio_crw");
-        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
-        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
-        let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
-        let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
+        let in_a = c.register_port("ia", AudioIn).unwrap();
+        let in_b = c.register_port("ib", AudioIn).unwrap();
+        let mut out_a = c.register_port("oa", AudioOut).unwrap();
+        let mut out_b = c.register_port("ob", AudioOut).unwrap();
         let (signal_succeed, did_succeed) = bounded(1_000);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.312_443;

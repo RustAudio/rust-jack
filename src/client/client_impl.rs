@@ -30,6 +30,7 @@ use crate::{
 
 pub type InternalClientID = j::jack_intclient_t;
 
+#[allow(dead_code)]
 pub struct Client(
     *mut j::jack_client_t,
     Arc<()>,
@@ -659,7 +660,6 @@ impl Client {
 impl Drop for Client {
     fn drop(&mut self) {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();

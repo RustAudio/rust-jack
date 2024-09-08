@@ -13,7 +13,7 @@ fn open_test_client(name: &str) -> Client {
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioIn>) {
     let c = open_test_client(client);
-    let p = c.register_port(port, AudioIn::default()).unwrap();
+    let p = c.register_port(port, AudioIn).unwrap();
     (c, p)
 }
 
@@ -52,10 +52,10 @@ fn port_can_rename() {
 #[test]
 fn port_connected_count() {
     let c = open_test_client("port_connected_count");
-    let pa = c.register_port("pa", AudioIn::default()).unwrap();
-    let pb = c.register_port("pb", AudioOut::default()).unwrap();
-    let pc = c.register_port("pc", AudioOut::default()).unwrap();
-    let pd = c.register_port("pd", AudioOut::default()).unwrap();
+    let pa = c.register_port("pa", AudioIn).unwrap();
+    let pb = c.register_port("pb", AudioOut).unwrap();
+    let pc = c.register_port("pc", AudioOut).unwrap();
+    let pd = c.register_port("pd", AudioOut).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
@@ -68,10 +68,10 @@ fn port_connected_count() {
 #[test]
 fn port_knows_connections() {
     let c = open_test_client("port_knows_connections");
-    let pa = c.register_port("pa", AudioIn::default()).unwrap();
-    let pb = c.register_port("pb", AudioOut::default()).unwrap();
-    let pc = c.register_port("pc", AudioOut::default()).unwrap();
-    let pd = c.register_port("pd", AudioOut::default()).unwrap();
+    let pa = c.register_port("pa", AudioIn).unwrap();
+    let pb = c.register_port("pb", AudioOut).unwrap();
+    let pc = c.register_port("pc", AudioOut).unwrap();
+    let pd = c.register_port("pd", AudioOut).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
@@ -155,18 +155,18 @@ fn port_can_unset_alias() {
 
 #[test]
 fn port_unowned_no_port_type() {
-    assert_eq!("", Unowned::default().jack_port_type());
+    assert_eq!("", Unowned.jack_port_type());
 }
 
 #[test]
 fn port_unowned_no_port_flags() {
-    assert_eq!(PortFlags::empty(), Unowned::default().jack_flags());
+    assert_eq!(PortFlags::empty(), Unowned.jack_flags());
 }
 
 #[test]
 #[should_panic]
 fn port_unowned_no_port_size() {
-    Unowned::default().jack_buffer_size();
+    Unowned.jack_buffer_size();
 }
 
 #[test]

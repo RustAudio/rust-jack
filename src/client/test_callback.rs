@@ -201,14 +201,8 @@ fn client_cback_reports_xruns() {
 #[test]
 fn client_cback_calls_port_registered() {
     let ac = active_test_client("client_cback_cpr");
-    let _pa = ac
-        .as_client()
-        .register_port("pa", AudioIn::default())
-        .unwrap();
-    let _pb = ac
-        .as_client()
-        .register_port("pb", AudioIn::default())
-        .unwrap();
+    let _pa = ac.as_client().register_port("pa", AudioIn).unwrap();
+    let _pb = ac.as_client().register_port("pb", AudioIn).unwrap();
     let counter = ac.deactivate().unwrap().1;
     assert_eq!(
         counter.port_register_history.len(),
@@ -224,14 +218,8 @@ fn client_cback_calls_port_registered() {
 #[test]
 fn client_cback_calls_port_unregistered() {
     let ac = active_test_client("client_cback_cpr");
-    let pa = ac
-        .as_client()
-        .register_port("pa", AudioIn::default())
-        .unwrap();
-    let pb = ac
-        .as_client()
-        .register_port("pb", AudioIn::default())
-        .unwrap();
+    let pa = ac.as_client().register_port("pa", AudioIn).unwrap();
+    let pb = ac.as_client().register_port("pb", AudioIn).unwrap();
     ac.as_client().unregister_port(pa).unwrap();
     ac.as_client().unregister_port(pb).unwrap();
     let counter = ac.deactivate().unwrap().1;

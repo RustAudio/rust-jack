@@ -275,8 +275,8 @@ mod test {
                 stream,
                 collected: Vec::new(),
                 collector,
-                midi_in: client.register_port("in", MidiIn::default()).unwrap(),
-                midi_out: client.register_port("out", MidiOut::default()).unwrap(),
+                midi_in: client.register_port("in", MidiIn).unwrap(),
+                midi_out: client.register_port("out", MidiOut).unwrap(),
             }
         }
 
@@ -307,10 +307,10 @@ mod test {
     fn port_midi_can_read_write() {
         // open clients and ports
         let c = open_test_client("port_midi_crw");
-        let in_a = c.register_port("ia", MidiIn::default()).unwrap();
-        let in_b = c.register_port("ib", MidiIn::default()).unwrap();
-        let mut out_a = c.register_port("oa", MidiOut::default()).unwrap();
-        let mut out_b = c.register_port("ob", MidiOut::default()).unwrap();
+        let in_a = c.register_port("ia", MidiIn).unwrap();
+        let in_b = c.register_port("ib", MidiIn).unwrap();
+        let mut out_a = c.register_port("oa", MidiOut).unwrap();
+        let mut out_b = c.register_port("ob", MidiOut).unwrap();
 
         // set callback routine
         let (signal_succeed, did_succeed) = bounded(1_000);
@@ -366,7 +366,7 @@ mod test {
     fn port_midi_can_get_max_event_size() {
         // open clients and ports
         let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+        let mut out_p = c.register_port("op", MidiOut).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
@@ -393,7 +393,7 @@ mod test {
     fn port_midi_cant_exceed_max_event_size() {
         // open clients and ports
         let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+        let mut out_p = c.register_port("op", MidiOut).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
@@ -437,8 +437,8 @@ mod test {
     fn port_midi_iter() {
         // open clients and ports
         let c = open_test_client("port_midi_iter");
-        let in_p = c.register_port("ip", MidiIn::default()).unwrap();
-        let mut out_p = c.register_port("op", MidiOut::default()).unwrap();
+        let in_p = c.register_port("ip", MidiIn).unwrap();
+        let mut out_p = c.register_port("op", MidiOut).unwrap();
 
         // set callback routine
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
