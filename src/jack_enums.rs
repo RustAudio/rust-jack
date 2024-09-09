@@ -24,7 +24,7 @@ pub enum Error {
     WeakFunctionNotFound(&'static str),
     ClientIsNoLongerAlive,
     RingbufferCreateFailed,
-    UnknownError,
+    UnknownError { error_code: libc::c_int },
 }
 
 impl std::fmt::Display for Error {

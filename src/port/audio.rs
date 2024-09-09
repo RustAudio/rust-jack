@@ -95,8 +95,6 @@ impl Port<AudioOut> {
 
 #[cfg(test)]
 mod test {
-    use crossbeam_channel::bounded;
-
     use super::*;
     use crate::{Client, ClientOptions, ClosureProcessHandler, Control};
 
@@ -111,7 +109,7 @@ mod test {
         let in_b = c.register_port("ib", AudioIn).unwrap();
         let mut out_a = c.register_port("oa", AudioOut).unwrap();
         let mut out_b = c.register_port("ob", AudioOut).unwrap();
-        let (signal_succeed, did_succeed) = bounded(1_000);
+        let (success_sender, success_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.312_443;
             let exp_b = -0.612_120;
@@ -128,8 +126,7 @@ mod test {
             if in_a.iter().all(|v| (*v - exp_a).abs() < 1E-5)
                 && in_b.iter().all(|v| (*v - exp_b).abs() < 1E-5)
             {
-                let s = signal_succeed.clone();
-                let _ = s.send(true);
+                let _ = success_sender.send(true);
             }
             Control::Continue
         };
@@ -142,9 +139,11 @@ mod test {
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
             .unwrap();
-        assert!(
-            did_succeed.iter().any(|b| b),
-            "input port does not have expected data"
+        assert_eq!(
+            success_receiver
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .unwrap(),
+            true
         );
         ac.deactivate().unwrap();
     }

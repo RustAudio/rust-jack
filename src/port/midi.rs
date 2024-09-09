@@ -184,9 +184,10 @@ impl<'a> MidiWriter<'a> {
             buffer: message.bytes.as_ptr() as *mut u8,
         };
         let res = unsafe { j::jack_midi_event_write(self.buffer, ev.time, ev.buffer, ev.size) };
-        match res {
+        match -res {
             0 => Ok(()),
-            _ => Err(Error::NotEnoughSpace),
+            libc::ENOBUFS => Err(Error::NotEnoughSpace),
+            error_code => Err(Error::UnknownError { error_code }),
         }
     }
 
@@ -217,7 +218,6 @@ mod test {
     use crate::jack_enums::Control;
     use crate::primitive_types::Frames;
     use crate::ClientOptions;
-    use crossbeam_channel::bounded;
     use lazy_static::lazy_static;
     use std::iter::Iterator;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -313,22 +313,20 @@ mod test {
         let mut out_b = c.register_port("ob", MidiOut).unwrap();
 
         // set callback routine
-        let (signal_succeed, did_succeed) = bounded(1_000);
+        let (signal_succeed, did_succeed) = std::sync::mpsc::sync_channel(1_000);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = RawMidi {
                 time: 0,
                 bytes: &[0b1001_0000, 0b0100_0000],
             };
             let exp_b = RawMidi {
-                time: 64,
+                time: ps.n_frames() - 1,
                 bytes: &[0b1000_0000, 0b0100_0000],
             };
-            let in_a = in_a.iter(ps);
-            let in_b = in_b.iter(ps);
-            let mut out_a = out_a.writer(ps);
-            let mut out_b = out_b.writer(ps);
-            out_a.write(&exp_a).unwrap();
-            out_b.write(&exp_b).unwrap();
+            let (in_a, in_b) = (in_a.iter(ps), in_b.iter(ps));
+            let (mut out_a, mut out_b) = (out_a.writer(ps), out_b.writer(ps));
+            _ = out_a.write(&exp_a);
+            _ = out_b.write(&exp_b);
             if in_a.clone().next().is_some()
                 && in_a.clone().all(|m| m == exp_a)
                 && in_b.clone().all(|m| m == exp_b)
@@ -352,11 +350,9 @@ mod test {
             .unwrap();
 
         // check correctness
-        thread::sleep(time::Duration::from_millis(400));
-        assert!(
-            did_succeed.iter().any(|b| b),
-            "input port does not have expected data"
-        );
+        assert!(did_succeed
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap(),);
         ac.deactivate().unwrap();
     }
 

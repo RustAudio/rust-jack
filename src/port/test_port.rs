@@ -52,10 +52,10 @@ fn port_can_rename() {
 #[test]
 fn port_connected_count() {
     let c = open_test_client("port_connected_count");
-    let pa = c.register_port("pa", AudioIn).unwrap();
-    let pb = c.register_port("pb", AudioOut).unwrap();
-    let pc = c.register_port("pc", AudioOut).unwrap();
-    let pd = c.register_port("pd", AudioOut).unwrap();
+    let pa = c.register_port("port_connected_count_a", AudioIn).unwrap();
+    let pb = c.register_port("port_connected_count_b", AudioOut).unwrap();
+    let pc = c.register_port("port_connected_count_c", AudioOut).unwrap();
+    let pd = c.register_port("port_connected_count_d", AudioOut).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();

@@ -100,7 +100,7 @@ impl Transport {
     ///
     /// * Any client can make this request at any time.
     /// * It takes effect no sooner than the next process cycle, perhaps later if there are
-    /// slow-sync clients.
+    ///   slow-sync clients.
     /// * This function is realtime-safe.
     pub fn start(&self) -> Result<()> {
         self.with_client(|ptr| unsafe {
@@ -161,7 +161,7 @@ impl Transport {
         )
     }
 
-    //helper to convert to TransportState
+    // Helper to convert to TransportState
     pub(crate) fn state_from_ffi(state: j::jack_transport_state_t) -> TransportState {
         match state {
             j::JackTransportStopped => TransportState::Stopped,
@@ -171,11 +171,11 @@ impl Transport {
         }
     }
 
-    //helper to create generic error from jack response
+    // Helper to create generic error from jack response
     fn result_from_ffi<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
         match v {
             Ok(0) => Ok(r),
-            Ok(_) => Err(crate::Error::UnknownError),
+            Ok(error_code) => Err(crate::Error::UnknownError { error_code }),
             Err(e) => Err(e),
         }
     }
@@ -264,7 +264,7 @@ impl TransportPosition {
     ///
     /// # Remarks
     /// * This is only set by the server so it will be `None` if this struct hasn't come from the
-    /// sever.
+    ///   server.
     pub fn frame_rate(&self) -> Option<Frames> {
         if self.0.frame_rate > 0 {
             Some(self.0.frame_rate)
@@ -277,10 +277,10 @@ impl TransportPosition {
     ///
     /// # Remarks
     /// * This is only set by the server so it will be `None` if this struct hasn't come from the
-    /// sever.
+    ///   server.
     /// * Guaranteed to be monotonic, but not necessarily linear.
     /// * The absolute value is implementation-dependent (i.e. it could be wall-clock, time since
-    /// jack started, uptime, etc).
+    ///   jack started, uptime, etc).
     pub fn usecs(&self) -> Option<Time> {
         // NOTE could it actually be 0 and come from the server?
         if self.0.usecs > 0 {
