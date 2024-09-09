@@ -140,11 +140,8 @@ mod test {
         ac.as_client()
             .connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
             .unwrap();
-        assert_eq!(
-            success_receiver
-                .recv_timeout(std::time::Duration::from_secs(2))
-                .unwrap(),
-            true
-        );
+        assert!(success_receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap(),);
     }
 }
