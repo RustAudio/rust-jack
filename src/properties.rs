@@ -1,5 +1,7 @@
 //! Properties, AKA [Meta Data](https://jackaudio.org/api/group__Metadata.html)
 //!
+use std::panic::catch_unwind;
+
 use j::jack_uuid_t as uuid;
 use jack_sys as j;
 
@@ -30,15 +32,21 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
 ) where
     P: PropertyChangeHandler,
 {
-    let h: &mut P = &mut *(arg as *mut P);
-    let key_c = std::ffi::CStr::from_ptr(key);
-    let key = key_c.to_str().expect("to convert key to valid str");
-    let c = match change {
-        j::PropertyCreated => PropertyChange::Created { subject, key },
-        j::PropertyDeleted => PropertyChange::Deleted { subject, key },
-        _ => PropertyChange::Changed { subject, key },
-    };
-    h.property_changed(&c);
+    let res = catch_unwind(|| {
+        let h: &mut P = &mut *(arg as *mut P);
+        let key_c = std::ffi::CStr::from_ptr(key);
+        let key = key_c.to_str().expect("to convert key to valid str");
+        let c = match change {
+            j::PropertyCreated => PropertyChange::Created { subject, key },
+            j::PropertyDeleted => PropertyChange::Deleted { subject, key },
+            _ => PropertyChange::Changed { subject, key },
+        };
+        h.property_changed(&c);
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err);
+    }
 }
 
 #[cfg(feature = "metadata")]
