@@ -97,6 +97,17 @@ impl Client {
         AsyncClient::new(self, notification_handler, process_handler)
     }
 
+    /// Return JACK's current system time in microseconds, using the JACK clock
+    /// source.
+    ///
+    /// Note: Although attached a `Client` method, this should use the same time clock as all
+    /// clients.
+    pub fn time(&self) -> Time {
+        // Despite not needing a ptr to the client, this function often segfaults if a client has
+        // not been initialized.
+        unsafe { jack_sys::jack_get_time() }
+    }
+
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     pub fn sample_rate(&self) -> usize {
@@ -642,15 +653,14 @@ impl Client {
         let handler = Box::into_raw(Box::new(handler));
         unsafe {
             self.2 = Some(Box::from_raw(handler));
-            if j::jack_set_property_change_callback(
+            let res = j::jack_set_property_change_callback(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
-                std::mem::transmute::<_, _>(handler),
-            ) == 0
-            {
-                Ok(())
-            } else {
-                Err(Error::UnknownError)
+                std::mem::transmute::<*mut H, *mut libc::c_void>(handler),
+            );
+            match res {
+                0 => Ok(()),
+                error_code => Err(Error::UnknownError { error_code }),
             }
         }
     }

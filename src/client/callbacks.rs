@@ -149,9 +149,18 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let ctx = CallbackContext::<N, P>::from_raw(data);
-    let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
-    ctx.process.process(&ctx.client, &scope).to_ffi()
+    let res = std::panic::catch_unwind(|| {
+        let ctx = CallbackContext::<N, P>::from_raw(data);
+        let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
+        ctx.process.process(&ctx.client, &scope)
+    });
+    match res {
+        Ok(res) => res.to_ffi(),
+        Err(err) => {
+            eprintln!("{err:?}");
+            Control::Quit.to_ffi()
+        }
+    }
 }
 
 unsafe extern "C" fn sync<N, P>(

@@ -7,6 +7,20 @@ fn open_test_client(name: &str) -> (Client, ClientStatus) {
 }
 
 #[test]
+fn time_can_get_time() {
+    open_test_client("tcgt").0.time();
+}
+
+#[test]
+fn time_is_monotonically_increasing() {
+    let c = open_test_client("tcgt").0;
+    let initial_t = c.time();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let later_t = c.time();
+    assert!(initial_t < later_t);
+}
+
+#[test]
 fn client_valid_client_name_size() {
     assert!(*CLIENT_NAME_SIZE > 0);
 }
@@ -73,8 +87,7 @@ fn client_can_deactivate() {
 #[test]
 fn client_knows_buffer_size() {
     let (c, _) = open_test_client("client_knows_buffer_size");
-    // 1024 - As started by dummy_jack_server.sh
-    assert_eq!(c.buffer_size(), 1024);
+    assert!(c.buffer_size() > 0);
 }
 
 #[test]

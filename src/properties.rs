@@ -48,7 +48,12 @@ pub use metadata::*;
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
-    use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
+    use std::{
+        collections::HashMap,
+        ffi,
+        mem::MaybeUninit,
+        ptr::{self, NonNull},
+    };
 
     use crate::Client;
 
@@ -61,7 +66,9 @@ mod metadata {
     }
 
     /// A piece of Metadata on a Jack `subject`: either a port or a client.
-    /// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
+    ///
+    /// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and
+    /// [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Property {
         value: String,
@@ -99,12 +106,11 @@ mod metadata {
         }
     }
 
-    //helper to map 0 return to Ok
+    // Helper to map 0 return to Ok
     fn map_error<F: FnOnce() -> ::libc::c_int>(func: F) -> Result<(), Error> {
-        if func() == 0 {
-            Ok(())
-        } else {
-            Err(Error::UnknownError)
+        match func() {
+            0 => Ok(()),
+            error_code => Err(Error::UnknownError { error_code }),
         }
     }
 
@@ -112,12 +118,15 @@ mod metadata {
     unsafe fn description_to_map_free(
         description: *mut j::jack_description_t,
     ) -> Option<PropertyMap> {
-        if description.is_null() {
-            None
-        } else {
-            let des = &*description;
-            let mut properties = HashMap::new();
-            for prop in std::slice::from_raw_parts(des.properties, des.property_cnt as usize) {
+        let description = NonNull::new(description)?;
+        let mut properties = HashMap::new();
+        let len = description.as_ref().property_cnt;
+        // The check is required as from_raw_parts doesn't like receiving a null ptr, even if the
+        // length is 0.
+        if len > 0 {
+            let properties_slice =
+                std::slice::from_raw_parts(description.as_ref().properties, len as usize);
+            for prop in properties_slice {
                 let typ = if prop._type.is_null() {
                     None
                 } else {
@@ -141,9 +150,9 @@ mod metadata {
                     ),
                 );
             }
-            j::jack_free_description(description, 0);
-            Some(properties)
         }
+        j::jack_free_description(description.as_ptr(), 0);
+        Some(properties)
     }
 
     impl Property {
@@ -307,7 +316,7 @@ mod metadata {
         pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
             unsafe {
                 if j::jack_remove_properties(self.raw(), subject) == -1 {
-                    Err(Error::UnknownError)
+                    Err(Error::UnknownError { error_code: -1 })
                 } else {
                     Ok(())
                 }
@@ -418,10 +427,10 @@ mod metadata {
             assert_eq!(None, c1.property_get(c1.uuid(), "mutant"));
 
             //second time, error
-            assert_eq!(
-                Err(Error::UnknownError),
-                c2.property_remove(c1.uuid(), "mutant")
-            );
+            assert!(matches!(
+                c2.property_remove(c1.uuid(), "mutant"),
+                Err(Error::UnknownError { .. })
+            ));
 
             assert_eq!(Some(prop1), c2.property_get(c2.uuid(), "blah"));
             assert_eq!(Some(prop2), c2.property_get(c2.uuid(), "mutant"));
