@@ -131,7 +131,10 @@ fn client_cback_calls_buffer_size() {
     let initial = ac.as_client().buffer_size();
     let second = initial / 2;
     let third = second / 2;
-    ac.as_client().set_buffer_size(second).unwrap();
+    if let Err(crate::Error::SetBufferSizeError) = ac.as_client().set_buffer_size(second) {
+        eprintln!("Client does not support setting buffer size");
+        return;
+    }
     ac.as_client().set_buffer_size(third).unwrap();
     ac.as_client().set_buffer_size(initial).unwrap();
     let counter = ac.deactivate().unwrap().2;
@@ -149,7 +152,10 @@ fn client_cback_calls_buffer_size_on_process_thread() {
     let ac = active_test_client("cback_buffer_size_process_thr");
     let initial = ac.as_client().buffer_size();
     let second = initial / 2;
-    ac.as_client().set_buffer_size(second).unwrap();
+    if let Err(crate::Error::SetBufferSizeError) = ac.as_client().set_buffer_size(second) {
+        eprintln!("Client does not support setting buffer size");
+        return;
+    }
     let counter = ac.deactivate().unwrap().2;
     let process_thread = counter.process_thread.unwrap();
     assert_eq!(counter.buffer_size_thread_history.len(), 2);

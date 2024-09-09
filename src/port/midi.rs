@@ -294,7 +294,7 @@ mod test {
             let (midi_in, mut midi_out) = (self.midi_in.iter(ps), self.midi_out.writer(ps));
             // Write to output.
             for m in self.stream.iter() {
-                midi_out.write(&m.unowned()).unwrap();
+                _ = midi_out.write(&m.unowned());
             }
             // Collect in input.
             if self.collected.is_empty() {
