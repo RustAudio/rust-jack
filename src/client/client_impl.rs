@@ -1,5 +1,6 @@
 use jack_sys as j;
 use std::fmt::Debug;
+use std::panic::catch_unwind;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
@@ -791,19 +792,25 @@ pub struct CycleTimes {
 }
 
 unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
+    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => log::error!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
+        Err(err) => log::error!("failed to log to JACK error: {:?}", err),
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err);
     }
 }
 
 unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
+    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => log::info!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
+        Err(err) => log::error!("failed to log to JACK info: {:?}", err),
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err);
     }
 }
 
-unsafe extern "C" fn silent_handler(_msg: *const libc::c_char) {
-    //silent
-}
+unsafe extern "C" fn silent_handler(_msg: *const libc::c_char) {}

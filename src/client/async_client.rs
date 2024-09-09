@@ -2,6 +2,7 @@ use jack_sys as j;
 use std::fmt;
 use std::fmt::Debug;
 use std::mem;
+use std::sync::atomic::AtomicBool;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
@@ -58,6 +59,7 @@ where
                 client,
                 notification: notification_handler,
                 process: process_handler,
+                is_valid: AtomicBool::new(true),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             sleep_on_test();
