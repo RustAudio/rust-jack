@@ -20,11 +20,13 @@ jobs:
       # take a while to initialize.
       - name: Start dummy JACK server
         run: jackd -r -ddummy -r44100 -p1024 &
+      - name: Install Cargo Nextest
+        uses: taiki-e/install-action@nextest
       - name: Build (No Features)
         run: cargo build --verbose --no-default-features
       - name: Build (metadata)
         run: cargo build --verbose --no-default-features --features metadata
       - name: Run Tests
-        run: cargo test --verbose --all-features
+        run: cargo nextest run --all-features --test-threads 1
         env:
           RUST_TEST_THREADS: 1

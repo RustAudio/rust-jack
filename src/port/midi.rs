@@ -314,7 +314,7 @@ mod test {
         let mut out_b = c.register_port("ob", MidiOut).unwrap();
 
         // set callback routine
-        let (signal_succeed, did_succeed) = std::sync::mpsc::sync_channel(1_000);
+        let (signal_succeed, did_succeed) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = RawMidi {
                 time: 0,
@@ -332,7 +332,7 @@ mod test {
                 && in_a.clone().all(|m| m == exp_a)
                 && in_b.clone().all(|m| m == exp_b)
             {
-                signal_succeed.send(true).unwrap();
+                _ = signal_succeed.try_send(true);
             }
             Control::Continue
         };
@@ -353,7 +353,7 @@ mod test {
         // check correctness
         assert!(did_succeed
             .recv_timeout(std::time::Duration::from_secs(1))
-            .unwrap(),);
+            .unwrap());
         ac.deactivate().unwrap();
     }
 
@@ -386,27 +386,27 @@ mod test {
 
     #[test]
     fn port_midi_cant_exceed_max_event_size() {
-        // open clients and ports
+        // Open clients and ports.
         let c = open_test_client("port_midi_cemes");
         let mut out_p = c.register_port("midi_out", MidiOut).unwrap();
 
-        // set callback routine
+        // Set callback routine.
         let (result_sender, result_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let mut out_p = out_p.writer(ps);
-            let bytes: Vec<u8> = (0..=out_p.max_event_size()).map(|_| 0).collect();
             let msg = RawMidi {
                 time: 0,
-                bytes: &bytes,
+                bytes: &[0xF6],
             };
-
-            let res = out_p.write(&msg);
-            _ = result_sender.try_send(res);
+            for _ in 0..out_p.max_event_size() {
+                _ = out_p.write(&msg);
+            }
+            _ = result_sender.try_send(out_p.write(&msg));
 
             Control::Continue
         };
 
-        // check correctness
+        // Check correctness.
         let ac = c
             .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
