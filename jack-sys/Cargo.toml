@@ -11,7 +11,7 @@ version = "0.5.1"
 [dependencies]
 lazy_static = "1.4"
 libc = "0.2"
-libloading = "0.7"
+libloading = "0.8"
 log = "0.4"
 
 [build-dependencies]
