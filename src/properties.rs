@@ -48,7 +48,12 @@ pub use metadata::*;
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
-    use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
+    use std::{
+        collections::HashMap,
+        ffi,
+        mem::MaybeUninit,
+        ptr::{self, NonNull},
+    };
 
     use crate::Client;
 
@@ -113,12 +118,15 @@ mod metadata {
     unsafe fn description_to_map_free(
         description: *mut j::jack_description_t,
     ) -> Option<PropertyMap> {
-        if description.is_null() {
-            None
-        } else {
-            let des = &*description;
-            let mut properties = HashMap::new();
-            for prop in std::slice::from_raw_parts(des.properties, des.property_cnt as usize) {
+        let description = NonNull::new(description)?;
+        let mut properties = HashMap::new();
+        let len = description.as_ref().property_cnt;
+        // The check is required as from_raw_parts doesn't like receiving a null ptr, even if the
+        // length is 0.
+        if len > 0 {
+            let properties_slice =
+                std::slice::from_raw_parts(description.as_ref().properties, len as usize);
+            for prop in properties_slice {
                 let typ = if prop._type.is_null() {
                     None
                 } else {
@@ -142,9 +150,9 @@ mod metadata {
                     ),
                 );
             }
-            j::jack_free_description(description, 0);
-            Some(properties)
         }
+        j::jack_free_description(description.as_ptr(), 0);
+        Some(properties)
     }
 
     impl Property {
