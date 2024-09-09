@@ -642,15 +642,14 @@ impl Client {
         let handler = Box::into_raw(Box::new(handler));
         unsafe {
             self.2 = Some(Box::from_raw(handler));
-            if j::jack_set_property_change_callback(
+            let res = j::jack_set_property_change_callback(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
                 std::mem::transmute::<_, _>(handler),
-            ) == 0
-            {
-                Ok(())
-            } else {
-                Err(Error::UnknownError)
+            );
+            match res {
+                0 => Ok(()),
+                error_code => Err(Error::UnknownError { error_code }),
             }
         }
     }

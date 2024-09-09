@@ -99,12 +99,11 @@ mod metadata {
         }
     }
 
-    //helper to map 0 return to Ok
+    // Helper to map 0 return to Ok
     fn map_error<F: FnOnce() -> ::libc::c_int>(func: F) -> Result<(), Error> {
-        if func() == 0 {
-            Ok(())
-        } else {
-            Err(Error::UnknownError)
+        match func() {
+            0 => Ok(()),
+            error_code => Err(Error::UnknownError { error_code }),
         }
     }
 
@@ -307,7 +306,7 @@ mod metadata {
         pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
             unsafe {
                 if j::jack_remove_properties(self.raw(), subject) == -1 {
-                    Err(Error::UnknownError)
+                    Err(Error::UnknownError { error_code: -1 })
                 } else {
                     Ok(())
                 }
@@ -418,10 +417,10 @@ mod metadata {
             assert_eq!(None, c1.property_get(c1.uuid(), "mutant"));
 
             //second time, error
-            assert_eq!(
-                Err(Error::UnknownError),
-                c2.property_remove(c1.uuid(), "mutant")
-            );
+            assert!(matches!(
+                c2.property_remove(c1.uuid(), "mutant"),
+                Err(Error::UnknownError { .. })
+            ));
 
             assert_eq!(Some(prop1), c2.property_get(c2.uuid(), "blah"));
             assert_eq!(Some(prop2), c2.property_get(c2.uuid(), "mutant"));
