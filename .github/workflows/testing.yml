@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Install dependencies
-        run: sudo apt update && sudo apt install jackd libjack0 libjack-dev
+        run: sudo apt update && sudo apt install jackd2 libjack-jackd2-0 libjack-jackd2-dev
       # This is required for the tests, but we start it earlier since it may
       # take a while to initialize.
       - name: Start dummy JACK server
