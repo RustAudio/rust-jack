@@ -24,6 +24,6 @@ pub fn sleep_on_test() {
     #[cfg(test)]
     {
         use std::{thread, time};
-        thread::sleep(time::Duration::from_millis(200));
+        thread::sleep(time::Duration::from_millis(100));
     }
 }

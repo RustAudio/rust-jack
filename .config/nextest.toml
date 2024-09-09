@@ -1,4 +1,5 @@
 [profile.default]
 test-threads = 1
-slow-timeout = { period = "30s", terminate-after = 4 }
 fail-fast = false
+slow-timeout = { period = "30s", terminate-after = 4 }
+retries = { backoff = "fixed", count = 2, delay = "1s" }

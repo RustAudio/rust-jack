@@ -55,7 +55,7 @@ impl ProcessHandler for Counter {
         self.frames_since_cycle_start = ps.frames_since_cycle_start();
         let _cycle_times = ps.cycle_times();
         if self.induce_xruns {
-            thread::sleep(time::Duration::from_millis(400));
+            thread::sleep(time::Duration::from_millis(100));
             self.induce_xruns = false;
         }
         self.process_thread = Some(thread::current().id());

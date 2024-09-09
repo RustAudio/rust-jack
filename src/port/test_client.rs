@@ -8,8 +8,6 @@ use crate::PORT_NAME_SIZE;
 use std::collections::HashSet;
 use std::sync::mpsc;
 use std::sync::Mutex;
-use std::{thread, time};
-
 fn open_test_client(name: &str) -> Client {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
 }
@@ -371,7 +369,6 @@ fn client_port_can_get_port_by_type_pattern() {
 
     // register port with type name, like midi
     let _p = client.register_port(p_name, MidiIn);
-    thread::sleep(time::Duration::from_millis(400));
 
     // retrieve
     let ports = client.ports(None, Some("midi"), PortFlags::empty());
