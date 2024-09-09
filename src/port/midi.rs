@@ -367,7 +367,7 @@ mod test {
         let (size_sender, size_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let out_p = out_p.writer(ps);
-            _ = size_sender.send(out_p.max_event_size());
+            _ = size_sender.try_send(out_p.max_event_size());
             Control::Continue
         };
 
@@ -401,7 +401,7 @@ mod test {
             };
 
             let res = out_p.write(&msg);
-            _ = result_sender.send(res);
+            _ = result_sender.try_send(res);
 
             Control::Continue
         };

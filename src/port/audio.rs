@@ -113,8 +113,6 @@ mod test {
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.312_443;
             let exp_b = -0.612_120;
-            let in_a = in_a.as_slice(ps);
-            let in_b = in_b.as_slice(ps);
             let out_a = out_a.as_mut_slice(ps);
             let out_b = out_b.as_mut_slice(ps);
             for v in out_a.iter_mut() {
@@ -123,10 +121,13 @@ mod test {
             for v in out_b.iter_mut() {
                 *v = exp_b;
             }
+
+            let in_a = in_a.as_slice(ps);
+            let in_b = in_b.as_slice(ps);
             if in_a.iter().all(|v| (*v - exp_a).abs() < 1E-5)
                 && in_b.iter().all(|v| (*v - exp_b).abs() < 1E-5)
             {
-                let _ = success_sender.send(true);
+                _ = success_sender.try_send(true);
             }
             Control::Continue
         };
@@ -145,6 +146,5 @@ mod test {
                 .unwrap(),
             true
         );
-        ac.deactivate().unwrap();
     }
 }
