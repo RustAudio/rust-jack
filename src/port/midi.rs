@@ -221,6 +221,7 @@ mod test {
     use lazy_static::lazy_static;
     use std::iter::Iterator;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
     use std::sync::Mutex;
     use std::{thread, time};
 
@@ -356,8 +357,6 @@ mod test {
         ac.deactivate().unwrap();
     }
 
-    static PMCGMES_MAX_EVENT_SIZE: AtomicUsize = AtomicUsize::new(0);
-
     #[test]
     fn port_midi_can_get_max_event_size() {
         // open clients and ports
@@ -365,57 +364,56 @@ mod test {
         let mut out_p = c.register_port("op", MidiOut).unwrap();
 
         // set callback routine
+        let (size_sender, size_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let out_p = out_p.writer(ps);
-            PMCGMES_MAX_EVENT_SIZE.fetch_add(out_p.max_event_size(), Ordering::Relaxed);
+            _ = size_sender.send(out_p.max_event_size());
             Control::Continue
         };
 
-        // activate
+        // check correctness
         let ac = c
             .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
-
-        // check correctness
-        assert!(PMCGMES_MAX_EVENT_SIZE.load(Ordering::Relaxed) > 0);
+        assert!(
+            size_receiver
+                .recv_timeout(std::time::Duration::from_secs(1))
+                .unwrap()
+                > 0
+        );
         ac.deactivate().unwrap();
-    }
-
-    lazy_static! {
-        static ref PMCEMES_WRITE_RESULT: Mutex<Result<(), Error>> = Mutex::new(Ok(()));
     }
 
     #[test]
     fn port_midi_cant_exceed_max_event_size() {
         // open clients and ports
-        let c = open_test_client("port_midi_cglc");
-        let mut out_p = c.register_port("op", MidiOut).unwrap();
+        let c = open_test_client("port_midi_cemes");
+        let mut out_p = c.register_port("midi_out", MidiOut).unwrap();
 
         // set callback routine
+        let (result_sender, result_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let mut out_p = out_p.writer(ps);
-            let event_size = out_p.max_event_size();
-            PMCGMES_MAX_EVENT_SIZE.store(event_size, Ordering::Relaxed);
-
             let bytes: Vec<u8> = (0..=out_p.max_event_size()).map(|_| 0).collect();
             let msg = RawMidi {
                 time: 0,
                 bytes: &bytes,
             };
 
-            *PMCEMES_WRITE_RESULT.lock().unwrap() = out_p.write(&msg);
+            let res = out_p.write(&msg);
+            _ = result_sender.send(res);
 
             Control::Continue
         };
 
-        // activate
+        // check correctness
         let ac = c
             .activate_async((), ClosureProcessHandler::new(process_callback))
             .unwrap();
-
-        // check correctness
         assert_eq!(
-            *PMCEMES_WRITE_RESULT.lock().unwrap(),
+            result_receiver
+                .recv_timeout(std::time::Duration::from_secs(1))
+                .unwrap(),
             Err(Error::NotEnoughSpace)
         );
         ac.deactivate().unwrap();
