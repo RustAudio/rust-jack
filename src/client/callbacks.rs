@@ -134,7 +134,7 @@ where
         ctx.notification.thread_init(&ctx.client);
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -160,7 +160,7 @@ unsafe extern "C" fn shutdown<N, P>(
         );
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -176,12 +176,16 @@ where
             return Control::Quit;
         };
         let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
-        ctx.process.process(&ctx.client, &scope)
+        let c = ctx.process.process(&ctx.client, &scope);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(res) => res.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -202,17 +206,21 @@ where
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return false;
         };
-        ctx.process.sync(
+        let is_ready = ctx.process.sync(
             &ctx.client,
             crate::Transport::state_from_ffi(state),
             &*(pos as *mut crate::TransportPosition),
-        )
+        );
+        if !is_ready {
+            ctx.mark_invalid();
+        }
+        is_ready
     });
     match res {
         Ok(true) => 1,
         Ok(false) => 0,
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             0
@@ -230,10 +238,10 @@ where
             return;
         };
         let is_starting = !matches!(starting, 0);
-        ctx.notification.freewheel(&ctx.client, is_starting)
+        ctx.notification.freewheel(&ctx.client, is_starting);
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -248,12 +256,16 @@ where
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
         };
-        ctx.process.buffer_size(&ctx.client, n_frames)
+        let c = ctx.process.buffer_size(&ctx.client, n_frames);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(c) => c.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -270,12 +282,16 @@ where
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
         };
-        ctx.notification.sample_rate(&ctx.client, n_frames)
+        let c = ctx.notification.sample_rate(&ctx.client, n_frames);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(c) => c.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -301,7 +317,7 @@ unsafe extern "C" fn client_registration<N, P>(
             .client_registration(&ctx.client, name, register);
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -324,7 +340,7 @@ unsafe extern "C" fn port_registration<N, P>(
             .port_registration(&ctx.client, port_id, register);
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -347,13 +363,18 @@ where
         };
         let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
         let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
-        ctx.notification
-            .port_rename(&ctx.client, port_id, old_name, new_name)
+        let c = ctx
+            .notification
+            .port_rename(&ctx.client, port_id, old_name, new_name);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(c) => c.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -376,10 +397,10 @@ unsafe extern "C" fn port_connect<N, P>(
         };
         let are_connected = !matches!(connect, 0);
         ctx.notification
-            .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected)
+            .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected);
     });
     if let Err(err) = res {
-        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+        CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
         eprintln!("{err:?}");
         std::mem::forget(err);
     }
@@ -394,12 +415,16 @@ where
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
         };
-        ctx.notification.graph_reorder(&ctx.client)
+        let c = ctx.notification.graph_reorder(&ctx.client);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(c) => c.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -416,12 +441,16 @@ where
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
         };
-        ctx.notification.xrun(&ctx.client)
+        let c = ctx.notification.xrun(&ctx.client);
+        if c == Control::Quit {
+            ctx.mark_invalid();
+        }
+        c
     });
     match res {
         Ok(c) => c.to_ffi(),
         Err(err) => {
-            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::make_invalid);
+            CallbackContext::<N, P>::from_raw(data).map(CallbackContext::mark_invalid);
             eprintln!("{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
@@ -483,7 +512,8 @@ where
     /// Mark the callback context as invalid.
     ///
     /// This usually happens after a panic.
-    pub fn make_invalid(&mut self) {
+    #[cold]
+    pub fn mark_invalid(&mut self) {
         self.is_valid.store(true, Ordering::Relaxed);
     }
 
