@@ -97,6 +97,17 @@ impl Client {
         AsyncClient::new(self, notification_handler, process_handler)
     }
 
+    /// Return JACK's current system time in microseconds, using the JACK clock
+    /// source.
+    ///
+    /// Note: Although attached a `Client` method, this should use the same time clock as all
+    /// clients.
+    pub fn time(&self) -> Time {
+        // Despite not needing a ptr to the client, this function often segfaults if a client has
+        // not been initialized.
+        unsafe { jack_sys::jack_get_time() }
+    }
+
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
     pub fn sample_rate(&self) -> usize {

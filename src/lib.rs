@@ -80,27 +80,15 @@ mod transport;
 /// Properties
 mod properties;
 
+static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
+    Client::new("deprecated_get_time", ClientOptions::NO_START_SERVER)
+        .unwrap()
+        .0
+});
+
 /// Return JACK's current system time in microseconds, using the JACK clock
 /// source.
+#[deprecated = "Prefer using Client::time. get_time will be eventually be removed and it requires an extra client initialization."]
 pub fn get_time() -> primitive_types::Time {
-    unsafe { jack_sys::jack_get_time() }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use std::{thread, time};
-
-    #[test]
-    fn time_can_get_time() {
-        get_time();
-    }
-
-    #[test]
-    fn time_is_monotonically_increasing() {
-        let initial_t = get_time();
-        thread::sleep(time::Duration::from_millis(100));
-        let later_t = get_time();
-        assert!(initial_t < later_t);
-    }
+    TIME_CLIENT.time()
 }
