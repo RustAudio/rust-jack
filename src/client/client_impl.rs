@@ -656,7 +656,7 @@ impl Client {
             let res = j::jack_set_property_change_callback(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
-                std::mem::transmute::<_, _>(handler),
+                std::mem::transmute::<*mut H, *mut libc::c_void>(handler),
             );
             match res {
                 0 => Ok(()),
