@@ -400,7 +400,7 @@ impl Client {
                 Some(s) => s,
                 None => return Err(Error::WeakFunctionNotFound("jack_internal_client_unload")),
             };
-            ClientStatus::from_bits_unchecked(status)
+            ClientStatus::from_bits_retain(status)
         };
         if status.is_empty() {
             Ok(())

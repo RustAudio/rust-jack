@@ -15,7 +15,7 @@ libloading = "0.7"
 log = "0.4"
 
 [build-dependencies]
-bitflags = "1"
+bitflags = "2"
 pkg-config = "0.3"
 
 [features]

@@ -11,7 +11,7 @@ repository = "https://github.com/RustAudio/rust-jack"
 version = "0.12.1"
 
 [dependencies]
-bitflags = "1"
+bitflags = "2"
 jack-sys = {version = "0.5", path = "./jack-sys"}
 lazy_static = "1.4"
 libc = "0.2"

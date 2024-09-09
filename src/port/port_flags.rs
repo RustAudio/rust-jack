@@ -3,6 +3,7 @@ use jack_sys as j;
 
 bitflags! {
     /// Flags for specifying port options.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq)]
     pub struct PortFlags: j::Enum_JackPortFlags {
         /// The port can receive data.
         const IS_INPUT    = j::JackPortIsInput;
