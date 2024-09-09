@@ -27,6 +27,4 @@ jobs:
       - name: Build (metadata)
         run: cargo build --verbose --no-default-features --features metadata
       - name: Run Tests
-        run: cargo nextest run --all-features --test-threads 1
-        env:
-          RUST_TEST_THREADS: 1
+        run: cargo nextest run --all-features
