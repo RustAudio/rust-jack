@@ -16,6 +16,8 @@ lazy_static! {
 }
 
 lazy_static! {
+    /// A mutex that is called when doing major client functionality. It is not strictly necessary,
+    /// but may prevent some JACK servers from getting stuck in deadlock.
     pub static ref CREATE_OR_DESTROY_CLIENT_MUTEX: Mutex<()> = Mutex::new(());
 }
 
