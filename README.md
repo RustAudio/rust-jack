@@ -5,7 +5,7 @@ Rust bindings for [JACK Audio Connection Kit](<https://jackaudio.org>).
 | [![Crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack) | [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)                                                          |
 |-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [![Docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)                      | [![Test](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml/badge.svg)](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml) |
-|                                                                                         | [:heart: Sponsor](<https://github.com/sponsors/wmedrano>)                                                                                                       |
+| [Documentation](https://rustaudio.github.io/rust-jack)                                  | [:heart: Sponsor](<https://github.com/sponsors/wmedrano>)                                                                                                       |
 
 ## Using JACK
 
@@ -46,6 +46,9 @@ run in single threaded mode.
 
 If the tests are failing, a possible gotcha may be timing issues.
 
+1.  If using `cargo test`, try `cargo nextest`. The `cargo nextest`
+    configuration is set up to run single threaded and to retry flaky tests up
+    to 3 times.
 1.  Increase the value used by `sleep_on_test` in `client/common.rs`.
 
 Another case is that libjack may be broken on your setup. Try using libjack2 or
