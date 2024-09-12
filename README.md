@@ -5,7 +5,7 @@ Rust bindings for [JACK Audio Connection Kit](<https://jackaudio.org>).
 | [![Crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack) | [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)                                                          |
 |-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [![Docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)                      | [![Test](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml/badge.svg)](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml) |
-| [Documentation](https://rustaudio.github.io/rust-jack)                                  | [:heart: Sponsor](<https://github.com/sponsors/wmedrano>)                                                                                                       |
+| [📚 Documentation](https://rustaudio.github.io/rust-jack)                               | [:heart: Sponsor](<https://github.com/sponsors/wmedrano>)                                                                                                       |
 
 ## Using JACK
 
@@ -21,8 +21,8 @@ disabled by creating a client with the `NO_START_SERVER` option.
 -   MacOS users may install JACK from the [official
     website](<http://jackaudio.org/downloads/>) or [Homebrew](<https://formulae.brew.sh/formula/jack>).
 
-Refer to the [documentation](<https://docs.rs/jack/>) for details about the API, building, and packaging.
-Also take a look at the `examples` directory for usage.
+Refer to the [docs.rs documentation](<https://docs.rs/jack/>) for details about
+the API. For more general documentation, visit <https://rustaudio.github.io/rust-jack>.
 
 
 # Testing
