@@ -8,7 +8,9 @@ nav_order: 2
 # Logging
 
 JACK can communicate info and error messages. By default, the [log
-crate](https://github.com/rust-lang/log) is hooked up to output messages.
+crate](https://github.com/rust-lang/log) is hooked up to output
+messages. However, other logging methods can be used with the
+[`set_logger`](https://docs.rs/jack/latest/jack/fn.set_logger.html) function.
 
 ## No Logging
 
