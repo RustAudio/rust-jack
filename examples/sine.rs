@@ -11,7 +11,9 @@ fn main() {
         jack::Client::new("rust_jack_sine", jack::ClientOptions::NO_START_SERVER).unwrap();
 
     // 2. register port
-    let mut out_port = client.register_port("sine_out", jack::AudioOut).unwrap();
+    let mut out_port = client
+        .register_port("sine_out", jack::AudioOut::default())
+        .unwrap();
 
     // 3. define process callback handler
     let mut frequency = 220.0;

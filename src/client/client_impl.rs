@@ -1,6 +1,5 @@
 use jack_sys as j;
 use std::fmt::Debug;
-use std::panic::catch_unwind;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
@@ -51,7 +50,7 @@ impl Client {
     /// Although the client may be successful in opening, there still may be some errors minor
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
 
         // All of the jack_sys functions below assume the client library is loaded and will panic if
         // it is not
@@ -60,10 +59,7 @@ impl Client {
             return Err(Error::LibraryError(err.to_string()));
         }
 
-        unsafe {
-            jack_sys::jack_set_error_function(Some(silent_handler));
-            jack_sys::jack_set_info_function(Some(silent_handler));
-        }
+        crate::logging::maybe_init_logging();
         sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
@@ -75,10 +71,6 @@ impl Client {
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            unsafe {
-                jack_sys::jack_set_error_function(Some(error_handler));
-                jack_sys::jack_set_info_function(Some(info_handler));
-            }
             sleep_on_test();
             Ok((Client(client, Arc::default(), None), status))
         }
@@ -552,7 +544,7 @@ impl Client {
         source_port: &Port<A>,
         destination_port: &Port<B>,
     ) -> Result<(), Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         self.connect_ports_by_name(&source_port.name()?, &destination_port.name()?)
     }
 
@@ -670,7 +662,7 @@ impl Client {
 /// Close the client.
 impl Drop for Client {
     fn drop(&mut self) {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();
@@ -790,27 +782,3 @@ pub struct CycleTimes {
     pub next_usecs: Time,
     pub period_usecs: libc::c_float,
 }
-
-unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::error!("{}", msg),
-        Err(err) => log::error!("failed to log to JACK error: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
-    }
-}
-
-unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::info!("{}", msg),
-        Err(err) => log::error!("failed to log to JACK info: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
-    }
-}
-
-unsafe extern "C" fn silent_handler(_msg: *const libc::c_char) {}

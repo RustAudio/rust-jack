@@ -2,6 +2,7 @@
 layout: page
 title: Quickstart
 permalink: /
+nav_order: 0
 ---
 
 # Quickstart

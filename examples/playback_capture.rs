@@ -4,15 +4,24 @@ use std::io;
 
 fn main() {
     // Create client
+    jack::set_logger(jack::LoggerType::Stdio);
     let (client, _status) =
         jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.
-    let in_a = client.register_port("rust_in_l", jack::AudioIn).unwrap();
-    let in_b = client.register_port("rust_in_r", jack::AudioIn).unwrap();
-    let mut out_a = client.register_port("rust_out_l", jack::AudioOut).unwrap();
-    let mut out_b = client.register_port("rust_out_r", jack::AudioOut).unwrap();
+    let in_a = client
+        .register_port("rust_in_l", jack::AudioIn::default())
+        .unwrap();
+    let in_b = client
+        .register_port("rust_in_r", jack::AudioIn::default())
+        .unwrap();
+    let mut out_a = client
+        .register_port("rust_out_l", jack::AudioOut::default())
+        .unwrap();
+    let mut out_b = client
+        .register_port("rust_out_r", jack::AudioOut::default())
+        .unwrap();
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let out_a_p = out_a.as_mut_slice(ps);
         let out_b_p = out_b.as_mut_slice(ps);
