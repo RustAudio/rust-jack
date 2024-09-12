@@ -18,7 +18,9 @@ use crate::{Port, PortFlags, PortSpec, ProcessScope};
 /// let audio_in_port = client.register_port("in", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioIn;
+pub struct AudioIn {
+    _internal: (),
+}
 
 /// `AudioOut` implements the `PortSpec` trait, which defines an
 /// endpoint for JACK. In this case, it is a mutable 32 bit floating
@@ -35,7 +37,9 @@ pub struct AudioIn;
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioOut;
+pub struct AudioOut {
+    _internal: (),
+}
 
 unsafe impl PortSpec for AudioOut {
     fn jack_port_type(&self) -> &'static str {
@@ -105,10 +109,10 @@ mod test {
     #[test]
     fn port_audio_can_read_write() {
         let c = open_test_client("port_audio_crw");
-        let in_a = c.register_port("ia", AudioIn).unwrap();
-        let in_b = c.register_port("ib", AudioIn).unwrap();
-        let mut out_a = c.register_port("oa", AudioOut).unwrap();
-        let mut out_b = c.register_port("ob", AudioOut).unwrap();
+        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
+        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
+        let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
+        let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
         let (success_sender, success_receiver) = std::sync::mpsc::sync_channel(1);
         let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
             let exp_a = 0.312_443;

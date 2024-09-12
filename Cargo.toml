@@ -15,12 +15,12 @@ bitflags = "2"
 jack-sys = {version = "0.5", path = "./jack-sys"}
 lazy_static = "1.4"
 libc = "0.2"
-log = "0.4"
+log = { version = "0.4", optional = true}
 
 [dev-dependencies]
 crossbeam-channel = "0.5"
 
 [features]
-default = ["dynamic_loading"]
-metadata = []
+default = ["dynamic_loading", "log"]
 dynamic_loading = ["jack-sys/dynamic_loading"]
+metadata = []

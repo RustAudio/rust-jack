@@ -1,0 +1,47 @@
+---
+layout: page
+title: Logging
+permalink: /logging
+nav_order: 2
+---
+
+# Logging
+
+JACK can communicate info and error messages. By default, the [log
+crate](https://github.com/rust-lang/log) is hooked up to output messages.
+
+## No Logging
+
+Logging from `jack` can be disabled entirely by setting the logger to `None`.
+
+```rust
+jack::set_logger(jack::LoggerType::None);
+```
+
+## Log Crate (default)
+
+The log crate is the default logger if the `log` feature is enabled, which is
+enabled by default. The `log` crate provides a *facade* for logging; it provides
+macros to perform logging, but another mechanism or crate is required to
+actually perform the logging.
+
+In the example below, we use the [`env_logger` crate]() to display logging for
+info and error severity level messages.
+
+```rust
+env_logger::builder().filter(None, log::LevelFilter::Info).init();
+
+// JACK may log things to `info!` or `error!`.
+let (client, _status) =
+      jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+```
+
+
+## Stdio
+
+If the `log` feature is not enabled, then `jack` will log info messages to
+`stdout` and error messages to `stderr`. These usually show up in the terminal.
+
+```rust
+jack::set_logger(jack::LoggerType::Stdio);
+```

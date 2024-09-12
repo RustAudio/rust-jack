@@ -38,6 +38,7 @@ pub use crate::client::{
     InternalClientID, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
+pub use crate::logging::{set_logger, LoggerType};
 pub use crate::port::{
     AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
     Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
@@ -49,36 +50,23 @@ pub use crate::transport::{
     TransportStatePosition,
 };
 
-/// The underlying system bindings for JACK. Can be useful for using possibly
-/// experimental stuff through `jack_sys::library()`.
+/// The underlying system bindings for JACK. Can be useful for using possibly experimental stuff
+/// through `jack_sys::library()`.
 pub use jack_sys;
 
 //only expose metadata if enabled
 #[cfg(feature = "metadata")]
 pub use crate::properties::*;
 
-/// Create and manage client connections to a JACK server.
 mod client;
-
-/// Create and manage JACK ring buffers.
-mod ringbuffer;
-
-/// Enum types in jack.
 mod jack_enums;
-
 mod jack_utils;
-
-/// Types for safely interacting with port data from JACK.
+mod logging;
 mod port;
-
-/// Platform independent types.
 mod primitive_types;
-
-/// Transport.
-mod transport;
-
-/// Properties
 mod properties;
+mod ringbuffer;
+mod transport;
 
 static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
     Client::new("deprecated_get_time", ClientOptions::NO_START_SERVER)

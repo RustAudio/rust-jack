@@ -13,7 +13,7 @@ fn open_test_client(name: &str) -> Client {
 
 fn open_client_with_port(client: &str, port: &str) -> (Client, Port<AudioIn>) {
     let c = open_test_client(client);
-    let p = c.register_port(port, AudioIn).unwrap();
+    let p = c.register_port(port, AudioIn::default()).unwrap();
     (c, p)
 }
 
@@ -52,10 +52,18 @@ fn port_can_rename() {
 #[test]
 fn port_connected_count() {
     let c = open_test_client("port_connected_count");
-    let pa = c.register_port("port_connected_count_a", AudioIn).unwrap();
-    let pb = c.register_port("port_connected_count_b", AudioOut).unwrap();
-    let pc = c.register_port("port_connected_count_c", AudioOut).unwrap();
-    let pd = c.register_port("port_connected_count_d", AudioOut).unwrap();
+    let pa = c
+        .register_port("port_connected_count_a", AudioIn::default())
+        .unwrap();
+    let pb = c
+        .register_port("port_connected_count_b", AudioOut::default())
+        .unwrap();
+    let pc = c
+        .register_port("port_connected_count_c", AudioOut::default())
+        .unwrap();
+    let pd = c
+        .register_port("port_connected_count_d", AudioOut::default())
+        .unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
@@ -68,10 +76,10 @@ fn port_connected_count() {
 #[test]
 fn port_knows_connections() {
     let c = open_test_client("port_knows_connections");
-    let pa = c.register_port("pa", AudioIn).unwrap();
-    let pb = c.register_port("pb", AudioOut).unwrap();
-    let pc = c.register_port("pc", AudioOut).unwrap();
-    let pd = c.register_port("pd", AudioOut).unwrap();
+    let pa = c.register_port("pa", AudioIn::default()).unwrap();
+    let pb = c.register_port("pb", AudioOut::default()).unwrap();
+    let pc = c.register_port("pc", AudioOut::default()).unwrap();
+    let pd = c.register_port("pd", AudioOut::default()).unwrap();
     let c = c.activate_async((), ()).unwrap();
     c.as_client().connect_ports(&pb, &pa).unwrap();
     c.as_client().connect_ports(&pc, &pa).unwrap();
