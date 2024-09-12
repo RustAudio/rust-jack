@@ -674,9 +674,9 @@ impl Drop for Client {
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();
-        let res = unsafe { j::jack_client_close(self.raw()) }; // close the client
+        let _res = unsafe { j::jack_client_close(self.raw()) }; // best effort: close the client
         sleep_on_test();
-        assert_eq!(res, 0);
+        //assert_eq!(res, 0); //do not assert here. connection could be broken
         self.0 = ptr::null_mut();
     }
 }
