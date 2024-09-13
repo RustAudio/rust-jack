@@ -105,5 +105,7 @@ fn main() {
     io::stdin().read_line(&mut user_input).ok();
 
     // Optional deactivation.
-    active_client.deactivate().unwrap();
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    };
 }

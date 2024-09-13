@@ -66,7 +66,9 @@ fn main() {
     // 6. Optional deactivate. Not required since active_client will deactivate on
     // drop, though explicit deactivate may help you identify errors in
     // deactivate.
-    active_client.deactivate().unwrap();
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    };
 }
 
 /// Attempt to read a frequency from standard in. Will block until there is

@@ -91,7 +91,9 @@ fn main() {
     io::stdin().read_line(&mut user_input).ok();
 
     // 5. Not needed as the async client will cease processing on `drop`.
-    active_client.deactivate().unwrap();
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    }
 }
 ```
 

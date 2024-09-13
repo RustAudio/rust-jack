@@ -41,7 +41,9 @@ fn main() {
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
 
-    active_client.deactivate().unwrap();
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    };
 }
 
 struct Notifications;
