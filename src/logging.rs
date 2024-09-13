@@ -21,6 +21,13 @@ pub enum LoggerType {
     /// Use the info! and error! macro from the [log crate](https://crates.io/crates/log).
     #[cfg(feature = "log")]
     Log,
+    /// Use custom functions to handle logging.
+    Custom {
+        /// The function to call for info messages. Must not panic.
+        info: unsafe extern "C" fn(*const ::libc::c_char),
+        /// The function to call for error messages. Must not panic.
+        error: unsafe extern "C" fn(*const ::libc::c_char),
+    },
 }
 
 impl Default for LoggerType {
@@ -45,20 +52,23 @@ pub fn set_logger(logger: LoggerType) {
 }
 
 fn set_logger_impl(logger: LoggerType) {
-    match logger {
-        LoggerType::None => unsafe {
-            jack_sys::jack_set_error_function(Some(silent_handler));
-            jack_sys::jack_set_info_function(Some(silent_handler));
-        },
-        LoggerType::Stdio => unsafe {
-            jack_sys::jack_set_error_function(Some(stderr_handler));
-            jack_sys::jack_set_info_function(Some(stdout_handler));
-        },
+    let info_fn = match logger {
+        LoggerType::None => silent_handler,
+        LoggerType::Stdio => stdout_handler,
         #[cfg(feature = "log")]
-        LoggerType::Log => unsafe {
-            jack_sys::jack_set_error_function(Some(error_handler));
-            jack_sys::jack_set_info_function(Some(info_handler));
-        },
+        LoggerType::Log => info_handler,
+        LoggerType::Custom { info, .. } => info,
+    };
+    let error_fn = match logger {
+        LoggerType::None => silent_handler,
+        LoggerType::Stdio => stderr_handler,
+        #[cfg(feature = "log")]
+        LoggerType::Log => error_handler,
+        LoggerType::Custom { error, .. } => error,
+    };
+    unsafe {
+        jack_sys::jack_set_error_function(Some(error_fn));
+        jack_sys::jack_set_info_function(Some(info_fn));
     }
 }
 

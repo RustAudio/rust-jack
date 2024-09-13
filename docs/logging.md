@@ -47,3 +47,37 @@ If the `log` feature is not enabled, then `jack` will log info messages to
 ```rust
 jack::set_logger(jack::LoggerType::Stdio);
 ```
+
+## Custom
+
+`jack::LoggerType::Custom` can be used to set a custom logger. Here is
+stdout/stderr implemented as a custom logger:
+
+```rust
+fn main() {
+    jack::set_logger(jack::LoggerType::Custom{info: stdout_handler, error: stderr_handler});
+    ...
+}
+
+unsafe extern "C" fn stdout_handler(msg: *const libc::c_char) {
+    let res = std::panic::catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+        Ok(msg) => println!("{}", msg),
+        Err(err) => println!("failed to log to JACK info: {:?}", err),
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err); // Prevent from rethrowing panic.
+    }
+}
+
+unsafe extern "C" fn stderr_handler(msg: *const libc::c_char) {
+    let res = std::panic::catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+        Ok(msg) => eprintln!("{}", msg),
+        Err(err) => eprintln!("failed to log to JACK error: {:?}", err),
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err); // Prevent from rethrowing panic.
+    }
+}
+```
