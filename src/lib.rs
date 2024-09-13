@@ -68,6 +68,9 @@ mod properties;
 mod ringbuffer;
 mod transport;
 
+#[cfg(test)]
+mod tests;
+
 static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
     Client::new("deprecated_get_time", ClientOptions::NO_START_SERVER)
         .unwrap()

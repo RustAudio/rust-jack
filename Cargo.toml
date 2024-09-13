@@ -19,6 +19,7 @@ log = { version = "0.4", optional = true}
 
 [dev-dependencies]
 crossbeam-channel = "0.5"
+ctor = "0.2"
 
 [features]
 default = ["dynamic_loading", "log"]

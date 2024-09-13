@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use crate::client::client_impl::Client;
-use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
@@ -56,7 +56,6 @@ where
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         unsafe {
-            sleep_on_test();
             let mut callback_context = Box::new(CallbackContext {
                 client,
                 notification: notification_handler,
@@ -64,11 +63,7 @@ where
                 is_valid: AtomicBool::new(true),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
-            sleep_on_test();
             let res = j::jack_activate(callback_context.client.raw());
-            for _ in 0..4 {
-                sleep_on_test();
-            }
             match res {
                 0 => Ok(AsyncClient {
                     callback: Some(callback_context),
@@ -117,13 +112,11 @@ impl<N, P> AsyncClient<N, P> {
         let client = cb.client.raw();
 
         // deactivate
-        sleep_on_test();
         if j::jack_deactivate(client) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
-        sleep_on_test();
         clear_callbacks(client)?;
         // done, take ownership of callback
         if cb.is_valid.load(std::sync::atomic::Ordering::Relaxed) {
