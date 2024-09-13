@@ -16,15 +16,14 @@ pub trait NotificationHandler: Send {
     /// It does not need to be suitable for real-time execution.
     fn thread_init(&self, _: &Client) {}
 
-    /// Called when the JACK server shuts down the client thread. The function
-    /// must be written as if
-    /// it were an asynchronous POSIX signal handler --- use only async-safe
-    /// functions, and remember
-    /// that it is executed from another thread. A typical funcion might set a
-    /// flag or write to a
-    /// pipe so that the rest of the application knows that the JACK client
-    /// thread has shut down.
-    fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
+    /// Called when the JACK server shuts down the client thread. The function must be written as if
+    /// it were an asynchronous POSIX signal handler --- use only async-safe functions, and remember
+    /// that it is executed from another thread. A typical funcion might set a flag or write to a
+    /// pipe so that the rest of the application knows that the JACK client thread has shut down.
+    ///
+    /// See https://man7.org/linux/man-pages/man7/signal-safety.7.html for details about
+    /// async-signal-safe.
+    unsafe fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
 
     /// Called whenever "freewheel" mode is entered or leaving.
     fn freewheel(&mut self, _: &Client, _is_freewheel_enabled: bool) {}
