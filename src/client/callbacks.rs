@@ -21,8 +21,9 @@ pub trait NotificationHandler: Send {
     /// that it is executed from another thread. A typical funcion might set a flag or write to a
     /// pipe so that the rest of the application knows that the JACK client thread has shut down.
     ///
+    /// # Safety
     /// See https://man7.org/linux/man-pages/man7/signal-safety.7.html for details about
-    /// async-signal-safe.
+    /// what is legal in an async-signal-safe callback.
     unsafe fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
 
     /// Called whenever "freewheel" mode is entered or leaving.
