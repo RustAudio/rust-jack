@@ -86,7 +86,7 @@ fn client_cback_has_proper_default_callbacks() {
     let ps = unsafe { ProcessScope::from_raw(0, ptr::null_mut()) };
     // check each callbacks
     ().thread_init(&wc);
-    ().shutdown(client_status::ClientStatus::empty(), "mock");
+    unsafe { ().shutdown(client_status::ClientStatus::empty(), "mock") };
     assert_eq!(().process(&wc, &ps), Control::Continue);
     ().freewheel(&wc, true);
     ().freewheel(&wc, false);

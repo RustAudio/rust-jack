@@ -111,7 +111,7 @@ impl<N, P> AsyncClient<N, P> {
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
         }
-        let cb = self.callback.take().unwrap();
+        let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
         let client = cb.client.raw();
 
         // deactivate
@@ -124,7 +124,13 @@ impl<N, P> AsyncClient<N, P> {
         sleep_on_test();
         clear_callbacks(client)?;
         // done, take ownership of callback
-        Ok(cb)
+        if cb.is_valid.load(std::sync::atomic::Ordering::Relaxed) {
+            Ok(cb)
+        } else {
+            std::mem::forget(cb.notification);
+            std::mem::forget(cb.process);
+            Err(Error::ClientIsNoLongerAlive)
+        }
     }
 }
 
