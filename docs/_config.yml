@@ -17,6 +17,10 @@ aux_links:
     - "https://github.com/rustaudio/rust-jack"
   "Sponsor":
     - "https://github.com/sponsors/wmedrano"
+  "crates.io":
+    - "https://crates.io/crates/jack"
+  "docs.rs":
+    - "https://docs.rs/jack/latest/jack"
 callouts:
   todo:
     title: TODO
