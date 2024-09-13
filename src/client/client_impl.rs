@@ -411,17 +411,11 @@ impl Client {
     /// (not the process callback). The return value can be compared with the value of
     /// `last_frame_time` to relate time in other threads to JACK time. To obtain better time
     /// information from within the process callback, see `ProcessScope`.
-    ///
-    /// # TODO
-    /// - test
     pub fn frame_time(&self) -> Frames {
         unsafe { j::jack_frame_time(self.raw()) }
     }
 
     /// The estimated time in microseconds of the specified frame time
-    ///
-    /// # TODO
-    /// - Improve test
     pub fn frames_to_time(&self, n_frames: Frames) -> Time {
         unsafe { j::jack_frames_to_time(self.raw(), n_frames) }
     }

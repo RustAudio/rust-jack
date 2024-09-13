@@ -2,4 +2,4 @@
 test-threads = 1
 fail-fast = false
 slow-timeout = { period = "30s", terminate-after = 4 }
-retries = { backoff = "fixed", count = 2, delay = "1s" }
+retries = { backoff = "fixed", count = 2, delay = "500ms" }
