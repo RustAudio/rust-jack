@@ -37,10 +37,3 @@ Default: Yes
 Load `libjack` at runtime as opposed to the standard dynamic linking. This is
 preferred as it allows `pw-jack` to intercept the loading at runtime to provide
 the Pipewire JACK server implementation.
-
-## `metadata`
-
-Default: No
-
-Provides access to the metadata API. This is experimental. Details on the JACK
-metadata API can be found at <https://jackaudio.org/metadata/>.

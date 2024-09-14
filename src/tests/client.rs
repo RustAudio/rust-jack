@@ -44,12 +44,9 @@ fn client_uuid_are_unique() {
     assert_ne!(client1.uuid_string(), "");
     assert_ne!(client2.uuid_string(), "");
     assert_ne!(client1.uuid_string(), client2.uuid_string());
-    #[cfg(feature = "metadata")]
-    {
-        assert_ne!(client1.uuid(), 0);
-        assert_ne!(client2.uuid(), 0);
-        assert_ne!(client1.uuid(), client2.uuid());
-    }
+    assert_ne!(client1.uuid(), 0);
+    assert_ne!(client2.uuid(), 0);
+    assert_ne!(client1.uuid(), client2.uuid());
 }
 
 #[test]
@@ -67,17 +64,14 @@ fn uuid_can_map_to_client_name() {
         client1.name_by_uuid_str(&client2.uuid_string()).unwrap(),
         "uuid-client-2"
     );
-    #[cfg(feature = "metadata")]
-    {
-        assert_eq!(
-            client1.name_by_uuid(client1.uuid()).unwrap(),
-            "uuid-client-1"
-        );
-        assert_eq!(
-            client1.name_by_uuid(client2.uuid()).unwrap(),
-            "uuid-client-2"
-        );
-    }
+    assert_eq!(
+        client1.name_by_uuid(client1.uuid()).unwrap(),
+        "uuid-client-1"
+    );
+    assert_eq!(
+        client1.name_by_uuid(client2.uuid()).unwrap(),
+        "uuid-client-2"
+    );
 }
 
 #[test]
@@ -86,10 +80,8 @@ fn nonexistant_uuid_to_client_name_returns_none() {
     let (client2, _) =
         crate::Client::new("dropped-client", crate::ClientOptions::NO_START_SERVER).unwrap();
     let uuid_string = client2.uuid_string();
-    #[cfg(feature = "metadata")]
     let uuid = client2.uuid();
     drop(client2);
     assert_eq!(client1.name_by_uuid_str(&uuid_string), None);
-    #[cfg(feature = "metadata")]
     assert_eq!(client1.name_by_uuid(uuid), None);
 }

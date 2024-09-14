@@ -23,7 +23,6 @@ pub trait PropertyChangeHandler: Send {
     fn property_changed(&mut self, change: &PropertyChange);
 }
 
-#[allow(dead_code)] //dead if we haven't enabled metadata
 pub(crate) unsafe extern "C" fn property_changed<P>(
     subject: j::jack_uuid_t,
     key: *const ::libc::c_char,
