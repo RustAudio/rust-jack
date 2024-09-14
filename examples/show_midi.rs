@@ -89,7 +89,7 @@ fn main() {
 
     // Activate
     let active_client = client
-        .activate_async((), jack::ClosureProcessHandler::new(cback))
+        .activate_async((), jack::contrib::ClosureProcessHandler::new(cback))
         .unwrap();
 
     // Spawn a non-real-time thread that prints out the midi messages we get.

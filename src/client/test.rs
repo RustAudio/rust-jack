@@ -1,6 +1,7 @@
 use crate::client::*;
+use crate::contrib::ClosureProcessHandler;
 use crate::jack_enums::Error;
-use crate::{ClosureProcessHandler, Control, RingBuffer};
+use crate::{Control, RingBuffer};
 
 fn open_test_client(name: &str) -> (Client, ClientStatus) {
     Client::new(name, ClientOptions::NO_START_SERVER).unwrap()

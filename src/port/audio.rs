@@ -100,7 +100,7 @@ impl Port<AudioOut> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Client, ClientOptions, ClosureProcessHandler, Control};
+    use crate::{contrib::ClosureProcessHandler, Client, ClientOptions, Control};
 
     fn open_test_client(name: &str) -> Client {
         Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
