@@ -49,10 +49,8 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
     }
 }
 
-#[cfg(feature = "metadata")]
 pub use metadata::*;
 
-#[cfg(feature = "metadata")]
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
@@ -189,7 +187,6 @@ mod metadata {
         }
     }
 
-    #[cfg(feature = "metadata")]
     impl Client {
         /// Get a property from a subject.
         ///

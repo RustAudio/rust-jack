@@ -22,13 +22,15 @@ jobs:
         run: jackd -r -ddummy -r44100 -p1024 &
       - name: Install Cargo Nextest
         uses: taiki-e/install-action@nextest
+      - name: Build (Default Features)
+        run: cargo build --verbose 
       - name: Build (No Features)
         run: cargo build --verbose --no-default-features
-      - name: Build (metadata)
-        run: cargo build --verbose --no-default-features --features metadata
       - name: Build (examples)
         run: cargo build --verbose --examples
-      - name: Run Tests
-        run: cargo nextest run --all-features
+      - name: Run Tests (Default Features)
+        run: cargo nextest run
+      - name: Run Tests (No Features)
+        run: cargo nextest run --no-default-features
       - name: Run Doc Tests
         run: cargo doc && cargo test --doc
