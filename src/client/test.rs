@@ -194,7 +194,6 @@ fn client_uuid() {
     assert_eq!(c2.name_by_uuid_str(&uuid3s), None);
 }
 
-#[cfg(feature = "metadata")]
 #[test]
 fn client_numeric_uuid() {
     let (c1, _) = open_test_client("numeric-uuid-client1");
