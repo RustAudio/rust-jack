@@ -23,4 +23,3 @@ crossbeam-channel = "0.5"
 [features]
 default = ["dynamic_loading", "log"]
 dynamic_loading = ["jack-sys/dynamic_loading"]
-metadata = []

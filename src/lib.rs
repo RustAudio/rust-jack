@@ -46,6 +46,7 @@ pub use crate::port::{
     Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
 };
 pub use crate::primitive_types::{Frames, PortId, Time};
+pub use crate::properties::*;
 pub use crate::ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 pub use crate::transport::{
     Transport, TransportBBT, TransportBBTValidationError, TransportPosition, TransportState,
@@ -55,10 +56,6 @@ pub use crate::transport::{
 /// The underlying system bindings for JACK. Can be useful for using possibly experimental stuff
 /// through `jack_sys::library()`.
 pub use jack_sys;
-
-//only expose metadata if enabled
-#[cfg(feature = "metadata")]
-pub use crate::properties::*;
 
 mod client;
 mod jack_enums;
