@@ -19,10 +19,3 @@ pub use self::common::CLIENT_NAME_SIZE;
 
 #[allow(deprecated)]
 pub use self::handler_impls::ClosureProcessHandler;
-
-// client.rs excluding functionality that involves ports or callbacks
-#[cfg(test)]
-mod test;
-
-#[cfg(test)]
-mod test_callback;

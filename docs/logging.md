@@ -27,15 +27,16 @@ enabled by default. The `log` crate provides a *facade* for logging; it provides
 macros to perform logging, but another mechanism or crate is required to
 actually perform the logging.
 
-In the example below, we use the [`env_logger` crate]() to display logging for
-info and error severity level messages.
+In the example below, we use the [`env_logger`
+crate](https://crates.io/crates/env_logger) to display logging for info and
+error severity level messages.
 
 ```rust
 env_logger::builder().filter(None, log::LevelFilter::Info).init();
 
 // JACK may log things to `info!` or `error!`.
 let (client, _status) =
-      jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+      jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 ```
 
 

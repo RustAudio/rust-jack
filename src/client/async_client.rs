@@ -7,7 +7,7 @@ use std::sync::atomic::AtomicBool;
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use crate::client::client_impl::Client;
-use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
@@ -20,7 +20,7 @@ use crate::Error;
 /// ```
 /// // Create a client and a handler
 /// let (client, _status) =
-///     jack::Client::new("my_client", jack::ClientOptions::NO_START_SERVER).unwrap();
+///     jack::Client::new("my_client", jack::ClientOptions::default()).unwrap();
 /// let process_handler = jack::contrib::ClosureProcessHandler::new(
 ///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );
@@ -56,19 +56,15 @@ where
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         unsafe {
-            sleep_on_test();
             let mut callback_context = Box::new(CallbackContext {
                 client,
                 notification: notification_handler,
                 process: process_handler,
-                is_valid: AtomicBool::new(true),
+                is_valid_for_callback: AtomicBool::new(true),
+                has_panic: AtomicBool::new(false),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
-            sleep_on_test();
             let res = j::jack_activate(callback_context.client.raw());
-            for _ in 0..4 {
-                sleep_on_test();
-            }
             match res {
                 0 => Ok(AsyncClient {
                     callback: Some(callback_context),
@@ -114,25 +110,21 @@ impl<N, P> AsyncClient<N, P> {
             return Err(Error::ClientIsNoLongerAlive);
         }
         let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
-        let client = cb.client.raw();
+        let client_ptr = cb.client.raw();
 
         // deactivate
-        sleep_on_test();
-        if j::jack_deactivate(client) != 0 {
+        if j::jack_deactivate(client_ptr) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
-        sleep_on_test();
-        clear_callbacks(client)?;
+        clear_callbacks(client_ptr)?;
         // done, take ownership of callback
-        if cb.is_valid.load(std::sync::atomic::Ordering::Relaxed) {
-            Ok(cb)
-        } else {
-            std::mem::forget(cb.notification);
-            std::mem::forget(cb.process);
-            Err(Error::ClientIsNoLongerAlive)
+        if cb.has_panic.load(std::sync::atomic::Ordering::Relaxed) {
+            std::mem::forget(cb);
+            return Err(Error::ClientPanicked);
         }
+        Ok(cb)
     }
 }
 

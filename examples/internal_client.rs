@@ -6,7 +6,7 @@ fn main() {
     // Create client
     let (client, _status) = jack::Client::new(
         "rust_jack_internal_client_tester",
-        jack::ClientOptions::NO_START_SERVER,
+        jack::ClientOptions::default(),
     )
     .unwrap();
 

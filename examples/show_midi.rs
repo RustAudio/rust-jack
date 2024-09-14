@@ -43,17 +43,17 @@ impl std::fmt::Debug for MidiCopy {
 fn main() {
     // Open the client.
     let (client, _status) =
-        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::default()).unwrap();
 
     // Create a sync channel to send back copies of midi messages we get.
     let (sender, receiver) = sync_channel(64);
 
     // Define process logic.
     let mut maker = client
-        .register_port("rust_midi_maker", jack::MidiOut)
+        .register_port("rust_midi_maker", jack::MidiOut::default())
         .unwrap();
     let shower = client
-        .register_port("rust_midi_shower", jack::MidiIn)
+        .register_port("rust_midi_shower", jack::MidiIn::default())
         .unwrap();
     let cback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let show_p = shower.iter(ps);

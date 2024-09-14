@@ -58,7 +58,7 @@ where
     ///
     /// ```rust
     /// // 1. Create the client.
-    /// let (client, _status) = jack::Client::new("silence", jack::ClientOptions::NO_START_SERVER).unwrap();
+    /// let (client, _status) = jack::Client::new("silence", jack::ClientOptions::default()).unwrap();
     ///
     /// // 2. Define the state.
     /// struct State{
