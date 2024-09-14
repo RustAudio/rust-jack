@@ -4,8 +4,8 @@ use crate::{Client, TransportPosition, TransportState};
 
 #[test]
 fn new_transport_is_not_valid() {
-    assert_eq!(TransportPosition::default().valid_bbt(), false);
-    assert_eq!(TransportPosition::default().valid_bbt_frame_offset(), false);
+    assert!(!TransportPosition::default().valid_bbt());
+    assert!(!TransportPosition::default().valid_bbt_frame_offset());
     assert_eq!(TransportPosition::default().frame(), 0);
     assert_eq!(TransportPosition::default().bbt(), None);
     assert_eq!(TransportPosition::default().bbt_offset(), None);
