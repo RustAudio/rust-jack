@@ -1,5 +1,6 @@
 mod client;
 mod log;
+mod processing;
 mod time;
 
 #[ctor::ctor]

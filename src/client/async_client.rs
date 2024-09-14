@@ -60,7 +60,8 @@ where
                 client,
                 notification: notification_handler,
                 process: process_handler,
-                is_valid: AtomicBool::new(true),
+                is_valid_for_callback: AtomicBool::new(true),
+                has_panic: AtomicBool::new(false),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             let res = j::jack_activate(callback_context.client.raw());
@@ -109,23 +110,21 @@ impl<N, P> AsyncClient<N, P> {
             return Err(Error::ClientIsNoLongerAlive);
         }
         let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
-        let client = cb.client.raw();
+        let client_ptr = cb.client.raw();
 
         // deactivate
-        if j::jack_deactivate(client) != 0 {
+        if j::jack_deactivate(client_ptr) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
-        clear_callbacks(client)?;
+        clear_callbacks(client_ptr)?;
         // done, take ownership of callback
-        if cb.is_valid.load(std::sync::atomic::Ordering::Relaxed) {
-            Ok(cb)
-        } else {
-            std::mem::forget(cb.notification);
-            std::mem::forget(cb.process);
-            Err(Error::ClientIsNoLongerAlive)
+        if cb.has_panic.load(std::sync::atomic::Ordering::Relaxed) {
+            std::mem::forget(cb);
+            return Err(Error::ClientPanicked);
         }
+        Ok(cb)
     }
 }
 

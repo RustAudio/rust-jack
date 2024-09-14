@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::jack_enums::CodeOrMessage;
 use crate::jack_utils::collect_strs;
 use crate::properties::PropertyChangeHandler;
 use crate::transport::Transport;
@@ -496,8 +497,7 @@ impl Client {
     /// 4. Both ports must be owned by active clients.
     ///
     /// # Panics
-    /// Panics if it is not possible to convert `source_port` or
-    /// `destination_port` to a `CString`.
+    /// Panics if it is not possible to convert `source_port` or `destination_port` to a `CString`.
     pub fn connect_ports_by_name(
         &self,
         source_port: &str,
@@ -505,7 +505,6 @@ impl Client {
     ) -> Result<(), Error> {
         let source_cstr = ffi::CString::new(source_port).unwrap();
         let destination_cstr = ffi::CString::new(destination_port).unwrap();
-
         let res =
             unsafe { j::jack_connect(self.raw(), source_cstr.as_ptr(), destination_cstr.as_ptr()) };
         match res {
@@ -514,10 +513,32 @@ impl Client {
                 source_port.to_string(),
                 destination_port.to_string(),
             )),
-            _ => Err(Error::PortConnectionError(
-                source_port.to_string(),
-                destination_port.to_string(),
-            )),
+            code => {
+                let code_or_message = if self
+                    .port_by_name(&source_port)
+                    .map(|p| p.flags().contains(PortFlags::IS_INPUT))
+                    .unwrap_or(false)
+                {
+                    CodeOrMessage::Message(
+                        "source port does not produce a signal, it is not an input port",
+                    )
+                } else if self
+                    .port_by_name(&destination_port)
+                    .map(|p| p.flags().contains(PortFlags::IS_OUTPUT))
+                    .unwrap_or(false)
+                {
+                    CodeOrMessage::Message(
+                        "destination port cannot be written to, it is not an output port",
+                    )
+                } else {
+                    CodeOrMessage::Code(code)
+                };
+                Err(Error::PortConnectionError {
+                    source: source_port.to_string(),
+                    destination: destination_port.to_string(),
+                    code_or_message,
+                })
+            }
         }
     }
 
