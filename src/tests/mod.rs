@@ -3,6 +3,7 @@ mod log;
 mod processing;
 mod ringbuffer;
 mod time;
+mod transport;
 
 #[ctor::ctor]
 fn log_to_stdio() {

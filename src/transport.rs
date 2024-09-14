@@ -12,6 +12,10 @@ pub struct Transport {
     pub(crate) client_life: Weak<()>,
 }
 
+//all exposed methods are realtime safe
+unsafe impl Send for Transport {}
+unsafe impl Sync for Transport {}
+
 /// A structure representing the transport position.
 #[repr(transparent)]
 pub struct TransportPosition(j::jack_position_t);
@@ -86,14 +90,6 @@ impl std::fmt::Display for TransportBBTValidationError {
 impl std::error::Error for TransportBBTValidationError {}
 
 impl Transport {
-    fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
-        if self.client_life.upgrade().is_some() {
-            Ok(func(self.client_ptr))
-        } else {
-            Err(crate::Error::ClientIsNoLongerAlive)
-        }
-    }
-
     /// Start the JACK transport rolling.
     ///
     /// # Remarks
@@ -171,15 +167,6 @@ impl Transport {
         }
     }
 
-    // Helper to create generic error from jack response
-    fn result_from_ffi<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
-        match v {
-            Ok(0) => Ok(r),
-            Ok(error_code) => Err(crate::Error::UnknownError { error_code }),
-            Err(e) => Err(e),
-        }
-    }
-
     /// Query the current transport state and position.
     ///
     /// # Remarks
@@ -213,11 +200,24 @@ impl Transport {
             Self::state_from_ffi(unsafe { j::jack_transport_query(ptr, std::ptr::null_mut()) })
         })
     }
-}
 
-//all exposed methods are realtime safe
-unsafe impl Send for Transport {}
-unsafe impl Sync for Transport {}
+    fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
+        if self.client_life.upgrade().is_some() {
+            Ok(func(self.client_ptr))
+        } else {
+            Err(crate::Error::ClientIsNoLongerAlive)
+        }
+    }
+
+    // Helper to create generic error from jack response
+    fn result_from_ffi<R>(v: Result<::libc::c_int>, r: R) -> Result<R> {
+        match v {
+            Ok(0) => Ok(r),
+            Ok(error_code) => Err(crate::Error::UnknownError { error_code }),
+            Err(e) => Err(e),
+        }
+    }
+}
 
 impl TransportPosition {
     /// Query to see if the BarBeatsTick data is valid.
@@ -229,23 +229,6 @@ impl TransportPosition {
     pub fn valid_bbt_frame_offset(&self) -> bool {
         (self.0.valid & j::JackBBTFrameOffset) != 0
     }
-
-    /*
-    /// Query to see if the Timecode data is valid.
-    pub fn valid_timecode(&self) -> bool {
-        (self.0.valid & j::JackPositionTimecode) != 0
-    }
-
-    /// Query to see if the Audio/Video ratio is valid.
-    pub fn valid_avr(&self) -> bool {
-        (self.0.valid & j::JackAudioVideoRatio) != 0
-    }
-
-    /// Query to see if the Video frame offset is valid.
-    pub fn valid_video_frame_offset(&self) -> bool {
-        (self.0.valid & j::JackVideoFrameOffset) != 0
-    }
-    */
 
     /// Get the frame number on the transport timeline.
     ///
@@ -316,7 +299,7 @@ impl TransportPosition {
     /// * `bbt` - The data to set in the position. `None` will invalidate the BarBeatsTick data.
     ///
     /// # Remarks
-    /// * If the bbt does not validate, will leave the pre-existing data intact.
+    /// * If `bbt` is not valid, will leave the pre-existing data intact.
     pub fn set_bbt(
         &mut self,
         bbt: Option<TransportBBT>,
@@ -449,7 +432,7 @@ impl TransportBBT {
         self
     }
 
-    /// Validate contents.
+    /// Returns `self` is valid, otherwise returns an error describing what is invalid.
     pub fn validated(&'_ self) -> std::result::Result<Self, TransportBBTValidationError> {
         if self.bar == 0 {
             Err(TransportBBTValidationError::BarZero)
@@ -470,6 +453,7 @@ impl TransportBBT {
         }
     }
 
+    /// Returns true if valid. Use `validated` to get the exact validation results.
     pub fn valid(&self) -> bool {
         self.validated().is_ok()
     }

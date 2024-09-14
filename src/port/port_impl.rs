@@ -319,7 +319,6 @@ impl<PS> Port<PS> {
     }
 }
 
-#[cfg(feature = "metadata")]
 impl<PS> Port<PS> {
     /// Returns the fully-qualified name of all ports currently connected to this one
     /// Remarks: Not realtime safe

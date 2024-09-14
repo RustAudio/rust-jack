@@ -154,7 +154,6 @@ impl Client {
     /// # Remarks
     ///
     /// * Deallocates, not realtime safe.
-    #[cfg(feature = "metadata")]
     pub fn uuid(&self) -> j::jack_uuid_t {
         unsafe {
             let mut uuid: j::jack_uuid_t = Default::default();
@@ -169,12 +168,10 @@ impl Client {
     /// Get the numeric `uuid` of a client by name; returns None if client does not exist
     /// # Remarks
     /// * Not realtime safe
-    #[cfg(feature = "metadata")]
     pub fn uuid_of_client_by_name(&self, name: &str) -> Option<jack_sys::jack_uuid_t> {
         Self::uuid_of_client_by_name_raw(self.raw(), name)
     }
 
-    #[cfg(feature = "metadata")]
     pub(crate) fn uuid_of_client_by_name_raw(
         raw: *mut jack_sys::jack_client_t,
         name: &str,
@@ -225,7 +222,6 @@ impl Client {
     }
 
     /// Get the name of a client by its numeric uuid.
-    #[cfg(feature = "metadata")]
     pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
         unsafe {
@@ -652,8 +648,7 @@ impl Client {
     ///
     /// # Panics
     /// Calling this method more than once on any given client with cause a panic.
-    #[cfg(feature = "metadata")]
-    pub fn register_property_change_handler<H: PropertyChangeHandler + 'static>(
+    pub fn register_property_change_handler<H: 'static + PropertyChangeHandler>(
         &mut self,
         handler: H,
     ) -> Result<(), Error> {
