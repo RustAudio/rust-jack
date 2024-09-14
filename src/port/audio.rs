@@ -11,7 +11,7 @@ use crate::{Port, PortFlags, PortSpec, ProcessScope};
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::default())
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();
@@ -30,7 +30,7 @@ pub struct AudioIn {
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::default())
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();

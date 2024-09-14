@@ -12,7 +12,8 @@ Rust bindings for [JACK Audio Connection Kit](<https://jackaudio.org>).
 
 The JACK server is usually started by the user or system. Clients can request
 that the JACK server is started on demand when they connect, but this can be
-disabled by creating a client with the `NO_START_SERVER` option.
+disabled by creating a client with the `NO_START_SERVER` option or
+`ClientOptions::default()`.
 
 -   Linux and BSD users may install JACK1, JACK2 (preferred for low latency), or
     Pipewire JACK (preferred for ease of use) from their system package manager.

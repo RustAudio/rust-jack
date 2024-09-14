@@ -6,7 +6,7 @@ fn main() {
     // Create client
     jack::set_logger(jack::LoggerType::Stdio);
     let (client, _status) =
-        jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.

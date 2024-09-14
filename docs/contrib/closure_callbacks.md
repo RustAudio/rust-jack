@@ -18,7 +18,7 @@ contains captures the required state and then activating it.
 ```rust
 // 1. Create the client.
 let (client, _status) =
-    jack::Client::new("silence", jack::ClientOptions::NO_START_SERVER).unwrap();
+    jack::Client::new("silence", jack::ClientOptions::default()).unwrap();
 
 // 2. Define the state.
 let mut output = client.register_port("out", jack::AudioOut::default());
@@ -45,7 +45,7 @@ buffer size.
 ```rust
 // 1. Create the client.
 let (client, _status) =
-    jack::Client::new("silence", jack::ClientOptions::NO_START_SERVER).unwrap();
+    jack::Client::new("silence", jack::ClientOptions::default()).unwrap();
 
 // 2. Define the state.
 struct State {

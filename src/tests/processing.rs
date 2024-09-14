@@ -1,6 +1,6 @@
 #[test]
 fn panic_in_process_handler_propagates_as_error_in_deactivate() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(1);
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).ok();
@@ -15,7 +15,7 @@ fn panic_in_process_handler_propagates_as_error_in_deactivate() {
 
 #[test]
 fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let handler = crate::contrib::ClosureProcessHandler::with_state(
         (),
@@ -34,7 +34,7 @@ fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
 
 #[test]
 fn quitting_stops_calling_process() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let mut calls = 0;
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
@@ -52,7 +52,7 @@ fn quitting_stops_calling_process() {
 
 #[test]
 fn quitting_buffer_size_never_runs_process() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let handler = crate::contrib::ClosureProcessHandler::with_state(
         (),
@@ -73,7 +73,7 @@ fn quitting_buffer_size_never_runs_process() {
 
 #[test]
 fn buffer_size_is_called_before_process() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let process_handler = crate::contrib::ClosureProcessHandler::with_state(
         "initializing",
@@ -98,7 +98,7 @@ fn buffer_size_is_called_before_process() {
 #[test]
 fn signals_in_audio_ports_are_forwarded() {
     // Setup clients and ports.
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let buffer_size = client.buffer_size() as usize;
     assert_ne!(buffer_size, 0);
     let input = client
@@ -140,7 +140,7 @@ fn signals_in_audio_ports_are_forwarded() {
 
 #[test]
 fn messages_in_midi_ports_are_forwarded() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
 
     let buffer_size = client.buffer_size() as usize;
     assert_ne!(buffer_size, 0);
@@ -189,7 +189,7 @@ fn messages_in_midi_ports_are_forwarded() {
 
 #[test]
 fn activating_client_notifies_buffer_size_before_beginning() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let initial_buffer_size = client.buffer_size() as usize;
     assert_ne!(initial_buffer_size, 0);
 }

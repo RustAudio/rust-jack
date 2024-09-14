@@ -364,7 +364,7 @@ mod metadata {
 
         #[test]
         fn can_set_and_get() {
-            let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+            let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
 
             let prop1 = Property::new("foo", None);
             assert_eq!(c.property_set(c.uuid(), "blah", &prop1), Ok(()));
@@ -405,8 +405,8 @@ mod metadata {
 
         #[test]
         fn can_remove() {
-            let (c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
-            let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+            let (c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
+            let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
             let prop1 = Property::new("foo", None);
             let prop2 = Property::new(
                 "http://churchofrobotron.com/2084",
@@ -455,7 +455,7 @@ mod metadata {
 
         #[test]
         fn can_property_remove_all() {
-            let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+            let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
             let prop = Property::new("foo", Some("bar".into()));
             assert_eq!(c.property_set(c.uuid(), "blah", &prop), Ok(()));
 
@@ -488,8 +488,8 @@ mod metadata {
                 Some("robot apocalypse".into()),
             );
 
-            let (mut c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
-            let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+            let (mut c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
+            let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
             let (sender, receiver): (Sender<PropertyChangeOwned>, _) = channel();
             assert_eq!(
                 Ok(()),
@@ -563,7 +563,7 @@ mod metadata {
         #[test]
         #[should_panic]
         fn double_register() {
-            let (mut c, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
+            let (mut c, _) = Client::new("client1", ClientOptions::default()).unwrap();
             assert_eq!(
                 Ok(()),
                 c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}))

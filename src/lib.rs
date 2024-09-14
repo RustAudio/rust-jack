@@ -78,7 +78,7 @@ pub mod contrib {
 mod tests;
 
 static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
-    Client::new("deprecated_get_time", ClientOptions::NO_START_SERVER)
+    Client::new("deprecated_get_time", ClientOptions::default())
         .unwrap()
         .0
 });

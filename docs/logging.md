@@ -36,7 +36,7 @@ env_logger::builder().filter(None, log::LevelFilter::Info).init();
 
 // JACK may log things to `info!` or `error!`.
 let (client, _status) =
-      jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+      jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 ```
 
 

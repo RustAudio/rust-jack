@@ -43,7 +43,7 @@ impl std::fmt::Debug for MidiCopy {
 fn main() {
     // Open the client.
     let (client, _status) =
-        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::default()).unwrap();
 
     // Create a sync channel to send back copies of midi messages we get.
     let (sender, receiver) = sync_channel(64);

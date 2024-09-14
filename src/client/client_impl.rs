@@ -17,7 +17,7 @@ use crate::{
 ///
 /// # Example
 /// ```
-/// let c_res = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER);
+/// let c_res = jack::Client::new("rusty_client", jack::ClientOptions::default());
 /// match c_res {
 ///     Ok((client, status)) => println!(
 ///         "Managed to open client {}, with

@@ -55,7 +55,7 @@ program that can take inputs and forward them to outputs.
 fn main() {
     // 1. Create client
     let (client, _status) =
-        jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 
     // 2. Register ports. They will be used in a callback that will be
     // called when new data is available.

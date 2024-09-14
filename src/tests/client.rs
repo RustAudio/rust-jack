@@ -1,7 +1,7 @@
 #[test]
 fn client_can_open() {
     let (client, status) =
-        crate::Client::new("my new client", crate::ClientOptions::NO_START_SERVER).unwrap();
+        crate::Client::new("my new client", crate::ClientOptions::default()).unwrap();
     assert_eq!(status, crate::ClientStatus::empty());
     assert_eq!(client.name(), "my new client");
     assert_ne!(client.sample_rate(), 0);
@@ -39,8 +39,8 @@ fn maybe_client_can_set_buffer_size() {
 
 #[test]
 fn client_uuid_are_unique() {
-    let (client1, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
-    let (client2, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client1, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let (client2, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     assert_ne!(client1.uuid_string(), "");
     assert_ne!(client2.uuid_string(), "");
     assert_ne!(client1.uuid_string(), client2.uuid_string());
@@ -52,9 +52,9 @@ fn client_uuid_are_unique() {
 #[test]
 fn uuid_can_map_to_client_name() {
     let (client1, _) =
-        crate::Client::new("uuid-client-1", crate::ClientOptions::NO_START_SERVER).unwrap();
+        crate::Client::new("uuid-client-1", crate::ClientOptions::default()).unwrap();
     let (client2, _) =
-        crate::Client::new("uuid-client-2", crate::ClientOptions::NO_START_SERVER).unwrap();
+        crate::Client::new("uuid-client-2", crate::ClientOptions::default()).unwrap();
 
     assert_eq!(
         client1.name_by_uuid_str(&client1.uuid_string()).unwrap(),
@@ -76,9 +76,9 @@ fn uuid_can_map_to_client_name() {
 
 #[test]
 fn nonexistant_uuid_to_client_name_returns_none() {
-    let (client1, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (client1, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (client2, _) =
-        crate::Client::new("dropped-client", crate::ClientOptions::NO_START_SERVER).unwrap();
+        crate::Client::new("dropped-client", crate::ClientOptions::default()).unwrap();
     let uuid_string = client2.uuid_string();
     let uuid = client2.uuid();
     drop(client2);
