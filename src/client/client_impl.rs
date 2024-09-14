@@ -515,7 +515,7 @@ impl Client {
             )),
             code => {
                 let code_or_message = if self
-                    .port_by_name(&source_port)
+                    .port_by_name(source_port)
                     .map(|p| p.flags().contains(PortFlags::IS_INPUT))
                     .unwrap_or(false)
                 {
@@ -523,7 +523,7 @@ impl Client {
                         "source port does not produce a signal, it is not an input port",
                     )
                 } else if self
-                    .port_by_name(&destination_port)
+                    .port_by_name(destination_port)
                     .map(|p| p.flags().contains(PortFlags::IS_OUTPUT))
                     .unwrap_or(false)
                 {

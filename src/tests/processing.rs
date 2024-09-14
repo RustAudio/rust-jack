@@ -5,7 +5,7 @@ fn panic_in_process_handler_propagates_as_error_in_deactivate() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(1);
     eprintln!("Activating async client.");
-    let process_handler = crate::ClosureProcessHandler::new(move |_, _| {
+    let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).ok();
         panic!("panic should convert to error!");
     });
@@ -23,7 +23,7 @@ fn quitting_stops_calling_process() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
     let mut calls = 0;
     let (send, recv) = std::sync::mpsc::sync_channel(2);
-    let process_handler = crate::ClosureProcessHandler::new(move |_, _| {
+    let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).unwrap();
         calls += 1;
         assert_eq!(calls, 1);
@@ -55,7 +55,7 @@ fn signals_in_audio_ports_are_forwarded() {
     let (send, recv) = std::sync::mpsc::sync_channel(1);
 
     // Setup checks.
-    let process_handler = crate::ClosureProcessHandler::new(move |_, ps| {
+    let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, ps| {
         let test_val = 0.25;
         output.as_mut_slice(ps).fill(test_val);
         assert_eq!(output.as_mut_slice(ps).len(), buffer_size);
@@ -99,7 +99,7 @@ fn messages_in_midi_ports_are_forwarded() {
         .unwrap();
     let (input_name, output_name) = (input.name().unwrap(), output.name().unwrap());
     let (send, recv) = std::sync::mpsc::sync_channel(1);
-    let process_handler = crate::ClosureProcessHandler::new(move |_, ps| {
+    let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, ps| {
         let mut writer = output.writer(ps);
         assert_ne!(writer.max_event_size(), 0);
         for time in 0..10 {
@@ -132,4 +132,11 @@ fn messages_in_midi_ports_are_forwarded() {
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
     ac.deactivate().unwrap();
+}
+
+#[test]
+fn activating_client_notifies_buffer_size_before_beginning() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let initial_buffer_size = client.buffer_size() as usize;
+    assert_ne!(initial_buffer_size, 0);
 }

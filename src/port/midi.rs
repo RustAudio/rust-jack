@@ -19,12 +19,16 @@ pub struct RawMidi<'a> {
 /// `MidiIn` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
 /// defines midi input.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct MidiIn;
+pub struct MidiIn {
+    _internal: (),
+}
 
 /// `MidiOut` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
 /// defines a midi output.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct MidiOut;
+pub struct MidiOut {
+    _internal: (),
+}
 
 unsafe impl PortSpec for MidiIn {
     fn jack_port_type(&self) -> &'static str {
