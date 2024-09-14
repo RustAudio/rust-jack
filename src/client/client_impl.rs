@@ -53,8 +53,12 @@ impl Client {
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
         Self::new_with_server_name(client_name, options, None)
     }
-        
-    pub fn new_with_server_name(client_name: &str, options: ClientOptions, server_name: Option<&str>) -> Result<(Self, ClientStatus), Error> {
+
+    pub fn new_with_server_name(
+        client_name: &str,
+        options: ClientOptions,
+        server_name: Option<&str>,
+    ) -> Result<(Self, ClientStatus), Error> {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         // All of the jack_sys functions below assume the client library is loaded and will panic if
         // it is not
@@ -71,8 +75,13 @@ impl Client {
                 let server_name = ffi::CString::new(server_name).unwrap();
                 let options = options | ClientOptions::SERVER_NAME;
                 unsafe {
-                    j::jack_client_open_with_server_name(client_name.as_ptr(), options.bits(), &mut status_bits, server_name.as_ptr())
-                }   
+                    j::jack_client_open_with_server_name(
+                        client_name.as_ptr(),
+                        options.bits(),
+                        &mut status_bits,
+                        server_name.as_ptr(),
+                    )
+                }
             } else {
                 unsafe {
                     j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
