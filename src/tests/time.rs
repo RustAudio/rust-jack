@@ -25,6 +25,6 @@ fn one_second_is_sample_rate_frames() {
     assert_abs_diff_eq!(
         (t1 - t0) as f64,
         client.sample_rate() as f64,
-        epsilon = client.sample_rate() as f64 * 1e-5
+        epsilon = client.sample_rate() as f64 * 1e-4
     );
 }

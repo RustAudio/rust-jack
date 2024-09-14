@@ -1,6 +1,7 @@
 mod client;
 mod log;
 mod processing;
+mod ringbuffer;
 mod time;
 
 #[ctor::ctor]

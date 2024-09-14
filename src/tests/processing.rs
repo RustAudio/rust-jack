@@ -1,20 +1,34 @@
-use crate::RawMidi;
-
 #[test]
 fn panic_in_process_handler_propagates_as_error_in_deactivate() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(1);
-    eprintln!("Activating async client.");
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).ok();
         panic!("panic should convert to error!");
     });
     let ac = client.activate_async((), process_handler).unwrap();
-    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
-    eprintln!("Deactivating client.");
+    assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
+}
+
+#[test]
+fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(2);
+    let handler = crate::contrib::ClosureProcessHandler::with_state(
+        (),
+        move |_, _, _| {
+            send.try_send(true).unwrap();
+            panic!("intentional panic here");
+        },
+        move |_, _, _| crate::Control::Continue,
+    );
+    let ac = client.activate_async((), handler).unwrap();
+    assert!(recv
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap());
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
@@ -29,14 +43,56 @@ fn quitting_stops_calling_process() {
         assert_eq!(calls, 1);
         crate::Control::Quit
     });
-    eprintln!("Activating async client.");
     let ac = client.activate_async((), process_handler).unwrap();
-    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
-    eprintln!("Deactivating client.");
     ac.deactivate().unwrap();
+}
+
+#[test]
+fn quitting_buffer_size_never_runs_process() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(2);
+    let handler = crate::contrib::ClosureProcessHandler::with_state(
+        (),
+        move |_, _, _| {
+            send.try_send(true).unwrap();
+            crate::Control::Quit
+        },
+        move |_, _, _| panic!("quit requested, this should not be called"),
+    );
+    let ac = client.activate_async((), handler).unwrap();
+    assert!(recv
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap());
+    // Give the process handler some time to try to activate.
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    ac.deactivate().unwrap();
+}
+
+#[test]
+fn buffer_size_is_called_before_process() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(2);
+    let process_handler = crate::contrib::ClosureProcessHandler::with_state(
+        "initializing",
+        move |state, _, _| {
+            assert_eq!(*state, "processing");
+            send.try_send(true).ok();
+            crate::Control::Continue
+        },
+        |state, _, _| {
+            assert_eq!(*state, "initializing");
+            *state = "processing";
+            crate::Control::Continue
+        },
+    );
+    let ac = client.activate_async((), process_handler).unwrap();
+    assert!(recv
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap());
+    assert_eq!(ac.deactivate().unwrap().2.state, "processing");
 }
 
 #[test]
@@ -72,16 +128,13 @@ fn signals_in_audio_ports_are_forwarded() {
     });
 
     // Runs checks.
-    eprintln!("Activating async client.");
     let ac = client.activate_async((), process_handler).unwrap();
     ac.as_client()
         .connect_ports_by_name(&output_name, &input_name)
         .unwrap();
-    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
-    eprintln!("Deactivating client.");
     ac.deactivate().unwrap();
 }
 
@@ -104,7 +157,7 @@ fn messages_in_midi_ports_are_forwarded() {
         assert_ne!(writer.max_event_size(), 0);
         for time in 0..10 {
             writer
-                .write(&RawMidi {
+                .write(&crate::RawMidi {
                     time,
                     bytes: &[0, 1, 2],
                 })

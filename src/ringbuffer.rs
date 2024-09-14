@@ -152,7 +152,7 @@ impl RingBufferReader {
         (view1, view2)
     }
 
-    /// Read data from the ringbuffer.  Returns: the number of bytes read, which may range from 0 to
+    /// Read data from the ringbuffer. Returns the number of bytes read, which may range from 0 to
     /// buf.len().
     pub fn read_buffer(&mut self, buf: &mut [u8]) -> usize {
         if buf.is_empty() {
@@ -163,6 +163,12 @@ impl RingBufferReader {
         let bufstart = &mut buf[0] as *mut _ as *mut libc::c_char;
 
         unsafe { j::jack_ringbuffer_read(self.ringbuffer_handle, bufstart, insize) }
+    }
+
+    /// Read data from the ringbuffer. Returns the slice that was read into. This is a subset of `buf`.
+    pub fn read_slice<'a>(&mut self, buf: &'a mut [u8]) -> &'a [u8] {
+        let len = self.read_buffer(buf);
+        &buf[0..len]
     }
 
     /// Read data from the ringbuffer. Opposed to read_buffer() this function does not move the read
@@ -260,7 +266,7 @@ impl RingBufferWriter {
 
     /// Return a pair of slices of the current writable space in the ringbuffer. two slices are
     /// needed because the space available for writing may be split across the end of the
-    /// ringbuffer.  consider using peek_iter for convenience.
+    /// ringbuffer. Consider using peek_iter for convenience.
     pub fn get_vector(&mut self) -> (&mut [u8], &mut [u8]) {
         let mut vec = [
             j::jack_ringbuffer_data_t::default(),
