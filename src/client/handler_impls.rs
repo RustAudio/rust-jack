@@ -13,25 +13,5 @@ impl ProcessHandler for () {
 
 /// Wrap a closure that can handle the `process` callback. This is called every time data from ports
 /// is available from JACK.
-pub struct ClosureProcessHandler<F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control> {
-    pub process_fn: F,
-}
-
-impl<F> ClosureProcessHandler<F>
-where
-    F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
-{
-    #[deprecated = "Use jack::contrib::ClosureProcessHandler instead of jack::ClosureProcessHandler"]
-    pub fn new(f: F) -> ClosureProcessHandler<F> {
-        ClosureProcessHandler { process_fn: f }
-    }
-}
-
-impl<F> ProcessHandler for ClosureProcessHandler<F>
-where
-    F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
-{
-    fn process(&mut self, c: &Client, ps: &ProcessScope) -> Control {
-        (self.process_fn)(c, ps)
-    }
-}
+#[deprecated = "Prefer using jack::contrib::ClosureProcessHandler directly."]
+pub type ClosureProcessHandler<F> = crate::contrib::ClosureProcessHandler<(), F>;

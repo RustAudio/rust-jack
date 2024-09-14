@@ -17,6 +17,7 @@ pub use self::client_options::ClientOptions;
 pub use self::client_status::ClientStatus;
 pub use self::common::CLIENT_NAME_SIZE;
 
+#[allow(deprecated)]
 pub use self::handler_impls::ClosureProcessHandler;
 
 // client.rs excluding functionality that involves ports or callbacks

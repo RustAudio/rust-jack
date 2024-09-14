@@ -33,9 +33,11 @@
 //! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
 //! to.
 
+#[allow(deprecated)]
+pub use crate::client::ClosureProcessHandler;
 pub use crate::client::{
-    AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,
-    InternalClientID, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
+    AsyncClient, Client, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
+    NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
 pub use crate::logging::{set_logger, LoggerType};
@@ -68,6 +70,7 @@ mod properties;
 mod ringbuffer;
 mod transport;
 
+/// A collection of useful but optional functionality.
 pub mod contrib {
     mod closure;
 

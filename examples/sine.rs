@@ -53,7 +53,7 @@ fn main() {
             // Continue as normal
             jack::Control::Continue
         },
-        move |_, _| jack::Control::Continue,
+        move |_, _, _| jack::Control::Continue,
     );
 
     // 4. Activate the client. Also connect the ports to the system audio.
