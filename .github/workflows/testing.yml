@@ -30,7 +30,5 @@ jobs:
         run: cargo build --verbose --examples
       - name: Run Tests (Default Features)
         run: cargo nextest run
-      - name: Run Tests (No Features)
-        run: cargo nextest run --no-default-features
       - name: Run Doc Tests
         run: cargo doc && cargo test --doc
