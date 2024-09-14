@@ -21,6 +21,7 @@ impl<F> ClosureProcessHandler<F>
 where
     F: 'static + Send + FnMut(&Client, &ProcessScope) -> Control,
 {
+    #[deprecated = "Use jack::contrib::ClosureProcessHandler instead of jack::ClosureProcessHandler"]
     pub fn new(f: F) -> ClosureProcessHandler<F> {
         ClosureProcessHandler { process_fn: f }
     }

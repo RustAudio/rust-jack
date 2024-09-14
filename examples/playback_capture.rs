@@ -31,7 +31,7 @@ fn main() {
         out_b_p.clone_from_slice(in_b_p);
         jack::Control::Continue
     };
-    let process = jack::ClosureProcessHandler::new(process_callback);
+    let process = jack::contrib::ClosureProcessHandler::new(process_callback);
 
     // Activate the client, which starts the processing.
     let active_client = client.activate_async(Notifications, process).unwrap();

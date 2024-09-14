@@ -213,8 +213,8 @@ impl<'a> MidiWriter<'a> {
 mod test {
     use super::*;
     use crate::client::Client;
-    use crate::client::ClosureProcessHandler;
     use crate::client::ProcessHandler;
+    use crate::contrib::ClosureProcessHandler;
     use crate::jack_enums::Control;
     use crate::primitive_types::Frames;
     use crate::ClientOptions;
