@@ -31,4 +31,4 @@ jobs:
       - name: Run Tests
         run: cargo nextest run --all-features
       - name: Run Doc Tests
-        run: cargo test --doc
+        run: cargo doc && cargo test --doc
