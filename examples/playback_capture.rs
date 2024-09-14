@@ -4,8 +4,9 @@ use std::io;
 
 fn main() {
     // Create client
+    jack::set_logger(jack::LoggerType::Stdio);
     let (client, _status) =
-        jack::Client::new("rust_jack_simple", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 
     // Register ports. They will be used in a callback that will be
     // called when new data is available.
@@ -30,7 +31,7 @@ fn main() {
         out_b_p.clone_from_slice(in_b_p);
         jack::Control::Continue
     };
-    let process = jack::ClosureProcessHandler::new(process_callback);
+    let process = jack::contrib::ClosureProcessHandler::new(process_callback);
 
     // Activate the client, which starts the processing.
     let active_client = client.activate_async(Notifications, process).unwrap();
@@ -40,7 +41,9 @@ fn main() {
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
 
-    active_client.deactivate().unwrap();
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    };
 }
 
 struct Notifications;
@@ -50,9 +53,8 @@ impl jack::NotificationHandler for Notifications {
         println!("JACK: thread init");
     }
 
-    fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
-        println!("JACK: shutdown with status {status:?} because \"{reason}\"",);
-    }
+    /// Not much we can do here, see https://man7.org/linux/man-pages/man7/signal-safety.7.html.
+    unsafe fn shutdown(&mut self, _: jack::ClientStatus, _: &str) {}
 
     fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
         println!(

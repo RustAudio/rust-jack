@@ -31,3 +31,9 @@ bitflags! {
         const SESSION_ID      = j::JackSessionID;
     }
 }
+
+impl Default for ClientOptions {
+    fn default() -> Self {
+        ClientOptions::NO_START_SERVER
+    }
+}

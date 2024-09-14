@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
 use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::jack_enums::CodeOrMessage;
 use crate::jack_utils::collect_strs;
 use crate::properties::PropertyChangeHandler;
 use crate::transport::Transport;
@@ -16,7 +17,7 @@ use crate::{
 ///
 /// # Example
 /// ```
-/// let c_res = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER);
+/// let c_res = jack::Client::new("rusty_client", jack::ClientOptions::default());
 /// match c_res {
 ///     Ok((client, status)) => println!(
 ///         "Managed to open client {}, with
@@ -30,6 +31,7 @@ use crate::{
 
 pub type InternalClientID = j::jack_intclient_t;
 
+#[allow(dead_code)]
 pub struct Client(
     *mut j::jack_client_t,
     Arc<()>,
@@ -53,8 +55,7 @@ impl Client {
     }
         
     pub fn new_with_server_name(client_name: &str, options: ClientOptions, server_name: Option<&str>) -> Result<(Self, ClientStatus), Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         // All of the jack_sys functions below assume the client library is loaded and will panic if
         // it is not
         #[cfg(feature = "dynamic_loading")]
@@ -62,15 +63,10 @@ impl Client {
             return Err(Error::LibraryError(err.to_string()));
         }
 
-        unsafe {
-            jack_sys::jack_set_error_function(Some(error_handler));
-            jack_sys::jack_set_info_function(Some(info_handler));
-        }
-        sleep_on_test();
+        crate::logging::maybe_init_logging();
         let mut status_bits = 0;
         let client = {
             let client_name = ffi::CString::new(client_name).unwrap();
-            
             if let Some(server_name) = server_name {
                 let server_name = ffi::CString::new(server_name).unwrap();
                 let options = options | ClientOptions::SERVER_NAME;
@@ -84,7 +80,6 @@ impl Client {
             }
         };
 
-        sleep_on_test();
         let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
         if client.is_null() {
             Err(Error::ClientError(status))
@@ -105,6 +100,17 @@ impl Client {
         P: 'static + Send + ProcessHandler,
     {
         AsyncClient::new(self, notification_handler, process_handler)
+    }
+
+    /// Return JACK's current system time in microseconds, using the JACK clock
+    /// source.
+    ///
+    /// Note: Although attached a `Client` method, this should use the same time clock as all
+    /// clients.
+    pub fn time(&self) -> Time {
+        // Despite not needing a ptr to the client, this function often segfaults if a client has
+        // not been initialized.
+        unsafe { jack_sys::jack_get_time() }
     }
 
     /// The sample rate of the JACK system, as set by the user when jackd was
@@ -159,7 +165,6 @@ impl Client {
     /// # Remarks
     ///
     /// * Deallocates, not realtime safe.
-    #[cfg(feature = "metadata")]
     pub fn uuid(&self) -> j::jack_uuid_t {
         unsafe {
             let mut uuid: j::jack_uuid_t = Default::default();
@@ -174,12 +179,10 @@ impl Client {
     /// Get the numeric `uuid` of a client by name; returns None if client does not exist
     /// # Remarks
     /// * Not realtime safe
-    #[cfg(feature = "metadata")]
     pub fn uuid_of_client_by_name(&self, name: &str) -> Option<jack_sys::jack_uuid_t> {
         Self::uuid_of_client_by_name_raw(self.raw(), name)
     }
 
-    #[cfg(feature = "metadata")]
     pub(crate) fn uuid_of_client_by_name_raw(
         raw: *mut jack_sys::jack_client_t,
         name: &str,
@@ -230,7 +233,6 @@ impl Client {
     }
 
     /// Get the name of a client by its numeric uuid.
-    #[cfg(feature = "metadata")]
     pub fn name_by_uuid(&self, uuid: j::jack_uuid_t) -> Option<String> {
         let mut uuid_s = ['\0' as _; 37]; //jack_uuid_unparse expects an array of length 37
         unsafe {
@@ -398,7 +400,7 @@ impl Client {
                 Some(s) => s,
                 None => return Err(Error::WeakFunctionNotFound("jack_internal_client_unload")),
             };
-            ClientStatus::from_bits_unchecked(status)
+            ClientStatus::from_bits_retain(status)
         };
         if status.is_empty() {
             Ok(())
@@ -417,17 +419,11 @@ impl Client {
     /// (not the process callback). The return value can be compared with the value of
     /// `last_frame_time` to relate time in other threads to JACK time. To obtain better time
     /// information from within the process callback, see `ProcessScope`.
-    ///
-    /// # TODO
-    /// - test
     pub fn frame_time(&self) -> Frames {
         unsafe { j::jack_frame_time(self.raw()) }
     }
 
     /// The estimated time in microseconds of the specified frame time
-    ///
-    /// # TODO
-    /// - Improve test
     pub fn frames_to_time(&self, n_frames: Frames) -> Time {
         unsafe { j::jack_frames_to_time(self.raw(), n_frames) }
     }
@@ -508,8 +504,7 @@ impl Client {
     /// 4. Both ports must be owned by active clients.
     ///
     /// # Panics
-    /// Panics if it is not possible to convert `source_port` or
-    /// `destination_port` to a `CString`.
+    /// Panics if it is not possible to convert `source_port` or `destination_port` to a `CString`.
     pub fn connect_ports_by_name(
         &self,
         source_port: &str,
@@ -517,7 +512,6 @@ impl Client {
     ) -> Result<(), Error> {
         let source_cstr = ffi::CString::new(source_port).unwrap();
         let destination_cstr = ffi::CString::new(destination_port).unwrap();
-
         let res =
             unsafe { j::jack_connect(self.raw(), source_cstr.as_ptr(), destination_cstr.as_ptr()) };
         match res {
@@ -526,10 +520,32 @@ impl Client {
                 source_port.to_string(),
                 destination_port.to_string(),
             )),
-            _ => Err(Error::PortConnectionError(
-                source_port.to_string(),
-                destination_port.to_string(),
-            )),
+            code => {
+                let code_or_message = if self
+                    .port_by_name(source_port)
+                    .map(|p| p.flags().contains(PortFlags::IS_INPUT))
+                    .unwrap_or(false)
+                {
+                    CodeOrMessage::Message(
+                        "source port does not produce a signal, it is not an input port",
+                    )
+                } else if self
+                    .port_by_name(destination_port)
+                    .map(|p| p.flags().contains(PortFlags::IS_OUTPUT))
+                    .unwrap_or(false)
+                {
+                    CodeOrMessage::Message(
+                        "destination port cannot be written to, it is not an output port",
+                    )
+                } else {
+                    CodeOrMessage::Code(code)
+                };
+                Err(Error::PortConnectionError {
+                    source: source_port.to_string(),
+                    destination: destination_port.to_string(),
+                    code_or_message,
+                })
+            }
         }
     }
 
@@ -550,7 +566,7 @@ impl Client {
         source_port: &Port<A>,
         destination_port: &Port<B>,
     ) -> Result<(), Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         self.connect_ports_by_name(&source_port.name()?, &destination_port.name()?)
     }
 
@@ -643,8 +659,7 @@ impl Client {
     ///
     /// # Panics
     /// Calling this method more than once on any given client with cause a panic.
-    #[cfg(feature = "metadata")]
-    pub fn register_property_change_handler<H: PropertyChangeHandler + 'static>(
+    pub fn register_property_change_handler<H: 'static + PropertyChangeHandler>(
         &mut self,
         handler: H,
     ) -> Result<(), Error> {
@@ -652,15 +667,14 @@ impl Client {
         let handler = Box::into_raw(Box::new(handler));
         unsafe {
             self.2 = Some(Box::from_raw(handler));
-            if j::jack_set_property_change_callback(
+            let res = j::jack_set_property_change_callback(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
-                std::mem::transmute::<_, _>(handler),
-            ) == 0
-            {
-                Ok(())
-            } else {
-                Err(Error::UnknownError)
+                std::mem::transmute::<*mut H, *mut libc::c_void>(handler),
+            );
+            match res {
+                0 => Ok(()),
+                error_code => Err(Error::UnknownError { error_code }),
             }
         }
     }
@@ -669,14 +683,13 @@ impl Client {
 /// Close the client.
 impl Drop for Client {
     fn drop(&mut self) {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
-
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         debug_assert!(!self.raw().is_null()); // Rep invariant
                                               // Close the client
         sleep_on_test();
-        let res = unsafe { j::jack_client_close(self.raw()) }; // close the client
+        let _res = unsafe { j::jack_client_close(self.raw()) }; // best effort: close the client
         sleep_on_test();
-        assert_eq!(res, 0);
+        //assert_eq!(res, 0); //do not assert here. connection could be broken
         self.0 = ptr::null_mut();
     }
 }
@@ -789,18 +802,4 @@ pub struct CycleTimes {
     pub current_usecs: Time,
     pub next_usecs: Time,
     pub period_usecs: libc::c_float,
-}
-
-unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::error!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
-    }
-}
-
-unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
-    match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::info!("{}", msg),
-        Err(err) => log::error!("failed to parse JACK error: {:?}", err),
-    }
 }

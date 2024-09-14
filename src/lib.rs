@@ -33,74 +33,59 @@
 //! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
 //! to.
 
+#[allow(deprecated)]
+pub use crate::client::ClosureProcessHandler;
 pub use crate::client::{
-    AsyncClient, Client, ClientOptions, ClientStatus, ClosureProcessHandler, CycleTimes,
-    InternalClientID, NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
+    AsyncClient, Client, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
+    NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
+pub use crate::logging::{set_logger, LoggerType};
 pub use crate::port::{
     AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
     Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
 };
 pub use crate::primitive_types::{Frames, PortId, Time};
+pub use crate::properties::*;
 pub use crate::ringbuffer::{RingBuffer, RingBufferReader, RingBufferWriter};
 pub use crate::transport::{
     Transport, TransportBBT, TransportBBTValidationError, TransportPosition, TransportState,
     TransportStatePosition,
 };
 
-/// The underlying system bindings for JACK. Can be useful for using possibly
-/// experimental stuff through `jack_sys::library()`.
+/// The underlying system bindings for JACK. Can be useful for using possibly experimental stuff
+/// through `jack_sys::library()`.
 pub use jack_sys;
 
-//only expose metadata if enabled
-#[cfg(feature = "metadata")]
-pub use crate::properties::*;
-
-/// Create and manage client connections to a JACK server.
 mod client;
-
-/// Create and manage JACK ring buffers.
-mod ringbuffer;
-
-/// Enum types in jack.
 mod jack_enums;
-
 mod jack_utils;
-
-/// Types for safely interacting with port data from JACK.
+mod logging;
 mod port;
-
-/// Platform independent types.
 mod primitive_types;
-
-/// Transport.
+mod properties;
+mod ringbuffer;
 mod transport;
 
-/// Properties
-mod properties;
+/// A collection of useful but optional functionality.
+pub mod contrib {
+    mod closure;
 
-/// Return JACK's current system time in microseconds, using the JACK clock
-/// source.
-pub fn get_time() -> primitive_types::Time {
-    unsafe { jack_sys::jack_get_time() }
+    pub use closure::ClosureProcessHandler;
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-    use std::{thread, time};
+mod tests;
 
-    #[test]
-    fn time_can_get_time() {
-        get_time();
-    }
+static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
+    Client::new("deprecated_get_time", ClientOptions::default())
+        .unwrap()
+        .0
+});
 
-    #[test]
-    fn time_is_monotonically_increasing() {
-        let initial_t = get_time();
-        thread::sleep(time::Duration::from_millis(100));
-        let later_t = get_time();
-        assert!(initial_t < later_t);
-    }
+/// Return JACK's current system time in microseconds, using the JACK clock
+/// source.
+#[deprecated = "Prefer using Client::time. get_time will be eventually be removed and it requires an extra client initialization."]
+pub fn get_time() -> primitive_types::Time {
+    TIME_CLIENT.time()
 }

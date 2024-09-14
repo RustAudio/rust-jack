@@ -1,0 +1,34 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install jackd2 libjack-jackd2-0 libjack-jackd2-dev
+      # This is required for the tests, but we start it earlier since it may
+      # take a while to initialize.
+      - name: Start dummy JACK server
+        run: jackd -r -ddummy -r44100 -p1024 &
+      - name: Install Cargo Nextest
+        uses: taiki-e/install-action@nextest
+      - name: Build (Default Features)
+        run: cargo build --verbose 
+      - name: Build (No Features)
+        run: cargo build --verbose --no-default-features
+      - name: Build (examples)
+        run: cargo build --verbose --examples
+      - name: Run Tests (Default Features)
+        run: cargo nextest run
+      - name: Run Doc Tests
+        run: cargo doc && cargo test --doc

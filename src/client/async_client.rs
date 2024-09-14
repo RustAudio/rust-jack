@@ -2,11 +2,12 @@ use jack_sys as j;
 use std::fmt;
 use std::fmt::Debug;
 use std::mem;
+use std::sync::atomic::AtomicBool;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
 use crate::client::client_impl::Client;
-use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
@@ -19,15 +20,17 @@ use crate::Error;
 /// ```
 /// // Create a client and a handler
 /// let (client, _status) =
-///     jack::Client::new("my_client", jack::ClientOptions::NO_START_SERVER).unwrap();
-/// let process_handler = jack::ClosureProcessHandler::new(
+///     jack::Client::new("my_client", jack::ClientOptions::default()).unwrap();
+/// let process_handler = jack::contrib::ClosureProcessHandler::new(
 ///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );
 ///
 /// // An active async client is created, `client` is consumed.
 /// let active_client = client.activate_async((), process_handler).unwrap();
 /// // When done, deactivate the client.
-/// active_client.deactivate().unwrap();
+/// if let Err(err) = active_client.deactivate() {
+///     eprintln!("Error deactivating client: {err}");
+/// };
 /// ```
 #[must_use = "The jack client is shut down when the AsyncClient is dropped. You most likely want to keep this alive and manually tear down with `AsyncClient::deactivate`."]
 pub struct AsyncClient<N, P> {
@@ -51,20 +54,17 @@ where
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         unsafe {
-            sleep_on_test();
             let mut callback_context = Box::new(CallbackContext {
                 client,
                 notification: notification_handler,
                 process: process_handler,
+                is_valid_for_callback: AtomicBool::new(true),
+                has_panic: AtomicBool::new(false),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
-            sleep_on_test();
             let res = j::jack_activate(callback_context.client.raw());
-            for _ in 0..4 {
-                sleep_on_test();
-            }
             match res {
                 0 => Ok(AsyncClient {
                     callback: Some(callback_context),
@@ -104,34 +104,33 @@ impl<N, P> AsyncClient<N, P> {
 
     // Helper function for deactivating. Any function that calls this should
     // have ownership of self and no longer use it after this call.
-    unsafe fn maybe_deactivate(&mut self) -> Result<CallbackContext<N, P>, Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().unwrap();
+    unsafe fn maybe_deactivate(&mut self) -> Result<Box<CallbackContext<N, P>>, Error> {
+        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         if self.callback.is_none() {
             return Err(Error::ClientIsNoLongerAlive);
         }
-        let client = self.callback.as_ref().unwrap().client.raw();
-        // Prevent the callback from being deallocated in case deactivation
-        // fails.
-        let callback = Box::into_raw(self.callback.take().unwrap());
+        let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
+        let client_ptr = cb.client.raw();
 
         // deactivate
-        sleep_on_test();
-        if j::jack_deactivate(client) != 0 {
+        if j::jack_deactivate(client_ptr) != 0 {
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
-        sleep_on_test();
-        clear_callbacks(client)?;
-
+        clear_callbacks(client_ptr)?;
         // done, take ownership of callback
-        Ok(*Box::from_raw(callback))
+        if cb.has_panic.load(std::sync::atomic::Ordering::Relaxed) {
+            std::mem::forget(cb);
+            return Err(Error::ClientPanicked);
+        }
+        Ok(cb)
     }
 }
 
 /// Closes the client.
 impl<N, P> Drop for AsyncClient<N, P> {
-    /// Deactivate and close the client.
+    // Deactivate and close the client.
     fn drop(&mut self) {
         let _ = unsafe { self.maybe_deactivate() };
     }

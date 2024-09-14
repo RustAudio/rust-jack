@@ -11,14 +11,16 @@ use crate::{Port, PortFlags, PortSpec, ProcessScope};
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::default())
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();
 /// let audio_in_port = client.register_port("in", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioIn;
+pub struct AudioIn {
+    _internal: (),
+}
 
 /// `AudioOut` implements the `PortSpec` trait, which defines an
 /// endpoint for JACK. In this case, it is a mutable 32 bit floating
@@ -28,14 +30,16 @@ pub struct AudioIn;
 ///
 /// # Example
 /// ```
-/// let client = jack::Client::new("rusty_client", jack::ClientOptions::NO_START_SERVER)
+/// let client = jack::Client::new("rusty_client", jack::ClientOptions::default())
 ///     .unwrap()
 ///     .0;
 /// let spec = jack::AudioIn::default();
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
-pub struct AudioOut;
+pub struct AudioOut {
+    _internal: (),
+}
 
 unsafe impl PortSpec for AudioOut {
     fn jack_port_type(&self) -> &'static str {
@@ -90,62 +94,5 @@ impl Port<AudioOut> {
                 ps.n_frames() as usize,
             )
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crossbeam_channel::bounded;
-
-    use super::*;
-    use crate::{Client, ClientOptions, ClosureProcessHandler, Control};
-
-    fn open_test_client(name: &str) -> Client {
-        Client::new(name, ClientOptions::NO_START_SERVER).unwrap().0
-    }
-
-    #[test]
-    fn port_audio_can_read_write() {
-        let c = open_test_client("port_audio_crw");
-        let in_a = c.register_port("ia", AudioIn::default()).unwrap();
-        let in_b = c.register_port("ib", AudioIn::default()).unwrap();
-        let mut out_a = c.register_port("oa", AudioOut::default()).unwrap();
-        let mut out_b = c.register_port("ob", AudioOut::default()).unwrap();
-        let (signal_succeed, did_succeed) = bounded(1_000);
-        let process_callback = move |_: &Client, ps: &ProcessScope| -> Control {
-            let exp_a = 0.312_443;
-            let exp_b = -0.612_120;
-            let in_a = in_a.as_slice(ps);
-            let in_b = in_b.as_slice(ps);
-            let out_a = out_a.as_mut_slice(ps);
-            let out_b = out_b.as_mut_slice(ps);
-            for v in out_a.iter_mut() {
-                *v = exp_a;
-            }
-            for v in out_b.iter_mut() {
-                *v = exp_b;
-            }
-            if in_a.iter().all(|v| (*v - exp_a).abs() < 1E-5)
-                && in_b.iter().all(|v| (*v - exp_b).abs() < 1E-5)
-            {
-                let s = signal_succeed.clone();
-                let _ = s.send(true);
-            }
-            Control::Continue
-        };
-        let ac = c
-            .activate_async((), ClosureProcessHandler::new(process_callback))
-            .unwrap();
-        ac.as_client()
-            .connect_ports_by_name("port_audio_crw:oa", "port_audio_crw:ia")
-            .unwrap();
-        ac.as_client()
-            .connect_ports_by_name("port_audio_crw:ob", "port_audio_crw:ib")
-            .unwrap();
-        assert!(
-            did_succeed.iter().any(|b| b),
-            "input port does not have expected data"
-        );
-        ac.deactivate().unwrap();
     }
 }

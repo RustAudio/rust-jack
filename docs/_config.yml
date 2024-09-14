@@ -1,0 +1,30 @@
+# Demo with: bundle exec jekyll serve
+title: Rust JACK
+email: will.s.medrano@gmail.com
+description: >- 
+  Rust bindings for JACK
+baseurl: "/" # the subpath of your site, e.g. /blog
+url: "https://rustaudio.github.io/rust-jack"
+github_username:  wmedrano
+theme: just-the-docs
+mermaid:
+  src: 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js'
+plugins:
+  - jekyll-feed
+  - jekyll-mermaid
+aux_links:
+  "GitHub":
+    - "https://github.com/rustaudio/rust-jack"
+  "Sponsor":
+    - "https://github.com/sponsors/wmedrano"
+  "crates.io":
+    - "https://crates.io/crates/jack"
+  "docs.rs":
+    - "https://docs.rs/jack/latest/jack"
+callouts:
+  todo:
+    title: TODO
+    color: yellow
+  warning:
+    title: Warning
+    color: red

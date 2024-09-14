@@ -2,7 +2,7 @@ use std::env;
 
 fn main() {
     let (client, _status) =
-        jack::Client::new("rust_jack_trans", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_trans", jack::ClientOptions::default()).unwrap();
 
     let transport = client.transport();
 

@@ -1,5 +1,7 @@
 //! Properties, AKA [Meta Data](https://jackaudio.org/api/group__Metadata.html)
 //!
+use std::panic::catch_unwind;
+
 use j::jack_uuid_t as uuid;
 use jack_sys as j;
 
@@ -21,7 +23,6 @@ pub trait PropertyChangeHandler: Send {
     fn property_changed(&mut self, change: &PropertyChange);
 }
 
-#[allow(dead_code)] //dead if we haven't enabled metadata
 pub(crate) unsafe extern "C" fn property_changed<P>(
     subject: j::jack_uuid_t,
     key: *const ::libc::c_char,
@@ -30,25 +31,34 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
 ) where
     P: PropertyChangeHandler,
 {
-    let h: &mut P = &mut *(arg as *mut P);
-    let key_c = std::ffi::CStr::from_ptr(key);
-    let key = key_c.to_str().expect("to convert key to valid str");
-    let c = match change {
-        j::PropertyCreated => PropertyChange::Created { subject, key },
-        j::PropertyDeleted => PropertyChange::Deleted { subject, key },
-        _ => PropertyChange::Changed { subject, key },
-    };
-    h.property_changed(&c);
+    let res = catch_unwind(|| {
+        let h: &mut P = &mut *(arg as *mut P);
+        let key_c = std::ffi::CStr::from_ptr(key);
+        let key = key_c.to_str().expect("to convert key to valid str");
+        let c = match change {
+            j::PropertyCreated => PropertyChange::Created { subject, key },
+            j::PropertyDeleted => PropertyChange::Deleted { subject, key },
+            _ => PropertyChange::Changed { subject, key },
+        };
+        h.property_changed(&c);
+    });
+    if let Err(err) = res {
+        eprintln!("{err:?}");
+        std::mem::forget(err);
+    }
 }
 
-#[cfg(feature = "metadata")]
 pub use metadata::*;
 
-#[cfg(feature = "metadata")]
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
     use crate::Error;
-    use std::{collections::HashMap, ffi, mem::MaybeUninit, ptr};
+    use std::{
+        collections::HashMap,
+        ffi,
+        mem::MaybeUninit,
+        ptr::{self, NonNull},
+    };
 
     use crate::Client;
 
@@ -61,7 +71,9 @@ mod metadata {
     }
 
     /// A piece of Metadata on a Jack `subject`: either a port or a client.
-    /// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
+    ///
+    /// See the JACK Metadata API [description](https://jackaudio.org/metadata/) and
+    /// [documentation](https://jackaudio.org/api/group__Metadata.html) and for more info.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct Property {
         value: String,
@@ -99,12 +111,11 @@ mod metadata {
         }
     }
 
-    //helper to map 0 return to Ok
+    // Helper to map 0 return to Ok
     fn map_error<F: FnOnce() -> ::libc::c_int>(func: F) -> Result<(), Error> {
-        if func() == 0 {
-            Ok(())
-        } else {
-            Err(Error::UnknownError)
+        match func() {
+            0 => Ok(()),
+            error_code => Err(Error::UnknownError { error_code }),
         }
     }
 
@@ -112,12 +123,15 @@ mod metadata {
     unsafe fn description_to_map_free(
         description: *mut j::jack_description_t,
     ) -> Option<PropertyMap> {
-        if description.is_null() {
-            None
-        } else {
-            let des = &*description;
-            let mut properties = HashMap::new();
-            for prop in std::slice::from_raw_parts(des.properties, des.property_cnt as usize) {
+        let description = NonNull::new(description)?;
+        let mut properties = HashMap::new();
+        let len = description.as_ref().property_cnt;
+        // The check is required as from_raw_parts doesn't like receiving a null ptr, even if the
+        // length is 0.
+        if len > 0 {
+            let properties_slice =
+                std::slice::from_raw_parts(description.as_ref().properties, len as usize);
+            for prop in properties_slice {
                 let typ = if prop._type.is_null() {
                     None
                 } else {
@@ -141,9 +155,9 @@ mod metadata {
                     ),
                 );
             }
-            j::jack_free_description(description, 0);
-            Some(properties)
         }
+        j::jack_free_description(description.as_ptr(), 0);
+        Some(properties)
     }
 
     impl Property {
@@ -172,7 +186,6 @@ mod metadata {
         }
     }
 
-    #[cfg(feature = "metadata")]
     impl Client {
         /// Get a property from a subject.
         ///
@@ -307,7 +320,7 @@ mod metadata {
         pub fn property_remove_subject(&self, subject: uuid) -> Result<(), Error> {
             unsafe {
                 if j::jack_remove_properties(self.raw(), subject) == -1 {
-                    Err(Error::UnknownError)
+                    Err(Error::UnknownError { error_code: -1 })
                 } else {
                     Ok(())
                 }
@@ -351,7 +364,7 @@ mod metadata {
 
         #[test]
         fn can_set_and_get() {
-            let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+            let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
 
             let prop1 = Property::new("foo", None);
             assert_eq!(c.property_set(c.uuid(), "blah", &prop1), Ok(()));
@@ -392,8 +405,8 @@ mod metadata {
 
         #[test]
         fn can_remove() {
-            let (c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
-            let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+            let (c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
+            let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
             let prop1 = Property::new("foo", None);
             let prop2 = Property::new(
                 "http://churchofrobotron.com/2084",
@@ -418,10 +431,10 @@ mod metadata {
             assert_eq!(None, c1.property_get(c1.uuid(), "mutant"));
 
             //second time, error
-            assert_eq!(
-                Err(Error::UnknownError),
-                c2.property_remove(c1.uuid(), "mutant")
-            );
+            assert!(matches!(
+                c2.property_remove(c1.uuid(), "mutant"),
+                Err(Error::UnknownError { .. })
+            ));
 
             assert_eq!(Some(prop1), c2.property_get(c2.uuid(), "blah"));
             assert_eq!(Some(prop2), c2.property_get(c2.uuid(), "mutant"));
@@ -442,7 +455,7 @@ mod metadata {
 
         #[test]
         fn can_property_remove_all() {
-            let (c, _) = Client::new("dummy", ClientOptions::NO_START_SERVER).unwrap();
+            let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
             let prop = Property::new("foo", Some("bar".into()));
             assert_eq!(c.property_set(c.uuid(), "blah", &prop), Ok(()));
 
@@ -475,8 +488,8 @@ mod metadata {
                 Some("robot apocalypse".into()),
             );
 
-            let (mut c1, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
-            let (c2, _) = Client::new("client2", ClientOptions::NO_START_SERVER).unwrap();
+            let (mut c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
+            let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
             let (sender, receiver): (Sender<PropertyChangeOwned>, _) = channel();
             assert_eq!(
                 Ok(()),
@@ -550,7 +563,7 @@ mod metadata {
         #[test]
         #[should_panic]
         fn double_register() {
-            let (mut c, _) = Client::new("client1", ClientOptions::NO_START_SERVER).unwrap();
+            let (mut c, _) = Client::new("client1", ClientOptions::default()).unwrap();
             assert_eq!(
                 Ok(()),
                 c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}))

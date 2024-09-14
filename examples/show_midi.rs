@@ -41,25 +41,26 @@ impl std::fmt::Debug for MidiCopy {
 }
 
 fn main() {
-    // open client
+    // Open the client.
     let (client, _status) =
-        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::NO_START_SERVER).unwrap();
+        jack::Client::new("rust_jack_show_midi", jack::ClientOptions::default()).unwrap();
 
-    //create a sync channel to send back copies of midi messages we get
+    // Create a sync channel to send back copies of midi messages we get.
     let (sender, receiver) = sync_channel(64);
 
-    // process logic
+    // Define process logic.
     let mut maker = client
         .register_port("rust_midi_maker", jack::MidiOut::default())
         .unwrap();
     let shower = client
         .register_port("rust_midi_shower", jack::MidiIn::default())
         .unwrap();
-
     let cback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let show_p = shower.iter(ps);
         for e in show_p {
             let c: MidiCopy = e.into();
+            // Prefer try send to not block the audio thread. Blocking the audio thread may crash
+            // the program.
             let _ = sender.try_send(c);
         }
         let mut put_p = maker.writer(ps);
@@ -86,23 +87,25 @@ fn main() {
         jack::Control::Continue
     };
 
-    // activate
+    // Activate
     let active_client = client
-        .activate_async((), jack::ClosureProcessHandler::new(cback))
+        .activate_async((), jack::contrib::ClosureProcessHandler::new(cback))
         .unwrap();
 
-    //spawn a non-real-time thread that prints out the midi messages we get
+    // Spawn a non-real-time thread that prints out the midi messages we get.
     std::thread::spawn(move || {
         while let Ok(m) = receiver.recv() {
             println!("{m:?}");
         }
     });
 
-    // wait
+    // Wait
     println!("Press any key to quit");
     let mut user_input = String::new();
     io::stdin().read_line(&mut user_input).ok();
 
-    // optional deactivation
-    active_client.deactivate().unwrap();
+    // Optional deactivation.
+    if let Err(err) = active_client.deactivate() {
+        eprintln!("JACK exited with error: {err}");
+    };
 }

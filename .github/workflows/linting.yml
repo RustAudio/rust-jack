@@ -1,0 +1,24 @@
+name: lint
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install jackd2 libjack-jackd2-0 libjack-jackd2-dev
+      - name: Lint (Default Features)
+        run: cargo clippy --all-targets -- -D clippy::all
+      - name: Lint (No features)
+        run: cargo clippy --all-targets --no-default-features -- -D clippy::all
+      - name: Cargo Fmt
+        run: cargo fmt --check
