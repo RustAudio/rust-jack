@@ -4,14 +4,17 @@ use crate::RawMidi;
 fn panic_in_process_handler_propagates_as_error_in_deactivate() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::NO_START_SERVER).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(1);
+    eprintln!("Activating async client.");
     let process_handler = crate::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).ok();
         panic!("panic should convert to error!");
     });
     let ac = client.activate_async((), process_handler).unwrap();
+    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
+    eprintln!("Deactivating client.");
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
@@ -26,10 +29,13 @@ fn quitting_stops_calling_process() {
         assert_eq!(calls, 1);
         crate::Control::Quit
     });
+    eprintln!("Activating async client.");
     let ac = client.activate_async((), process_handler).unwrap();
+    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
+    eprintln!("Deactivating client.");
     ac.deactivate().unwrap();
 }
 
@@ -66,13 +72,16 @@ fn signals_in_audio_ports_are_forwarded() {
     });
 
     // Runs checks.
+    eprintln!("Activating async client.");
     let ac = client.activate_async((), process_handler).unwrap();
     ac.as_client()
         .connect_ports_by_name(&output_name, &input_name)
         .unwrap();
+    eprintln!("Waiting for process signal.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
+    eprintln!("Deactivating client.");
     ac.deactivate().unwrap();
 }
 
