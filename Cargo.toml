@@ -18,6 +18,7 @@ libc = "0.2"
 log = { version = "0.4", optional = true}
 
 [dev-dependencies]
+approx = "0.5"
 crossbeam-channel = "0.5"
 ctor = "0.2"
 

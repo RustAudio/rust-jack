@@ -1,7 +1,8 @@
 mod client;
+mod log;
+mod time;
 
-#[cfg(test)]
 #[ctor::ctor]
-fn init() {
+fn log_to_stdio() {
     crate::set_logger(crate::LoggerType::Stdio);
 }

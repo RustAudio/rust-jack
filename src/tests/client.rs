@@ -22,13 +22,3 @@ fn time_is_montonically_increasing() {
     assert_ne!(client.frames_since_cycle_start(), frames0);
     assert_ne!(client.frame_time(), frame_time0);
 }
-
-#[test]
-fn frame_and_time_and_convertable() {
-    let (client, _) = crate::Client::new("frame times", crate::ClientOptions::empty()).unwrap();
-    let sample_rate = client.sample_rate();
-    assert_eq!(
-        (client.frames_to_time(1) - client.frames_to_time(0)) as f64,
-        (1_000_000.0 / sample_rate as f64).round()
-    );
-}
