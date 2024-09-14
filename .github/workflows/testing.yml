@@ -26,5 +26,9 @@ jobs:
         run: cargo build --verbose --no-default-features
       - name: Build (metadata)
         run: cargo build --verbose --no-default-features --features metadata
+      - name: Build (examples)
+        run: cargo build --verbose --examples
       - name: Run Tests
         run: cargo nextest run --all-features
+      - name: Run Doc Tests
+        run: cargo doc && cargo test --doc

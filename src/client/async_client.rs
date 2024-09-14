@@ -21,7 +21,7 @@ use crate::Error;
 /// // Create a client and a handler
 /// let (client, _status) =
 ///     jack::Client::new("my_client", jack::ClientOptions::NO_START_SERVER).unwrap();
-/// let process_handler = jack::ClosureProcessHandler::new(
+/// let process_handler = jack::contrib::ClosureProcessHandler::new(
 ///     move |_: &jack::Client, _: &jack::ProcessScope| jack::Control::Continue,
 /// );
 ///

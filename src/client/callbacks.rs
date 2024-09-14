@@ -22,7 +22,7 @@ pub trait NotificationHandler: Send {
     /// pipe so that the rest of the application knows that the JACK client thread has shut down.
     ///
     /// # Safety
-    /// See https://man7.org/linux/man-pages/man7/signal-safety.7.html for details about
+    /// See <https://man7.org/linux/man-pages/man7/signal-safety.7.html> for details about
     /// what is legal in an async-signal-safe callback.
     unsafe fn shutdown(&mut self, _status: ClientStatus, _reason: &str) {}
 
