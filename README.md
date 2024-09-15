@@ -48,9 +48,7 @@ run in single threaded mode.
 If the tests are failing, a possible gotcha may be timing issues.
 
 1.  If using `cargo test`, try `cargo nextest`. The `cargo nextest`
-    configuration is set up to run single threaded and to retry flaky tests up
-    to 3 times.
-1.  Increase the value used by `sleep_on_test` in `client/common.rs`.
+    configuration is set up to run single threaded and to retry flaky tests.
 
 Another case is that libjack may be broken on your setup. Try using libjack2 or
 pipewire-jack.

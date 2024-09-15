@@ -1,3 +1,5 @@
+use crate::tests::DEFAULT_TEST_CLIENT;
+
 #[test]
 fn client_can_open() {
     let (client, status) =
@@ -7,34 +9,34 @@ fn client_can_open() {
     assert_ne!(client.sample_rate(), 0);
     assert_ne!(client.buffer_size(), 0);
     assert_ne!(client.uuid_string(), "");
+    assert_ne!(client.uuid(), 0);
     let cpu_load = client.cpu_load();
     assert!(cpu_load > 0.0, "client.cpu_load() = {}", cpu_load);
 }
 
 #[test]
 fn time_is_montonically_increasing() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::empty()).unwrap();
-
-    let t0 = client.time();
-    let frames0 = client.frames_since_cycle_start();
-    let frame_time0 = client.frame_time();
+    let t0 = DEFAULT_TEST_CLIENT.time();
+    let frames0 = DEFAULT_TEST_CLIENT.frames_since_cycle_start();
+    let frame_time0 = DEFAULT_TEST_CLIENT.frame_time();
 
     std::thread::sleep(std::time::Duration::from_millis(50));
-    assert_ne!(client.time(), t0);
-    assert_ne!(client.frames_since_cycle_start(), frames0);
-    assert_ne!(client.frame_time(), frame_time0);
+    assert_ne!(DEFAULT_TEST_CLIENT.time(), t0);
+    assert_ne!(DEFAULT_TEST_CLIENT.frames_since_cycle_start(), frames0);
+    assert_ne!(DEFAULT_TEST_CLIENT.frame_time(), frame_time0);
 }
 
 #[test]
 fn maybe_client_can_set_buffer_size() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::empty()).unwrap();
-    let initial_buffer_size = client.buffer_size();
-    if let Err(err) = client.set_buffer_size(initial_buffer_size * 2) {
+    let initial_buffer_size = DEFAULT_TEST_CLIENT.buffer_size();
+    if let Err(err) = DEFAULT_TEST_CLIENT.set_buffer_size(initial_buffer_size * 2) {
         eprintln!("client does not support setting buffer size: {err}");
         return;
     }
-    assert_eq!(client.buffer_size(), 2 * initial_buffer_size);
-    client.set_buffer_size(initial_buffer_size).unwrap();
+    assert_eq!(DEFAULT_TEST_CLIENT.buffer_size(), 2 * initial_buffer_size);
+    DEFAULT_TEST_CLIENT
+        .set_buffer_size(initial_buffer_size)
+        .unwrap();
 }
 
 #[test]
@@ -76,12 +78,11 @@ fn uuid_can_map_to_client_name() {
 
 #[test]
 fn nonexistant_uuid_to_client_name_returns_none() {
-    let (client1, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
-    let (client2, _) =
+    let (client, _) =
         crate::Client::new("dropped-client", crate::ClientOptions::default()).unwrap();
-    let uuid_string = client2.uuid_string();
-    let uuid = client2.uuid();
-    drop(client2);
-    assert_eq!(client1.name_by_uuid_str(&uuid_string), None);
-    assert_eq!(client1.name_by_uuid(uuid), None);
+    let uuid_string = client.uuid_string();
+    let uuid = client.uuid();
+    drop(client);
+    assert_eq!(DEFAULT_TEST_CLIENT.name_by_uuid_str(&uuid_string), None);
+    assert_eq!(DEFAULT_TEST_CLIENT.name_by_uuid(uuid), None);
 }
