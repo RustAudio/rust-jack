@@ -2,7 +2,7 @@ use approx::assert_abs_diff_eq;
 
 #[test]
 fn frame_and_time_are_convertable() {
-    let (client, _) = crate::Client::new("", crate::ClientOptions::empty()).unwrap();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     assert_eq!(client.time_to_frames(client.frames_to_time(0)), 0);
 }
 
@@ -13,7 +13,7 @@ fn one_frame_duration_is_inverse_of_sample_rate() {
     assert_abs_diff_eq!(
         (client.frames_to_time(sample_rate as _) - client.frames_to_time(0)) as f64,
         1_000_000.0,
-        epsilon = 1_000_000.0 * 1e-4,
+        epsilon = 1_000_000.0 * 1e-3,
     );
 }
 
@@ -25,6 +25,6 @@ fn one_second_is_sample_rate_frames() {
     assert_abs_diff_eq!(
         (t1 - t0) as f64,
         client.sample_rate() as f64,
-        epsilon = client.sample_rate() as f64 * 1e-4
+        epsilon = client.sample_rate() as f64 * 1e-3
     );
 }

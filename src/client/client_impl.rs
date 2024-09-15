@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::{ffi, fmt, ptr};
 
-use crate::client::common::{sleep_on_test, CREATE_OR_DESTROY_CLIENT_MUTEX};
+use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::jack_enums::CodeOrMessage;
 use crate::jack_utils::collect_strs;
 use crate::properties::PropertyChangeHandler;
@@ -61,18 +61,15 @@ impl Client {
         }
 
         crate::logging::maybe_init_logging();
-        sleep_on_test();
         let mut status_bits = 0;
         let client = unsafe {
             let client_name = ffi::CString::new(client_name).unwrap();
             j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
         };
-        sleep_on_test();
         let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            sleep_on_test();
             Ok((Client(client, Arc::default(), None), status))
         }
     }
@@ -673,12 +670,10 @@ impl Client {
 impl Drop for Client {
     fn drop(&mut self) {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
-        debug_assert!(!self.raw().is_null()); // Rep invariant
-                                              // Close the client
-        sleep_on_test();
-        let _res = unsafe { j::jack_client_close(self.raw()) }; // best effort: close the client
-        sleep_on_test();
-        //assert_eq!(res, 0); //do not assert here. connection could be broken
+        // Rep invariant.
+        debug_assert!(!self.raw().is_null());
+        // Best effort close client.
+        let _res = unsafe { j::jack_client_close(self.raw()) };
         self.0 = ptr::null_mut();
     }
 }

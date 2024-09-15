@@ -34,16 +34,20 @@ fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
 
 #[test]
 fn quitting_stops_calling_process() {
+    eprintln!("Creating client.");
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let mut calls = 0;
     let (send, recv) = std::sync::mpsc::sync_channel(2);
+    eprintln!("Creating callback.");
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).unwrap();
         calls += 1;
         assert_eq!(calls, 1);
         crate::Control::Quit
     });
+    eprintln!("Activating client.");
     let ac = client.activate_async((), process_handler).unwrap();
+    eprintln!("Waiting for async response.");
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
