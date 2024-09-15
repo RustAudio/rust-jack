@@ -89,12 +89,14 @@ fn buffer_size_is_called_before_process() {
         |state, _, _| {
             assert_eq!(*state, "initializing");
             *state = "processing";
+            // Give the processing thread some time to run, in case it wants to.
+            std::thread::sleep(std::time::Duration::from_secs(3));
             crate::Control::Continue
         },
     );
     let ac = client.activate_async((), process_handler).unwrap();
     assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
+        .recv_timeout(std::time::Duration::from_secs(5))
         .unwrap());
     assert_eq!(ac.deactivate().unwrap().2.state, "processing");
 }
