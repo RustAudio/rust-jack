@@ -189,11 +189,10 @@ where
     match res {
         Ok(res) => res.to_ffi(),
         Err(err) => {
-            eprintln!("harhar");
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
-            eprintln!("{err:?}");
+            eprintln!("JACK process callback panicked.\n{err:?}");
             std::mem::forget(err);
             Control::Quit.to_ffi()
         }
