@@ -8,7 +8,7 @@ license = "MIT"
 name = "jack"
 readme = "README.md"
 repository = "https://github.com/RustAudio/rust-jack"
-version = "0.13.0"
+version = "0.13.1"
 
 [dependencies]
 bitflags = "2"

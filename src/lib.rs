@@ -9,28 +9,28 @@
 //! # Client
 //!
 //! Typically, applications connect clients to the server. For the rust jack crate, a connection can
-//! be made with `client::Client::new`, which returns a `client::Client`.
+//! be made with [`client::Client::new`], which returns a [`client::Client`].
 //!
 //! The `Client` can query the server for information, register ports, and manage connections for
 //! ports.
 //!
 //! To commence processing audio/midi and other information in real-time, rust jack provides the
-//! `Client::activate_async`, which consumes the `Client`, an object that implements
+//! [`Client::activate_async`], which consumes the [`Client`], an object that implements
 //! `NotificationHandler` and an object that implements `ProcessHandler` and returns a
-//! `AsyncClient`. `AsyncClient` processes the data in real-time with the provided handlers.
+//! [`AsyncClient`]. [`AsyncClient`] processes the data in real-time with the provided handlers.
 //!
 //! # Port
 //!
-//! A `Client` may obtain port information through the `Client::port_by_id` and
-//! `Client::port_by_name` methods. These ports can be used to manage connections or to obtain port
+//! A [`Client`] may obtain port information through the [`Client::port_by_id`] and
+//! [`Client::port_by_name`] methods. These ports can be used to manage connections or to obtain port
 //! metadata, though their port data (audio buffers and midi buffers) cannot be accessed safely.
 //!
-//! Ports can be registered with the `Client::register_port` method. This requires a `PortSpec`. The
-//! jack crate comes with common specs such as `AudioIn`, `AudioOut`, `MidiIn`, and
-//! `MidiOut`.
+//! Ports can be registered with the [`Client::register_port`] method. This requires a [`PortSpec`]. The
+//! jack crate comes with common specs such as [`AudioIn`], [`AudioOut`], [`MidiIn`], and
+//! [`MidiOut`].
 //!
 //! To access the data of registered ports, use their specialized methods within a `ProcessHandler`
-//! callback. For example, `Port<AudioIn>::as_mut_slice` returns a audio buffer that can be written
+//! callback. For example, [`Port<AudioIn>::as_mut_slice`] returns a audio buffer that can be written
 //! to.
 
 #[allow(deprecated)]
@@ -54,7 +54,7 @@ pub use crate::transport::{
 };
 
 /// The underlying system bindings for JACK. Can be useful for using possibly experimental stuff
-/// through `jack_sys::library()`.
+/// through [`jack_sys::library()`].
 pub use jack_sys;
 
 mod client;

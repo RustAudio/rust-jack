@@ -28,7 +28,7 @@ pub enum TransportState {
     Starting,
 }
 
-/// A helper struct encapsulating both `TransportState` and `TransportPosition`.
+/// A helper struct encapsulating both [`TransportState`] and [`TransportPosition`].
 #[derive(Debug)]
 pub struct TransportStatePosition {
     pub pos: TransportPosition,
@@ -127,7 +127,7 @@ impl Transport {
     ///
     /// * May be called at any time by any client.
     /// * The new position takes effect in two process cycles.
-    /// * If there are slow-sync clients and the transport is already rolling, it will enter the `TransportState::Starting` state and begin invoking their sync_callbacks until ready.
+    /// * If there are slow-sync clients and the transport is already rolling, it will enter the [`TransportState::Starting`] state and begin invoking their sync_callbacks until ready.
     /// * This function is realtime-safe.
     pub fn reposition(&self, pos: &TransportPosition) -> Result<()> {
         Self::result_from_ffi(

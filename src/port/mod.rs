@@ -2,7 +2,7 @@ mod audio;
 mod midi;
 mod port_impl;
 
-/// Contains flag constants that may be used to create `PortFlags`.
+/// Contains flag constants that may be used to create [`PortFlags`].
 mod port_flags;
 
 pub use self::audio::{AudioIn, AudioOut};

@@ -16,14 +16,14 @@ pub struct RawMidi<'a> {
     pub bytes: &'a [u8],
 }
 
-/// `MidiIn` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
+/// [`MidiIn`] implements the [`PortSpec`] trait, which defines an endpoint for JACK. In this case, it
 /// defines midi input.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct MidiIn {
     _internal: (),
 }
 
-/// `MidiOut` implements the `PortSpec` trait, which defines an endpoint for JACK. In this case, it
+/// [`MidiOut`] implements the [`PortSpec`] trait, which defines an endpoint for JACK. In this case, it
 /// defines a midi output.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct MidiOut {
@@ -57,7 +57,7 @@ impl Port<MidiIn> {
     }
 }
 
-/// Iterate through Midi Messages within a `Port<MidiIn>`.
+/// Iterate through Midi Messages within a [`Port<MidiIn>`].
 #[derive(Debug, Clone)]
 pub struct MidiIter<'a> {
     buffer: *mut ::libc::c_void,

@@ -3,11 +3,11 @@ use std::slice;
 
 use crate::{Port, PortFlags, PortSpec, ProcessScope};
 
-/// `AudioIn` implements the `PortSpec` trait which, defines an
+/// [`AudioIn`] implements the [`PortSpec`] trait which, defines an
 /// endpoint for JACK. In this case, it is a readable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioIn::buffer()` is used to gain access the buffer.
+/// [`AudioIn::buffer()`] is used to gain access the buffer.
 ///
 /// # Example
 /// ```
@@ -22,11 +22,11 @@ pub struct AudioIn {
     _internal: (),
 }
 
-/// `AudioOut` implements the `PortSpec` trait, which defines an
+/// [`AudioOut`] implements the [`PortSpec`] trait, which defines an
 /// endpoint for JACK. In this case, it is a mutable 32 bit floating
 /// point buffer for audio.
 ///
-/// `AudioOut::buffer()` is used to gain access the buffer.
+/// [`AudioOut::buffer()`] is used to gain access the buffer.
 ///
 /// # Example
 /// ```
