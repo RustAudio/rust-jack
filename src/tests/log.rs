@@ -10,7 +10,7 @@ fn can_set_logger() {
             error: test_error_callback,
         });
         #[cfg(feature = "dynamic_loading")]
-        #[allow(clippy::fn_address_comparisons)]
+        #[allow(unpredictable_function_pointer_comparisons)]
         unsafe {
             let lib = jack_sys::library().unwrap();
             type LogFn = unsafe extern "C" fn(*const libc::c_char);

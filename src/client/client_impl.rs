@@ -28,7 +28,6 @@ use crate::{
 ///     Err(e) => println!("Failed to open client because of error: {:?}", e),
 /// };
 /// ```
-
 pub type InternalClientID = j::jack_intclient_t;
 
 #[allow(dead_code)]

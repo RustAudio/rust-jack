@@ -496,9 +496,7 @@ where
 ///
 /// # TODO
 ///
-/// * Implement correctly. Freezes on my system.
-
-//maybe this makes sense now? it doesn't disturb my program
+/// * Implement correctly. Freezes on my system. Maybe this makes sense now? it doesn't disturb my program
 pub unsafe fn clear_callbacks(client: *mut j::jack_client_t) -> Result<(), Error> {
     j::jack_set_thread_init_callback(client, None, std::ptr::null_mut());
     j::jack_set_process_callback(client, None, std::ptr::null_mut());

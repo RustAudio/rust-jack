@@ -65,7 +65,7 @@ pub struct MidiIter<'a> {
     _phantom: PhantomData<&'a ()>,
 }
 
-unsafe impl<'a> Sync for MidiIter<'a> {}
+unsafe impl Sync for MidiIter<'_> {}
 
 impl<'a> MidiIter<'a> {
     /// Return the next element without advancing the iterator.
@@ -175,7 +175,7 @@ pub struct MidiWriter<'a> {
     _phantom: PhantomData<&'a ()>,
 }
 
-impl<'a> MidiWriter<'a> {
+impl MidiWriter<'_> {
     /// Write an event into an event port buffer.
     ///
     /// Clients must write normalised MIDI data to the port - no running status and no (1-byte)
