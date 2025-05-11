@@ -96,32 +96,30 @@ impl<N, P> AsyncClient<N, P> {
     /// therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, N, P), Error> {
         let mut c = self;
-        unsafe {
-            c.maybe_deactivate()
-                .map(|c| (c.client, c.notification, c.process))
-        }
+        c.maybe_deactivate()
+            .map(|c| (c.client, c.notification, c.process))
     }
 
     // Helper function for deactivating. Any function that calls this should
     // have ownership of self and no longer use it after this call.
-    unsafe fn maybe_deactivate(&mut self) -> Result<Box<CallbackContext<N, P>>, Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
+    fn maybe_deactivate(&mut self) -> Result<Box<CallbackContext<N, P>>, Error> {
+        let m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock();
         if self.callback.is_none() {
+            drop(m);
             return Err(Error::ClientIsNoLongerAlive);
         }
         let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
-        let client_ptr = cb.client.raw();
-
         // deactivate
-        if j::jack_deactivate(client_ptr) != 0 {
+        if unsafe { j::jack_deactivate(cb.client.raw()) } != 0 {
+            drop(m);
             return Err(Error::ClientDeactivationError);
         }
 
         // clear the callbacks
-        clear_callbacks(client_ptr)?;
+        unsafe { clear_callbacks(cb.client.raw()) }?;
         // done, take ownership of callback
         if cb.has_panic.load(std::sync::atomic::Ordering::Relaxed) {
-            std::mem::forget(cb);
+            drop(m);
             return Err(Error::ClientPanicked);
         }
         Ok(cb)
@@ -132,7 +130,7 @@ impl<N, P> AsyncClient<N, P> {
 impl<N, P> Drop for AsyncClient<N, P> {
     // Deactivate and close the client.
     fn drop(&mut self) {
-        let _ = unsafe { self.maybe_deactivate() };
+        let _ = self.maybe_deactivate();
     }
 }
 
