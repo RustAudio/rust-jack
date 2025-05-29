@@ -139,7 +139,7 @@ impl<PS> Port<PS> {
     /// Will return up to 2 strings.
     pub fn aliases(&self) -> Result<Vec<String>, Error> {
         self.check_client_life()?;
-        let mut a: Vec<libc::c_char> = iter::repeat(0).take(*PORT_NAME_SIZE + 1).collect();
+        let mut a: Vec<libc::c_char> = iter::repeat_n(0, *PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
         unsafe {
             let mut ptrs: [*mut libc::c_char; 2] = [a.as_mut_ptr(), b.as_mut_ptr()];
