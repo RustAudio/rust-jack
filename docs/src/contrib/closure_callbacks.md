@@ -1,19 +1,14 @@
----
-layout: page
-title: Closure Callbacks
-parent: Contrib
-permalink: /closure-callbacks
-nav_order: 1
----
-
 # Closure Callbacks
 
 Closure callbacks allow you to define functionality inline.
 
 ## Process Closure
 
-The typical use case for a process closure involves creating a closure that
-contains captures the required state and then activating it.
+Audio and midi processing can be defined through closures. This involves:
+
+1. Creating a closure that captures the appropriate state (including JACK ports)
+   and
+1. Activating it within a client.
 
 ```rust
 // 1. Create the client.

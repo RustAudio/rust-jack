@@ -37,17 +37,15 @@ jobs:
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
-      - name: Build with Jekyll
-        run: |
-          bundle install
-          bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+      - name: Install mdBook
+        run: cargo install mdbook
+      - name: Build with mdBook
+        run: ~/.cargo/bin/mdbook build
         working-directory: ./docs
-        env:
-          JEKYLL_ENV: production
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/_site
+          path: ./docs/book
   deploy-site:
     environment:
       name: github-pages

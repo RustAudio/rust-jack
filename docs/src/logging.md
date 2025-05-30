@@ -1,10 +1,3 @@
----
-layout: page
-title: Logging
-permalink: /logging
-nav_order: 2
----
-
 # Logging
 
 JACK can communicate info and error messages. By default, the [log

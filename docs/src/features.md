@@ -1,10 +1,3 @@
----
-layout: page
-title: Features
-permalink: /features
-nav_order: 1
----
-
 # Features
 
 The Rust features for the `jack` crate are defined in

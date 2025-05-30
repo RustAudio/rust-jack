@@ -1,10 +1,3 @@
----
-layout: page
-title: Quickstart
-permalink: /
-nav_order: 0
----
-
 # Quickstart
 
 ## JACK Background
@@ -14,14 +7,7 @@ API. Typically, a JACK server is started and clients connect to it to gain
 access to audio and midi inputs and outputs, along with synchronization
 mechanisms and APIs.
 
-{% mermaid %}
-flowchart TD;
-    ClientA --- JackServer;
-    ClientB --- JackServer;
-    YourClient --- JackServer;
-    JackServer --- AudioDevices;
-    JackServer --- MidiDevices
-{% endmermaid %}
+![Jack Server Architecture](./jack-server-architecture.png)
 
 The JACK server is responsible for:
 - Discovering and exposing audio and midi devices.
