@@ -5,9 +5,7 @@ mod consts;
 mod types;
 
 // Contains both static and dynamic dispatched functions.
-mod functions {
-    include!(concat!(env!("OUT_DIR"), "/functions.rs"));
-}
+mod functions;
 
 pub use consts::*;
 pub use types::*;
