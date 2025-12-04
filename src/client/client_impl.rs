@@ -100,9 +100,9 @@ impl Client {
 
     /// The sample rate of the JACK system, as set by the user when jackd was
     /// started.
-    pub fn sample_rate(&self) -> usize {
+    pub fn sample_rate(&self) -> u32 {
         let srate = unsafe { j::jack_get_sample_rate(self.raw()) };
-        srate as usize
+        srate as u32
     }
 
     /// The current CPU load estimated by JACK. It is on a scale of `0.0` to `100.0`.
