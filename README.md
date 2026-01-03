@@ -26,6 +26,30 @@ Refer to the [docs.rs documentation](<https://docs.rs/jack/>) for details about
 the API. For more general documentation, visit <https://rustaudio.github.io/rust-jack>.
 
 
+## FAQ
+
+### How do I return an `AsyncClient` with many generics?
+
+This is especially useful when using `jack::contrib::ClosureProcessHandler`
+which may have an innaccessible type.
+
+```rust
+// Shortest and allows access to the underlying client.
+fn make_client() -> impl AsRef<jack::Client> {
+    todo!()
+}
+
+// With extra bounds
+fn make_client() -> impl 'static + AsRef<jack::Client> {
+    todo!();
+}
+
+// For the full async client
+fn async_client() -> impl jack::AsyncClient<impl Any, impl Any> {
+    todo!();
+}
+```
+
 # Testing
 
 Testing requires setting up a dummy server and running the tests using a single

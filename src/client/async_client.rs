@@ -141,3 +141,9 @@ impl<N, P> Debug for AsyncClient<N, P> {
             .finish()
     }
 }
+
+impl<N, P> AsRef<Client> for AsyncClient<N, P> {
+    fn as_ref(&self) -> &Client {
+        self.as_client()
+    }
+}
