@@ -72,6 +72,7 @@ pub mod contrib {
     mod closure;
 
     pub use closure::ClosureProcessHandler;
+    pub use closure::ProcessCallbacks;
 }
 
 #[cfg(test)]
