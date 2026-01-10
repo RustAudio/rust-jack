@@ -12,7 +12,7 @@ pub(crate) fn maybe_init_logging() {
 }
 
 /// Describes how JACK should log info and error messages.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub enum LoggerType {
     /// Ignore all logging from JACK.
     None,
