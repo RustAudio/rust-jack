@@ -3002,8 +3002,12 @@ pub unsafe fn jack_set_thread_init_callback(
     thread_init_callback: JackThreadInitCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_thread_init_callback_impl;
-    f(client, thread_init_callback, arg)
+    if thread_init_callback.is_some() {
+        let f = FUNCTIONS.jack_set_thread_init_callback_impl;
+        f(client, thread_init_callback, arg)
+    } else {
+        0
+    }
 }
 pub unsafe fn jack_on_shutdown(
     client: *mut jack_client_t,
