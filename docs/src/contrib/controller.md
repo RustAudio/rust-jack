@@ -62,16 +62,14 @@ impl ControlledProcessorTrait for VolumeProcessor {
         channels: &mut ProcessorChannels<Self::Command, Self::Notification>,
     ) -> jack::Control {
         // Handle incoming commands
-        while let Ok(cmd) = channels.commands.pop() {
-            match cmd {
-                Command::SetVolume(v) => {
-                    self.volume = v;
-                    let _ = channels.notifications.push(Notification::VolumeChanged(v));
-                }
-                Command::Mute => self.muted = true,
-                Command::Unmute => self.muted = false,
+        channels.drain_commands(|cmd| match cmd {
+            Command::SetVolume(v) => {
+                self.volume = v;
+                channels.try_notify(Notification::VolumeChanged(v));
             }
-        }
+            Command::Mute => self.muted = true,
+            Command::Unmute => self.muted = false,
+        });
 
         // Process audio
         let input = self.input.as_slice(scope);
@@ -113,15 +111,13 @@ let (processor_instance, handle) = processor.instance(16, 16);
 let active_client = client.activate_async((), processor_instance).unwrap();
 
 // Now you can control the processor from any thread
-handle.commands.push(Command::SetVolume(0.5)).unwrap();
+handle.send_command(Command::SetVolume(0.5)).unwrap();
 
 // And receive notifications
-while let Ok(notification) = handle.notifications.pop() {
-    match notification {
-        Notification::ClippingDetected => println!("Clipping detected!"),
-        Notification::VolumeChanged(v) => println!("Volume changed to {}", v),
-    }
-}
+handle.drain_notifications(|notification| match notification {
+    Notification::ClippingDetected => println!("Clipping detected!"),
+    Notification::VolumeChanged(v) => println!("Volume changed to {}", v),
+});
 ```
 
 ## Channel Capacities

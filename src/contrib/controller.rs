@@ -8,18 +8,53 @@ use crate::{
 
 /// Communication channels available to a processor in the real-time audio thread.
 pub struct ProcessorChannels<Command, Notification> {
-    /// Send notifications from the processor to the controller.
-    pub notifications: Producer<Notification>,
-    /// Receive commands from the controller.
-    pub commands: Consumer<Command>,
+    notifications: Producer<Notification>,
+    commands: Consumer<Command>,
+}
+
+impl<Command, Notification> ProcessorChannels<Command, Notification> {
+    /// Drain and process all pending commands.
+    pub fn drain_commands(&mut self, mut f: impl FnMut(Command)) {
+        while let Ok(cmd) = self.commands.pop() {
+            f(cmd);
+        }
+    }
+
+    /// Try to send a notification, ignoring if the buffer is full.
+    ///
+    /// Returns `true` if the notification was sent, `false` if the buffer was full.
+    pub fn try_notify(&mut self, notification: Notification) -> bool {
+        self.notifications.push(notification).is_ok()
+    }
 }
 
 /// Handle for controlling a processor from outside the real-time audio thread.
-pub struct ProcessorHandle<Command, Notification> {
-    /// Receive notifications from the processor.
-    pub notifications: Consumer<Notification>,
-    /// Send commands to the processor.
-    pub commands: Producer<Command>,
+pub struct Controller<Command, Notification> {
+    notifications: Consumer<Notification>,
+    commands: Producer<Command>,
+}
+
+impl<Command, Notification> Controller<Command, Notification> {
+    /// Try to send a command to the processor.
+    ///
+    /// Returns `Ok(())` if the command was sent, or `Err(command)` if the buffer was full.
+    pub fn send_command(&mut self, command: Command) -> Result<(), Command> {
+        self.commands.push(command).map_err(|e| e.into_inner())
+    }
+
+    /// Try to receive a notification from the processor.
+    ///
+    /// Returns `Some(notification)` if one was available, or `None` if the buffer was empty.
+    pub fn recv_notification(&mut self) -> Option<Notification> {
+        self.notifications.pop().ok()
+    }
+
+    /// Drain and process all pending notifications.
+    pub fn drain_notifications(&mut self, mut f: impl FnMut(Notification)) {
+        while let Ok(notification) = self.notifications.pop() {
+            f(notification);
+        }
+    }
 }
 
 /// A JACK processor that can be controlled via lock-free channels.
@@ -63,18 +98,19 @@ pub trait ControlledProcessorTrait: Send + Sized {
     ) -> Control;
 
     /// Create a processor instance and its control handle with the given channel capacities.
+    #[must_use = "the processor instance must be used with Client::activate"]
     fn instance(
         self,
         notification_channel_size: usize,
         command_channel_size: usize,
     ) -> (
         ControlledProcessorInstance<Self>,
-        ProcessorHandle<Self::Command, Self::Notification>,
+        Controller<Self::Command, Self::Notification>,
     ) {
         let (notifications, notifications_other) =
             RingBuffer::<Self::Notification>::new(notification_channel_size);
         let (commands_other, commands) = RingBuffer::<Self::Command>::new(command_channel_size);
-        let handle = ProcessorHandle {
+        let controller = Controller {
             notifications: notifications_other,
             commands: commands_other,
         };
@@ -85,7 +121,7 @@ pub trait ControlledProcessorTrait: Send + Sized {
                 commands,
             },
         };
-        (processor, handle)
+        (processor, controller)
     }
 }
 
@@ -93,7 +129,8 @@ pub trait ControlledProcessorTrait: Send + Sized {
 ///
 /// Created via [`ControlledProcessorTrait::instance`].
 pub struct ControlledProcessorInstance<T: ControlledProcessorTrait> {
-    inner: T,
+    /// The inner processor implementation.
+    pub inner: T,
     channels: ProcessorChannels<T::Command, T::Notification>,
 }
 
@@ -111,8 +148,8 @@ impl<T: ControlledProcessorTrait> ProcessHandler for ControlledProcessorInstance
     fn sync(
         &mut self,
         client: &Client,
-        state: crate::TransportState,
-        pos: &crate::TransportPosition,
+        state: TransportState,
+        pos: &TransportPosition,
     ) -> bool {
         self.inner.sync(client, state, pos, &mut self.channels)
     }
