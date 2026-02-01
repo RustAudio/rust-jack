@@ -27,3 +27,7 @@ ctor = "0.2"
 default = ["dynamic_loading", "log"]
 dynamic_loading = ["jack-sys/dynamic_loading"]
 controller = ["rtrb"]
+
+[[example]]
+name = "controlled_sine"
+required-features = ["controller"]

@@ -29,7 +29,7 @@ jobs:
       - name: Build (All Features)
         run: cargo build --verbose --all-features
       - name: Build (examples)
-        run: cargo build --verbose --examples
+        run: cargo build --verbose --examples --all-features
       - name: Run Tests (Default Features)
         run: cargo nextest run
       - name: Run Doc Tests

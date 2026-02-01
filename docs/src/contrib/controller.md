@@ -65,14 +65,16 @@ impl ControlledProcessorTrait for VolumeProcessor {
         channels: &mut ProcessorChannels<Self::Command, Self::Notification>,
     ) -> jack::Control {
         // Handle incoming commands
-        channels.drain_commands(|cmd| match cmd {
-            Command::SetVolume(v) => {
-                self.volume = v;
-                channels.try_notify(Notification::VolumeChanged(v));
+        while let Some(cmd) = channels.recv_command() {
+            match cmd {
+                Command::SetVolume(v) => {
+                    self.volume = v;
+                    let _ = channels.try_notify(Notification::VolumeChanged(v));
+                }
+                Command::Mute => self.muted = true,
+                Command::Unmute => self.muted = false,
             }
-            Command::Mute => self.muted = true,
-            Command::Unmute => self.muted = false,
-        });
+        }
 
         // Process audio
         let input = self.input.as_slice(scope);
@@ -108,7 +110,7 @@ let processor = VolumeProcessor {
 
 // Create the processor instance and control handle
 // Arguments: notification channel size, command channel size
-let (processor_instance, handle) = processor.instance(16, 16);
+let (processor_instance, mut handle) = processor.instance(16, 16);
 
 // Activate the client with the processor
 let active_client = client.activate_async((), processor_instance).unwrap();
@@ -117,10 +119,12 @@ let active_client = client.activate_async((), processor_instance).unwrap();
 handle.send_command(Command::SetVolume(0.5)).unwrap();
 
 // And receive notifications
-handle.drain_notifications(|notification| match notification {
-    Notification::ClippingDetected => println!("Clipping detected!"),
-    Notification::VolumeChanged(v) => println!("Volume changed to {}", v),
-});
+for notification in handle.drain_notifications() {
+    match notification {
+        Notification::ClippingDetected => println!("Clipping detected!"),
+        Notification::VolumeChanged(v) => println!("Volume changed to {}", v),
+    }
+}
 ```
 
 ## Channel Capacities

@@ -13,6 +13,13 @@ pub struct ProcessorChannels<Command, Notification> {
 }
 
 impl<Command, Notification> ProcessorChannels<Command, Notification> {
+    /// Try to receive a command from the controller.
+    ///
+    /// Returns `Some(command)` if one was available, or `None` if the buffer was empty.
+    pub fn recv_command(&mut self) -> Option<Command> {
+        self.commands.pop().ok()
+    }
+
     /// Drain and return an iterator over all pending commands.
     pub fn drain_commands(&mut self) -> impl Iterator<Item = Command> + '_ {
         std::iter::from_fn(move || self.commands.pop().ok())
