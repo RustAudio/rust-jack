@@ -28,12 +28,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.0
-          bundler-cache: true
-          cache-version: 0 # Increment this number to re-download cached gems.
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5

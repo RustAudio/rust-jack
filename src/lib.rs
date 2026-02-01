@@ -72,6 +72,9 @@ pub mod contrib {
     mod closure;
 
     pub use closure::ClosureProcessHandler;
+
+    #[cfg(feature = "controller")]
+    pub mod controller;
 }
 
 #[cfg(test)]

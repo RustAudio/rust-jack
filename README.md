@@ -1,78 +1,102 @@
 # JACK (for Rust)
 
-Rust bindings for [JACK Audio Connection Kit](<https://jackaudio.org>).
+Rust bindings for [JACK Audio Connection Kit](https://jackaudio.org).
 
-| [![Crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack) | [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)                                                          |
-|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [![Docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)                      | [![Test](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml/badge.svg)](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml) |
-| [📚 Documentation](https://rustaudio.github.io/rust-jack)                               | [:heart: Sponsor](<https://github.com/sponsors/wmedrano>)                                                                                                       |
+[![Crates.io](https://img.shields.io/crates/v/jack.svg)](https://crates.io/crates/jack)
+[![Docs.rs](https://docs.rs/jack/badge.svg)](https://docs.rs/jack)
+[![Test](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml/badge.svg)](https://github.com/RustAudio/rust-jack/actions/workflows/testing.yml)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[:heart: Sponsor](https://github.com/sponsors/wmedrano)
 
-## Using JACK
+## Overview
 
+JACK is a low-latency audio server that allows multiple applications to share
+audio and MIDI devices and route signals between each other. This crate provides
+safe Rust bindings to create JACK clients that can process audio and MIDI in
+real-time.
 
-The JACK server is usually started by the user or system. Clients can request
-that the JACK server is started on demand when they connect, but this can be
-disabled by creating a client with the `NO_START_SERVER` option or
-`ClientOptions::default()`.
+## Documentation
 
--   Linux and BSD users may install JACK1, JACK2 (preferred for low latency), or
-    Pipewire JACK (preferred for ease of use) from their system package manager.
--   Windows users may install JACK from the [official
-    website](<http://jackaudio.org/downloads/>) or [Chocolatey](<https://community.chocolatey.org/packages/jack>).
--   MacOS users may install JACK from the [official
-    website](<http://jackaudio.org/downloads/>) or [Homebrew](<https://formulae.brew.sh/formula/jack>).
+- [Guide](https://rustaudio.github.io/rust-jack) - Quickstart, features, and tutorials
+- [API Reference](https://docs.rs/jack/) - Complete API documentation
 
-Refer to the [docs.rs documentation](<https://docs.rs/jack/>) for details about
-the API. For more general documentation, visit <https://rustaudio.github.io/rust-jack>.
-
-
-## FAQ
-
-### How do I return an `AsyncClient` with many generics?
-
-This is especially useful when using `jack::contrib::ClosureProcessHandler`
-which may have an innaccessible type.
+## Quick Example
 
 ```rust
-// Shortest and allows access to the underlying client.
-fn make_client() -> impl AsRef<jack::Client> {
-    todo!()
-}
+use std::io;
 
-// With extra bounds
-fn make_client() -> impl 'static + AsRef<jack::Client> {
-    todo!();
-}
+fn main() {
+    // Create a JACK client
+    let (client, _status) =
+        jack::Client::new("rust_jack_simple", jack::ClientOptions::default()).unwrap();
 
-// For the full async client
-fn async_client() -> impl jack::AsyncClient<impl Any, impl Any> {
-    todo!();
+    // Register input and output ports
+    let in_port = client
+        .register_port("input", jack::AudioIn::default())
+        .unwrap();
+    let mut out_port = client
+        .register_port("output", jack::AudioOut::default())
+        .unwrap();
+
+    // Create a processing callback that copies input to output
+    let process = jack::contrib::ClosureProcessHandler::new(
+        move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+            out_port.as_mut_slice(ps).clone_from_slice(in_port.as_slice(ps));
+            jack::Control::Continue
+        },
+    );
+
+    // Activate the client
+    let _active_client = client.activate_async((), process).unwrap();
+
+    // Wait for user to quit
+    println!("Press enter to quit...");
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).ok();
 }
 ```
 
-# Testing
+See the [examples](examples/) directory for more.
 
-Testing requires setting up a dummy server and running the tests using a single
-thread. `rust-jack` automatically configures `cargo nextest` to use a single
-thread.
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+jack = "0.13"
+```
+
+### JACK Server Setup
+
+A JACK server must be running for clients to connect. Install one of:
+
+- **Linux/BSD**: JACK2 (lowest latency), Pipewire JACK (easiest), or JACK1 via
+  your package manager
+- **Windows**: [Official installer](http://jackaudio.org/downloads/) or
+  [Chocolatey](https://community.chocolatey.org/packages/jack)
+- **macOS**: [Official installer](http://jackaudio.org/downloads/) or
+  [Homebrew](https://formulae.brew.sh/formula/jack)
+
+By default, clients request the server to start on demand. Use
+`ClientOptions::default()` or the `NO_START_SERVER` flag to disable this.
+
+## Testing
+
+Tests require a dummy JACK server and must run single-threaded:
 
 ```sh
-# Set up a dummy server for tests. The script is included in this repository.
 ./dummy_jack_server.sh &
-# Run tests
 cargo nextest run
 ```
 
-Note: If cargo nextest is not available, use `RUST_TEST_THREADS=1 cargo test` to
-run in single threaded mode.
+If `cargo nextest` is unavailable: `RUST_TEST_THREADS=1 cargo test`
 
+### Troubleshooting
 
-## Possible Issues
+- Use `cargo nextest` instead of `cargo test` for better handling of timing-sensitive tests
+- Try libjack2 or pipewire-jack if tests fail with your current JACK implementation
 
-If the tests are failing, a possible gotcha may be timing issues.
+## License
 
-1.  If using `cargo test`, try `cargo nextest`. The `cargo nextest`
-    configuration is set up to run single threaded and to retry flaky tests.
-
-Another case is that libjack may be broken on your setup. Try using libjack2 or
-pipewire-jack.
+MIT - see [LICENSE](LICENSE) for details.

@@ -30,3 +30,11 @@ Default: Yes
 Load `libjack` at runtime as opposed to the standard dynamic linking. This is
 preferred as it allows `pw-jack` to intercept the loading at runtime to provide
 the Pipewire JACK server implementation.
+
+## `controller`
+
+Default: No
+
+Enables the `jack::contrib::controller` module which provides utilities for
+building controllable JACK processors with lock-free communication. See the
+[Controller documentation](contrib/controller.md) for usage details.
