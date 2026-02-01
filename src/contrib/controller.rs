@@ -13,18 +13,18 @@ pub struct ProcessorChannels<Command, Notification> {
 }
 
 impl<Command, Notification> ProcessorChannels<Command, Notification> {
-    /// Drain and process all pending commands.
-    pub fn drain_commands(&mut self, mut f: impl FnMut(Command)) {
-        while let Ok(cmd) = self.commands.pop() {
-            f(cmd);
-        }
+    /// Drain and return an iterator over all pending commands.
+    pub fn drain_commands(&mut self) -> impl Iterator<Item = Command> + '_ {
+        std::iter::from_fn(move || self.commands.pop().ok())
     }
 
-    /// Try to send a notification, ignoring if the buffer is full.
+    /// Try to send a notification.
     ///
-    /// Returns `true` if the notification was sent, `false` if the buffer was full.
-    pub fn try_notify(&mut self, notification: Notification) -> bool {
-        self.notifications.push(notification).is_ok()
+    /// Returns `Ok(())` if the notification was sent, or `Err(notification)` if the buffer was full.
+    pub fn try_notify(&mut self, notification: Notification) -> Result<(), Notification> {
+        self.notifications
+            .push(notification)
+            .map_err(|rtrb::PushError::Full(n)| n)
     }
 }
 
@@ -39,7 +39,9 @@ impl<Command, Notification> Controller<Command, Notification> {
     ///
     /// Returns `Ok(())` if the command was sent, or `Err(command)` if the buffer was full.
     pub fn send_command(&mut self, command: Command) -> Result<(), Command> {
-        self.commands.push(command).map_err(|e| e.into_inner())
+        self.commands
+            .push(command)
+            .map_err(|rtrb::PushError::Full(cmd)| cmd)
     }
 
     /// Try to receive a notification from the processor.
@@ -49,11 +51,9 @@ impl<Command, Notification> Controller<Command, Notification> {
         self.notifications.pop().ok()
     }
 
-    /// Drain and process all pending notifications.
-    pub fn drain_notifications(&mut self, mut f: impl FnMut(Notification)) {
-        while let Ok(notification) = self.notifications.pop() {
-            f(notification);
-        }
+    /// Drain and return an iterator over all pending notifications.
+    pub fn drain_notifications(&mut self) -> impl Iterator<Item = Notification> + '_ {
+        std::iter::from_fn(move || self.notifications.pop().ok())
     }
 }
 
