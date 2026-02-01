@@ -145,12 +145,7 @@ impl<T: ControlledProcessorTrait> ProcessHandler for ControlledProcessorInstance
         self.inner.buffer_size(client, size, &mut self.channels)
     }
 
-    fn sync(
-        &mut self,
-        client: &Client,
-        state: TransportState,
-        pos: &TransportPosition,
-    ) -> bool {
+    fn sync(&mut self, client: &Client, state: TransportState, pos: &TransportPosition) -> bool {
         self.inner.sync(client, state, pos, &mut self.channels)
     }
 }

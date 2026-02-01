@@ -24,6 +24,6 @@ crossbeam-channel = "0.5"
 ctor = "0.2"
 
 [features]
-default = ["dynamic_loading", "log", "controller"]
+default = ["dynamic_loading", "log"]
 dynamic_loading = ["jack-sys/dynamic_loading"]
 controller = ["rtrb"]

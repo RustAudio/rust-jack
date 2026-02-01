@@ -1,5 +1,8 @@
 # Controller
 
+**Note:** This module requires the `controller` feature, which is not enabled by default.
+Add `jack = { version = "...", features = ["controller"] }` to your `Cargo.toml`.
+
 The controller module provides utilities for building controllable JACK processors
 with lock-free communication. This is useful when you need to send commands to or
 receive notifications from your audio processor without blocking the real-time thread.
