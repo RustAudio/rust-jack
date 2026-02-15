@@ -569,7 +569,6 @@ where
     /// # TODO
     ///
     /// * Handled failed registrations
-    /// * Fix `jack_set_port_rename_callback`
     ///
     /// # Unsafe
     ///
@@ -593,8 +592,7 @@ where
             data_ptr,
         );
         j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
-        // doesn't compile for testing since it is a weak export
-        // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
+        j::jack_set_port_rename_callback(client, Some(port_rename::<N, P>), data_ptr);
         j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
         j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
         j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
