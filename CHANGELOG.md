@@ -11,6 +11,8 @@
 - `MidiIter` no longer dereferences a null port buffer.
 - `MidiIter` `next`, `nth`, `count`and `size_hint` no longer overflow or
   underflow when iterating past the end.
+- `Client::property_get_subject` now returns `None` for a subject without properties instead of
+  reading an uninitialized description.
 
 ## 0.9.0
 

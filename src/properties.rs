@@ -233,9 +233,13 @@ mod metadata {
         ///
         /// * The Jack API calls this data a 'description'.
         pub fn property_get_subject(&self, subject: uuid) -> Option<PropertyMap> {
-            let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::uninit();
+            let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::zeroed();
             unsafe {
-                let _ = j::jack_get_properties(subject, description.as_mut_ptr());
+                // On failure (for example, when `subject` has no properties), JACK returns -1 and
+                // leaves `description` untouched, so there is nothing to read or free.
+                if j::jack_get_properties(subject, description.as_mut_ptr()) < 0 {
+                    return None;
+                }
                 description_to_map_free(description.as_mut_ptr())
             }
         }
@@ -401,6 +405,21 @@ mod metadata {
             assert_eq!(sub.get("blah"), Some(&prop1));
             assert_eq!(sub.get("mutant"), Some(&prop2));
             assert_eq!(sub.get("asdf"), None);
+        }
+
+        #[test]
+        fn property_get_subject_without_properties_is_none() {
+            let (c, _) = Client::new("", ClientOptions::default()).unwrap();
+            // A subject that was never given any properties. Fill the stack with junk first so that
+            // reading an uninitialized description is likely to be noticed.
+            fn dirty_stack() -> u8 {
+                let junk = [0xa5u8; 4096];
+                std::hint::black_box(&junk)[17]
+            }
+            for _ in 0..100 {
+                dirty_stack();
+                assert_eq!(c.property_get_subject(0xdead_beef_0000_0001), None);
+            }
         }
 
         #[test]
