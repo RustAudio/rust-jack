@@ -119,6 +119,20 @@ mod metadata {
         }
     }
 
+    /// Convert a property type from JACK. Servers report a missing type either as NULL (jackd2) or
+    /// as an empty string (PipeWire), so both become `None`.
+    unsafe fn property_type(typ: *const ::libc::c_char) -> Option<String> {
+        if typ.is_null() {
+            return None;
+        }
+        let typ = ffi::CStr::from_ptr(typ).to_string_lossy();
+        if typ.is_empty() {
+            None
+        } else {
+            Some(typ.into_owned())
+        }
+    }
+
     //helper to convert to an Option<PropertyMap> and free
     unsafe fn description_to_map_free(
         description: *mut j::jack_description_t,
@@ -132,16 +146,7 @@ mod metadata {
             let properties_slice =
                 std::slice::from_raw_parts(description.as_ref().properties, len as usize);
             for prop in properties_slice {
-                let typ = if prop._type.is_null() {
-                    None
-                } else {
-                    Some(
-                        ffi::CStr::from_ptr(prop._type)
-                            .to_str()
-                            .expect("to convert type to str")
-                            .to_string(),
-                    )
-                };
+                let typ = property_type(prop._type);
                 properties.insert(
                     ffi::CStr::from_ptr(prop.key)
                         .to_str()
@@ -206,11 +211,7 @@ mod metadata {
                     let typ = typ.assume_init();
                     let r = Some(Property::new(
                         ffi::CStr::from_ptr(value).to_str().unwrap(),
-                        if typ.is_null() {
-                            None
-                        } else {
-                            Some(ffi::CStr::from_ptr(typ).to_str().unwrap().to_string())
-                        },
+                        property_type(typ),
                     ));
                     j::jack_free(value as _);
                     if !typ.is_null() {

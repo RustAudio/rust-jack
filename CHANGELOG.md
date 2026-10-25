@@ -14,6 +14,9 @@
 - `Client::property_get_subject` now returns an empty `PropertyMap` instead of `None` for a
   subject without properties, on both jackd2 and PipeWire. It also no longer reads an
   uninitialized description.
+- Property types reported as an empty string (as PipeWire does for a missing type) are now
+  `None` instead of `Some("")`, in `Client::property_get` and `Client::property_get_subject`.
+  Non-UTF-8 property types no longer panic.
 
 ## 0.9.0
 
