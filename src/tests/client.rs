@@ -101,3 +101,12 @@ fn unregistering_another_clients_port_is_an_unregistration_error() {
         Err(crate::Error::PortUnregistrationError)
     );
 }
+
+#[test]
+fn registering_an_unowned_port_is_an_error() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    assert_eq!(
+        client.register_port("p", crate::Unowned).map(|_| ()),
+        Err(crate::Error::PortRegistrationError("p".to_string()))
+    );
+}

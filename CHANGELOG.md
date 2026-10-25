@@ -6,6 +6,8 @@
 - Added `Error::PortUnregistrationError`.
 - `Client::unregister_port` now returns `Err(Error::PortUnregistrationError)` on failure instead
   of `Err(Error::PortDisconnectionError)`.
+- `Client::register_port` with the `Unowned` spec now returns `Err(Error::PortRegistrationError)`.
+- `Unowned::jack_buffer_size` now returns `0` instead of panicking.
 
 ## 0.9.0
 

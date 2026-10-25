@@ -343,23 +343,27 @@ impl<PS> Port<PS> {
 
 /// `PortSpec` for a port that holds has no readable or writeable data from JACK on the created
 /// client. It can be used to connect ports or to obtain metadata.
+///
+/// `Unowned` describes ports obtained with `Client::port_by_name` or `Client::port_by_id`. It
+/// cannot be used to register a port: `Client::register_port` returns
+/// `Err(Error::PortRegistrationError)`.
 #[derive(Debug, Default)]
 pub struct Unowned;
 
 unsafe impl PortSpec for Unowned {
-    /// Panics on call since the `Unowned` spec can't be used to create ports.
+    /// Empty, since the `Unowned` spec can't be used to create ports.
     fn jack_port_type(&self) -> &str {
         ""
     }
 
-    /// Panics on call since the `Unowned` spec can't be used to create ports.
+    /// Empty, since the `Unowned` spec can't be used to create ports.
     fn jack_flags(&self) -> PortFlags {
         PortFlags::empty()
     }
 
-    /// Panics on call since the `Unowned` spec can't be used to create ports.
+    /// Zero, since the `Unowned` spec can't be used to create ports.
     fn jack_buffer_size(&self) -> libc::c_ulong {
-        unreachable!()
+        0
     }
 }
 

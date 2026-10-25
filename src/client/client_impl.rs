@@ -273,7 +273,7 @@ impl Client {
     /// Each port has a short name. The port's full name contains the name of the client
     /// concatenated with a colon (:) followed by its short name. `Port::name_size()` is the maximum
     /// length of the full name. Exceeding that will cause the port registration to fail and return
-    /// `Err(())`.
+    /// `Err(Error::PortRegistrationError)`.
     ///
     /// The `port_name` must be unique among all ports owned by this client. If the name is not
     /// unique, the registration will fail.
@@ -282,6 +282,10 @@ impl Client {
         port_name: &str,
         port_spec: PS,
     ) -> Result<Port<PS>, Error> {
+        // A port needs a type. This rejects `Unowned`, which only describes existing ports.
+        if port_spec.jack_port_type().is_empty() {
+            return Err(Error::PortRegistrationError(port_name.to_string()));
+        }
         let port_name_c = ffi::CString::new(port_name).unwrap();
         let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
         let port_flags = port_spec.jack_flags().bits();
