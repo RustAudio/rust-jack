@@ -1,5 +1,6 @@
 use jack_sys as j;
 use std::marker::PhantomData;
+use std::ptr::NonNull;
 use std::{mem, slice};
 
 use crate::{Error, Frames, Port, PortFlags, PortSpec, ProcessScope};
@@ -49,8 +50,9 @@ impl Port<MidiIn> {
     /// Get an iterator over midi events.
     pub fn iter<'a>(&'a self, ps: &'a ProcessScope) -> MidiIter<'a> {
         assert_eq!(self.client_ptr(), ps.client_ptr());
+        let buffer = NonNull::new(unsafe { self.buffer(ps.n_frames()) });
         MidiIter {
-            buffer: unsafe { self.buffer(ps.n_frames()) },
+            buffer,
             index: 0,
             _phantom: PhantomData,
         }
@@ -60,7 +62,7 @@ impl Port<MidiIn> {
 /// Iterate through Midi Messages within a [`Port<MidiIn>`].
 #[derive(Debug, Clone)]
 pub struct MidiIter<'a> {
-    buffer: *mut ::libc::c_void,
+    buffer: Option<NonNull<::libc::c_void>>,
     index: usize,
     _phantom: PhantomData<&'a ()>,
 }
@@ -86,23 +88,29 @@ impl<'a> MidiIter<'a> {
     }
 
     fn absolute_nth(&self, n: u32) -> Option<RawMidi<'a>> {
+        let buffer = self.buffer?.as_ptr();
         let mut ev = mem::MaybeUninit::<j::jack_midi_event_t>::uninit();
-        let res = unsafe { j::jack_midi_event_get(ev.as_mut_ptr(), self.buffer, n) };
+        let res = unsafe { j::jack_midi_event_get(ev.as_mut_ptr(), buffer, n) };
         if res != 0 {
             return None;
         }
         let ev = unsafe { ev.assume_init() };
         let time = ev.time;
-        let bytes: &[u8] = unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) };
+        // `slice::from_raw_parts` requires a non-null pointer, even for an empty slice.
+        let bytes: &[u8] = if ev.buffer.is_null() || ev.size == 0 {
+            &[]
+        } else {
+            unsafe { slice::from_raw_parts(ev.buffer as *const u8, ev.size) }
+        };
         Some(RawMidi { time, bytes })
     }
 
     fn absolute_len(&self) -> usize {
-        if self.buffer.is_null() {
-            0
-        } else {
-            unsafe { j::jack_midi_get_event_count(self.buffer) as usize }
-        }
+        let Some(buffer) = self.buffer else {
+            return 0;
+        };
+
+        unsafe { j::jack_midi_get_event_count(buffer.as_ptr()) as usize }
     }
 }
 
@@ -110,18 +118,18 @@ impl<'a> Iterator for MidiIter<'a> {
     type Item = RawMidi<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ret = self.peek();
+        let ret = self.peek()?;
         self.index += 1;
-        ret
+        Some(ret)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.absolute_len() - self.index;
+        let len = self.absolute_len().saturating_sub(self.index);
         (len, Some(len))
     }
 
     fn count(self) -> usize {
-        self.absolute_len() - self.index
+        self.absolute_len().saturating_sub(self.index)
     }
 
     fn last(self) -> Option<Self::Item> {
@@ -134,7 +142,7 @@ impl<'a> Iterator for MidiIter<'a> {
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
-        self.index += n;
+        self.index = self.index.saturating_add(n).min(self.absolute_len());
         self.next()
     }
 }
@@ -210,5 +218,47 @@ impl MidiWriter<'_> {
     /// in the port.
     pub fn max_event_size(&self) -> usize {
         unsafe { j::jack_midi_max_event_size(self.buffer) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_iter() -> MidiIter<'static> {
+        MidiIter {
+            buffer: None,
+            index: 0,
+            _phantom: PhantomData,
+        }
+    }
+
+    #[test]
+    fn empty_iter_has_no_events() {
+        let mut iter = empty_iter();
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.peek(), None);
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.clone().count(), 0);
+        assert_eq!(iter.last(), None);
+    }
+
+    #[test]
+    fn nth_past_the_end_does_not_underflow() {
+        let mut iter = empty_iter();
+        assert_eq!(iter.nth(5), None);
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+        assert_eq!(iter.clone().count(), 0);
+        assert_eq!(iter.nth(usize::MAX), None);
+        assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn next_past_the_end_does_not_underflow() {
+        let mut iter = empty_iter();
+        for _ in 0..3 {
+            assert_eq!(iter.next(), None);
+        }
+        assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 }

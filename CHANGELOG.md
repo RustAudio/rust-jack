@@ -8,6 +8,9 @@
   of `Err(Error::PortDisconnectionError)`.
 - `Client::register_port` with the `Unowned` spec now returns `Err(Error::PortRegistrationError)`.
 - `Unowned::jack_buffer_size` now returns `0` instead of panicking.
+- `MidiIter` no longer dereferences a null port buffer.
+- `MidiIter` `next`, `nth`, `count`and `size_hint` no longer overflow or
+  underflow when iterating past the end.
 
 ## 0.9.0
 
