@@ -56,21 +56,23 @@ fn quitting_stops_calling_process() {
 
 #[test]
 fn quitting_buffer_size_never_runs_process() {
+    // JACK calls `buffer_size` once before the first `process`. If it quits, `process` must never
+    // be called.
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let handler = crate::contrib::ClosureProcessHandler::with_state(
         (),
+        |_, _, _| panic!("buffer_size quit, so process should not be called"),
         move |_, _, _| {
-            send.try_send(true).unwrap();
+            send.try_send(true).ok();
             crate::Control::Quit
         },
-        move |_, _, _| panic!("quit requested, this should not be called"),
     );
     let ac = client.activate_async((), handler).unwrap();
     assert!(recv
         .recv_timeout(std::time::Duration::from_secs(1))
         .unwrap());
-    // Give the process handler some time to try to activate.
+    // Give the process handler some time to try to run.
     std::thread::sleep(std::time::Duration::from_millis(500));
     ac.deactivate().unwrap();
 }
