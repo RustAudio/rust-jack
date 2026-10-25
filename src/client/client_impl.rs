@@ -564,11 +564,15 @@ impl Client {
         }
     }
 
+    /// Remove the port from the client, disconnecting any existing connections.
+    ///
+    /// `Err(Error::PortUnregistrationError)` is returned on failure, for example if the port does
+    /// not belong to this client.
     pub fn unregister_port<PS>(&self, port: Port<PS>) -> Result<(), Error> {
         let res = unsafe { j::jack_port_unregister(self.raw(), port.raw()) };
         match res {
             0 => Ok(()),
-            _ => Err(Error::PortDisconnectionError),
+            _ => Err(Error::PortUnregistrationError),
         }
     }
 

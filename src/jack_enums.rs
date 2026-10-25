@@ -23,6 +23,7 @@ pub enum Error {
     PortMonitorError,
     PortNamingError,
     PortRegistrationError(String),
+    PortUnregistrationError,
     SetBufferSizeError,
     TimeError,
     WeakFunctionNotFound(&'static str),
@@ -68,6 +69,7 @@ impl std::fmt::Display for Error {
             Error::PortMonitorError => write!(f, "port monitoring error"),
             Error::PortNamingError => write!(f, "port naming error"),
             Error::PortRegistrationError(p) => write!(f, "failed to register port {p}"),
+            Error::PortUnregistrationError => write!(f, "failed to unregister port"),
             Error::SetBufferSizeError => write!(
                 f,
                 "set buffer size error, setting buffer size is likely not supported"

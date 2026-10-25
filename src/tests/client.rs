@@ -86,3 +86,18 @@ fn nonexistant_uuid_to_client_name_returns_none() {
     assert_eq!(DEFAULT_TEST_CLIENT.name_by_uuid_str(&uuid_string), None);
     assert_eq!(DEFAULT_TEST_CLIENT.name_by_uuid(uuid), None);
 }
+
+#[test]
+fn unregistering_another_clients_port_is_an_unregistration_error() {
+    let (owner, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let (other, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let port = owner.register_port("p", crate::AudioIn::default()).unwrap();
+    // Some servers only publish ports of active clients.
+    let _owner = owner.activate_async((), ()).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let foreign = other.port_by_name(&port.name().unwrap()).unwrap();
+    assert_eq!(
+        other.unregister_port(foreign),
+        Err(crate::Error::PortUnregistrationError)
+    );
+}
