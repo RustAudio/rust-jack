@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Added `Error::PortUnregistrationError`. `Error` is not `#[non_exhaustive]`, so exhaustive
-  `match`es on it must handle the new variant.
+- `Error` is now `#[non_exhaustive]`. `match`es on it outside of this crate need a wildcard arm.
+- Added `Error::PortUnregistrationError`.
 - `Client::unregister_port` now returns `Err(Error::PortUnregistrationError)` on failure instead
   of `Err(Error::PortDisconnectionError)`.
 
