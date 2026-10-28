@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added `Error::PortUnregistrationError`. `Error` is not `#[non_exhaustive]`, so exhaustive
+  `match`es on it must handle the new variant.
+- `Client::unregister_port` now returns `Err(Error::PortUnregistrationError)` on failure instead
+  of `Err(Error::PortDisconnectionError)`.
+
 ## 0.9.0
 
 - Jack library can be loaded dynamically from libjack.so.0 or libjack.dll.
