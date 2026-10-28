@@ -146,18 +146,12 @@ mod metadata {
             let properties_slice =
                 std::slice::from_raw_parts(description.as_ref().properties, len as usize);
             for prop in properties_slice {
+                // Lossy conversions so that non-UTF-8 data from other clients can't panic and leak
+                // `description`.
                 let typ = property_type(prop._type);
                 properties.insert(
-                    ffi::CStr::from_ptr(prop.key)
-                        .to_str()
-                        .expect("to turn key to str")
-                        .to_string(),
-                    Property::new(
-                        ffi::CStr::from_ptr(prop.data)
-                            .to_str()
-                            .expect("to turn data to str"),
-                        typ,
-                    ),
+                    ffi::CStr::from_ptr(prop.key).to_string_lossy().into_owned(),
+                    Property::new(ffi::CStr::from_ptr(prop.data).to_string_lossy(), typ),
                 );
             }
         }
@@ -210,7 +204,7 @@ mod metadata {
                     let value = value.assume_init();
                     let typ = typ.assume_init();
                     let r = Some(Property::new(
-                        ffi::CStr::from_ptr(value).to_str().unwrap(),
+                        ffi::CStr::from_ptr(value).to_string_lossy(),
                         property_type(typ),
                     ));
                     j::jack_free(value as _);
@@ -422,6 +416,39 @@ mod metadata {
                 dirty_stack();
                 assert!(c.property_get_subject(0xdead_beef_0000_0001).is_empty());
             }
+        }
+
+        #[test]
+        fn non_utf8_properties_do_not_panic() {
+            let (c, _) = Client::new("non_utf8", ClientOptions::default()).unwrap();
+            let key = ffi::CString::new(&b"non-utf8-key-\xff"[..]).unwrap();
+            let value = ffi::CString::new(&b"value-\xfe"[..]).unwrap();
+            let typ = ffi::CString::new(&b"type-\xfd"[..]).unwrap();
+            let rc = unsafe {
+                j::jack_set_property(
+                    c.raw(),
+                    c.uuid(),
+                    key.as_ptr(),
+                    value.as_ptr(),
+                    typ.as_ptr(),
+                )
+            };
+            assert_eq!(rc, 0);
+
+            let expected = Property::new("value-\u{fffd}", Some("type-\u{fffd}".into()));
+            assert_eq!(
+                c.property_get(c.uuid(), "non-utf8-key-\u{fffd}"),
+                None,
+                "the lossy key is not the key that was stored"
+            );
+            let sub = c.property_get_subject(c.uuid());
+            assert_eq!(sub.get("non-utf8-key-\u{fffd}"), Some(&expected));
+            let all = c.property_get_all();
+            assert_eq!(
+                all.get(&c.uuid()).unwrap().get("non-utf8-key-\u{fffd}"),
+                Some(&expected)
+            );
+            unsafe { j::jack_remove_property(c.raw(), c.uuid(), key.as_ptr()) };
         }
 
         #[test]

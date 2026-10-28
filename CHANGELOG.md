@@ -17,6 +17,8 @@
 - Property types reported as an empty string (as PipeWire does for a missing type) are now
   `None` instead of `Some("")`, in `Client::property_get` and `Client::property_get_subject`.
   Non-UTF-8 property types no longer panic.
+- `Client::property_get`, `property_get_subject` and `property_get_all` no longer panic on
+  non-UTF-8 keys, values or types. Invalid bytes are replaced with `U+FFFD`.
 
 ## 0.9.0
 
