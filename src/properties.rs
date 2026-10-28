@@ -232,15 +232,18 @@ mod metadata {
         /// # Remarks
         ///
         /// * The Jack API calls this data a 'description'.
-        pub fn property_get_subject(&self, subject: uuid) -> Option<PropertyMap> {
+        /// * Returns an empty map if the subject has no properties.
+        pub fn property_get_subject(&self, subject: uuid) -> PropertyMap {
             let mut description: MaybeUninit<j::jack_description_t> = MaybeUninit::zeroed();
             unsafe {
-                // On failure (for example, when `subject` has no properties), JACK returns -1 and
-                // leaves `description` untouched, so there is nothing to read or free.
+                // On failure, JACK returns -1 and leaves `description` untouched, so there is
+                // nothing to read or free. jackd2 reports a subject with no properties as
+                // success with an empty description, while PipeWire returns -1. Both yield an
+                // empty map.
                 if j::jack_get_properties(subject, description.as_mut_ptr()) < 0 {
-                    return None;
+                    return PropertyMap::new();
                 }
-                description_to_map_free(description.as_mut_ptr())
+                description_to_map_free(description.as_mut_ptr()).unwrap_or_default()
             }
         }
 
@@ -385,8 +388,6 @@ mod metadata {
 
             //get subject
             let sub = c.property_get_subject(c.uuid());
-            assert!(sub.is_some());
-            let sub = sub.unwrap();
             assert_eq!(2, sub.len());
 
             assert_eq!(sub.get("blah"), Some(&prop1));
@@ -408,7 +409,7 @@ mod metadata {
         }
 
         #[test]
-        fn property_get_subject_without_properties_is_none() {
+        fn property_get_subject_without_properties_is_empty() {
             let (c, _) = Client::new("", ClientOptions::default()).unwrap();
             // A subject that was never given any properties. Fill the stack with junk first so that
             // reading an uninitialized description is likely to be noticed.
@@ -418,7 +419,7 @@ mod metadata {
             }
             for _ in 0..100 {
                 dirty_stack();
-                assert_eq!(c.property_get_subject(0xdead_beef_0000_0001), None);
+                assert!(c.property_get_subject(0xdead_beef_0000_0001).is_empty());
             }
         }
 
@@ -479,8 +480,6 @@ mod metadata {
             assert_eq!(c.property_set(c.uuid(), "blah", &prop), Ok(()));
 
             let sub = c.property_get_subject(c.uuid());
-            assert!(sub.is_some());
-            let sub = sub.unwrap();
             assert_eq!(1, sub.len());
 
             let all = c.property_get_all();
@@ -490,8 +489,6 @@ mod metadata {
             assert_eq!(None, c.property_get(c.uuid(), "blah"));
 
             let sub = c.property_get_subject(c.uuid());
-            assert!(sub.is_some());
-            let sub = sub.unwrap();
             assert_eq!(0, sub.len());
 
             let all = c.property_get_all();
