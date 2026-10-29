@@ -1,7 +1,6 @@
 use jack_sys as j;
 use std::fmt;
 use std::fmt::Debug;
-use std::mem;
 use std::sync::atomic::AtomicBool;
 
 use super::callbacks::clear_callbacks;
@@ -49,33 +48,47 @@ where
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
     ///
     /// On failure, either `Err(Error::CallbackRegistrationError)` or
-    /// `Err(Error::ClientActivationError)` is returned.
+    /// `Err(Error::ClientActivationError)` is returned. The client is closed and both handlers
+    /// are dropped.
     ///
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
+        Self::new_with_activation(
+            client,
+            notification_handler,
+            process_handler,
+            |client| unsafe { j::jack_activate(client.raw()) },
+        )
+    }
+
+    // Inject activation so tests can exercise failures independently of the JACK implementation.
+    fn new_with_activation(
+        client: Client,
+        notification_handler: N,
+        process_handler: P,
+        activate: impl FnOnce(&Client) -> libc::c_int,
+    ) -> Result<Self, Error> {
+        let mut callback_context = Box::new(CallbackContext {
+            client,
+            notification: notification_handler,
+            process: process_handler,
+            is_valid_for_callback: AtomicBool::new(true),
+            has_panic: AtomicBool::new(false),
+            callback_lock: std::sync::Mutex::new(()),
+        });
+        // Declare the guard after the context so it is released before error cleanup:
+        // Client::drop also acquires this mutex.
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         unsafe {
-            let mut callback_context = Box::new(CallbackContext {
-                client,
-                notification: notification_handler,
-                process: process_handler,
-                is_valid_for_callback: AtomicBool::new(true),
-                has_panic: AtomicBool::new(false),
-                callback_lock: std::sync::Mutex::new(()),
-            });
             CallbackContext::register_callbacks(&mut callback_context)?;
-            let res = j::jack_activate(callback_context.client.raw());
-            match res {
-                0 => Ok(AsyncClient {
-                    callback: Some(callback_context),
-                }),
-                _ => {
-                    mem::forget(callback_context);
-                    Err(Error::ClientActivationError)
-                }
-            }
         }
+        if activate(&callback_context.client) != 0 {
+            return Err(Error::ClientActivationError);
+        }
+        Ok(AsyncClient {
+            callback: Some(callback_context),
+        })
     }
 }
 
@@ -149,5 +162,83 @@ impl<N, P> Debug for AsyncClient<N, P> {
 impl<N, P> AsRef<Client> for AsyncClient<N, P> {
     fn as_ref(&self) -> &Client {
         self.as_client()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{AudioIn, ClientOptions, Control, Port, ProcessScope, Unowned};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::{sync_channel, SyncSender},
+        Arc,
+    };
+
+    struct Handler {
+        drops: Arc<AtomicUsize>,
+        port: Port<Unowned>,
+        processed: Option<SyncSender<()>>,
+    }
+
+    impl NotificationHandler for Handler {}
+
+    impl ProcessHandler for Handler {
+        fn process(&mut self, _: &Client, _: &ProcessScope) -> Control {
+            assert_eq!(self.drops.load(Ordering::SeqCst), 0);
+            if let Some(sender) = &self.processed {
+                sender.try_send(()).ok();
+            }
+            Control::Continue
+        }
+    }
+
+    impl Drop for Handler {
+        fn drop(&mut self) {
+            // The client must be closed before either handler is destroyed.
+            assert_eq!(self.port.name(), Err(Error::ClientIsNoLongerAlive));
+            self.drops.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn check_activation_failure(start_processing: bool) {
+        let (client, _) = Client::new("", ClientOptions::default()).unwrap();
+        let port = client.register_port("input", AudioIn::default()).unwrap();
+        let notification_drops = Arc::new(AtomicUsize::new(0));
+        let process_drops = Arc::new(AtomicUsize::new(0));
+        let (send, recv) = sync_channel(1);
+        let notification = Handler {
+            drops: notification_drops.clone(),
+            port: port.clone_unowned(),
+            processed: None,
+        };
+        let process = Handler {
+            drops: process_drops.clone(),
+            port: port.clone_unowned(),
+            processed: Some(send),
+        };
+        let result = AsyncClient::new_with_activation(client, notification, process, |client| {
+            if start_processing {
+                // Model a failure after JACK has started using the registered callback pointers.
+                assert_eq!(unsafe { j::jack_activate(client.raw()) }, 0);
+                recv.recv_timeout(std::time::Duration::from_secs(2))
+                    .unwrap();
+            }
+            -1
+        });
+        assert_eq!(result.err(), Some(Error::ClientActivationError));
+        assert_eq!(notification_drops.load(Ordering::SeqCst), 1);
+        assert_eq!(process_drops.load(Ordering::SeqCst), 1);
+        assert_eq!(port.name(), Err(Error::ClientIsNoLongerAlive));
+    }
+
+    #[test]
+    fn activation_failure_closes_client_and_drops_handlers() {
+        check_activation_failure(false);
+    }
+
+    #[test]
+    fn activation_failure_after_start_closes_client_and_drops_handlers() {
+        check_activation_failure(true);
     }
 }

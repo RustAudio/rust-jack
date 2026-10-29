@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Failed client activation now closes the client and frees both callback handlers instead of
+  leaking them ([#232](https://github.com/RustAudio/rust-jack/issues/232)).
 - `Error` is now `#[non_exhaustive]`. `match`es on it outside of this crate need a wildcard arm.
 - Added `Error::PortUnregistrationError`.
 - `Client::unregister_port` now returns `Err(Error::PortUnregistrationError)` on failure instead

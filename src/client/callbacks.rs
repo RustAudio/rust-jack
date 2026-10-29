@@ -518,6 +518,8 @@ pub unsafe fn clear_callbacks(client: *mut j::jack_client_t) -> Result<(), Error
 /// The information used by JACK to process data.
 pub struct CallbackContext<N, P> {
     /// The underlying JACK client.
+    /// Keep this field first so the client is closed, stopping callbacks, before the handlers
+    /// and the rest of the context are dropped.
     pub client: Client,
     /// The handler for notifications.
     pub notification: N,
