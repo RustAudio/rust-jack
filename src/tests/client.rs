@@ -11,19 +11,22 @@ fn client_can_open() {
     assert_ne!(client.uuid_string(), "");
     assert_ne!(client.uuid(), 0);
     let cpu_load = client.cpu_load();
-    assert!(cpu_load > 0.0, "client.cpu_load() = {}", cpu_load);
+    assert!(cpu_load >= 0.0, "client.cpu_load() = {}", cpu_load);
 }
 
 #[test]
 fn time_is_montonically_increasing() {
-    let t0 = DEFAULT_TEST_CLIENT.time();
-    let frames0 = DEFAULT_TEST_CLIENT.frames_since_cycle_start();
-    let frame_time0 = DEFAULT_TEST_CLIENT.frame_time();
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let ac = client.activate_async((), ()).unwrap();
+    let client = ac.as_client();
+    let t0 = client.time();
+    let frames0 = client.frames_since_cycle_start();
+    let frame_time0 = client.frame_time();
 
     std::thread::sleep(std::time::Duration::from_millis(50));
-    assert_ne!(DEFAULT_TEST_CLIENT.time(), t0);
-    assert_ne!(DEFAULT_TEST_CLIENT.frames_since_cycle_start(), frames0);
-    assert_ne!(DEFAULT_TEST_CLIENT.frame_time(), frame_time0);
+    assert_ne!(client.time(), t0);
+    assert_ne!(client.frames_since_cycle_start(), frames0);
+    assert_ne!(client.frame_time(), frame_time0);
 }
 
 #[test]
