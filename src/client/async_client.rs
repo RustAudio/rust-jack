@@ -1,8 +1,6 @@
 use jack_sys as j;
 use std::fmt;
 use std::fmt::Debug;
-use std::mem;
-use std::sync::atomic::AtomicBool;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
@@ -54,26 +52,32 @@ where
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
     pub fn new(client: Client, notification_handler: N, process_handler: P) -> Result<Self, Error> {
-        let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
-        unsafe {
-            let mut callback_context = Box::new(CallbackContext {
-                client,
-                notification: notification_handler,
-                process: process_handler,
-                is_valid_for_callback: AtomicBool::new(true),
-                has_panic: AtomicBool::new(false),
-                callback_lock: std::sync::Mutex::new(()),
-            });
-            CallbackContext::register_callbacks(&mut callback_context)?;
-            let res = j::jack_activate(callback_context.client.raw());
-            match res {
-                0 => Ok(AsyncClient {
-                    callback: Some(callback_context),
-                }),
-                _ => {
-                    mem::forget(callback_context);
-                    Err(Error::ClientActivationError)
-                }
+        let mut callback_context = Box::new(CallbackContext::new(
+            client,
+            notification_handler,
+            process_handler,
+        ));
+        let res = {
+            let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
+            unsafe { Self::activate(&mut callback_context) }
+        };
+        // On failure, `callback_context` is dropped here, after the mutex is released since
+        // `Client::drop` takes it too. Its `client` field is dropped first, which closes the
+        // client, so JACK can no longer call into the context once it is freed.
+        res.map(|()| AsyncClient {
+            callback: Some(callback_context),
+        })
+    }
+
+    /// Register the callbacks of `callback_context` and activate its client. On failure, the
+    /// callbacks are cleared again.
+    unsafe fn activate(callback_context: &mut Box<CallbackContext<N, P>>) -> Result<(), Error> {
+        CallbackContext::register_callbacks(callback_context)?;
+        match j::jack_activate(callback_context.client.raw()) {
+            0 => Ok(()),
+            _ => {
+                clear_callbacks(callback_context.client.raw())?;
+                Err(Error::ClientActivationError)
             }
         }
     }
@@ -97,8 +101,7 @@ impl<N, P> AsyncClient<N, P> {
     /// therefore unsafe to continue using.
     pub fn deactivate(self) -> Result<(Client, N, P), Error> {
         let mut c = self;
-        c.maybe_deactivate()
-            .map(|c| (c.client, c.notification, c.process))
+        c.maybe_deactivate().map(|c| c.into_parts())
     }
 
     // Helper function for deactivating. Any function that calls this should

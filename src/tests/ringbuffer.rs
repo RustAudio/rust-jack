@@ -91,3 +91,52 @@ fn reading_and_writing_from_separate_threads_is_ok() {
     .unwrap();
     assert_eq!(reader.read_slice(&mut [0; 8]), &[0, 1, 2, 3]);
 }
+
+fn freed_count() -> usize {
+    crate::ringbuffer::FREED_COUNT.with(|c| c.get())
+}
+
+#[test]
+fn dropping_reader_then_writer_frees_ringbuffer() {
+    let before = freed_count();
+    let (reader, writer) = RingBuffer::new(1024).unwrap().into_reader_writer();
+    drop(reader);
+    assert_eq!(freed_count(), before);
+    drop(writer);
+    assert_eq!(freed_count(), before + 1);
+}
+
+#[test]
+fn dropping_writer_then_reader_frees_ringbuffer() {
+    let before = freed_count();
+    let (reader, writer) = RingBuffer::new(1024).unwrap().into_reader_writer();
+    drop(writer);
+    assert_eq!(freed_count(), before);
+    drop(reader);
+    assert_eq!(freed_count(), before + 1);
+}
+
+#[test]
+fn dropping_halves_on_different_threads_frees_ringbuffer_once() {
+    // The count is per thread, so check that exactly one of the two threads freed it.
+    let (reader, writer) = RingBuffer::new(1024).unwrap().into_reader_writer();
+    let a = std::thread::spawn(move || {
+        drop(reader);
+        freed_count()
+    });
+    let b = std::thread::spawn(move || {
+        drop(writer);
+        freed_count()
+    });
+    assert_eq!(a.join().unwrap() + b.join().unwrap(), 1);
+}
+
+#[test]
+fn rejoined_ringbuffer_is_freed_once() {
+    let before = freed_count();
+    let (reader, writer) = RingBuffer::new(1024).unwrap().into_reader_writer();
+    let ringbuf = RingBuffer::from_reader_writer(reader, writer);
+    assert_eq!(freed_count(), before);
+    drop(ringbuf);
+    assert_eq!(freed_count(), before + 1);
+}

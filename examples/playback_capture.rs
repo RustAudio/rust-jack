@@ -54,7 +54,7 @@ impl jack::NotificationHandler for Notifications {
     }
 
     /// Not much we can do here, see https://man7.org/linux/man-pages/man7/signal-safety.7.html.
-    unsafe fn shutdown(&mut self, _: jack::ClientStatus, _: &str) {}
+    fn shutdown(&mut self, _: jack::ClientStatus, _: &str) {}
 
     fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
         println!(

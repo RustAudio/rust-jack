@@ -4,9 +4,11 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::marker::Sized;
-use std::sync::Weak;
+use std::sync::Arc;
 use std::{ffi, fmt, iter};
 
+use crate::client::common::ClientLife;
+use crate::jack_utils::to_cstring;
 use crate::{Error, Frames, LatencyType, PortFlags};
 
 lazy_static! {
@@ -37,8 +39,8 @@ pub unsafe trait PortSpec: Sized {
 /// An endpoint to interact with JACK data streams, for audio, midi, etc...
 ///
 /// The `Port` struct contains mostly metadata and exposes data as raw pointers. For a better data
-/// consumption/production API, see the `AudioInPort`, `AudioOutPort`, `MidiInPort`, and
-/// `MidiOutPort`.
+/// consumption/production API, see the methods of `Port<AudioIn>`, `Port<AudioOut>`,
+/// `Port<MidiIn>`, and `Port<MidiOut>`.
 ///
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
@@ -48,7 +50,7 @@ pub struct Port<PS> {
     spec: PS,
     client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
-    client_life: Weak<()>,
+    client_life: Arc<ClientLife>,
 }
 
 unsafe impl<PS: PortSpec + Send> Send for Port<PS> {}
@@ -73,7 +75,7 @@ impl<PS> Port<PS> {
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name(&self) -> Result<String, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_name(self.raw()))
                 .to_string_lossy()
@@ -85,7 +87,7 @@ impl<PS> Port<PS> {
     /// Returns the short name of the port, it excludes the "client_name:"
     /// prefix.
     pub fn short_name(&self) -> Result<String, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_short_name(self.raw()))
                 .to_string_lossy()
@@ -96,15 +98,18 @@ impl<PS> Port<PS> {
 
     /// The flags for the port. These are set when the port is registered with
     /// its client.
-    pub fn flags(&self) -> PortFlags {
+    pub fn flags(&self) -> Result<PortFlags, Error> {
+        let _life = self.client_life.enter()?;
         let bits = unsafe { j::jack_port_flags(self.raw()) };
-        PortFlags::from_bits(bits as j::Enum_JackPortFlags).unwrap()
+        // Keep flags that this crate does not know about, such as `JackPortIsCV`, instead of
+        // panicking on them.
+        Ok(PortFlags::from_bits_retain(bits as j::Enum_JackPortFlags))
     }
 
     /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
     pub fn port_type(&self) -> Result<String, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_type(self.raw()))
                 .to_string_lossy()
@@ -115,7 +120,7 @@ impl<PS> Port<PS> {
 
     /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> Result<usize, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let n = unsafe { j::jack_port_connected(self.raw()) };
         Ok(n as usize)
     }
@@ -123,11 +128,9 @@ impl<PS> Port<PS> {
     /// Returns `true` if the port is directly connected to a port with the
     /// name `port_name`.
     pub fn is_connected_to(&self, port_name: &str) -> Result<bool, Error> {
-        self.check_client_life()?;
-        let res = unsafe {
-            let port_name = ffi::CString::new(port_name).unwrap();
-            j::jack_port_connected_to(self.raw(), port_name.as_ptr())
-        };
+        let _life = self.client_life.enter()?;
+        let port_name = to_cstring(port_name)?;
+        let res = unsafe { j::jack_port_connected_to(self.raw(), port_name.as_ptr()) };
         match res {
             0 => Ok(false),
             _ => Ok(true),
@@ -138,7 +141,7 @@ impl<PS> Port<PS> {
     ///
     /// Will return up to 2 strings.
     pub fn aliases(&self) -> Result<Vec<String>, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let mut a: Vec<libc::c_char> = iter::repeat_n(0, *PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
         unsafe {
@@ -155,7 +158,7 @@ impl<PS> Port<PS> {
 
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> Result<bool, Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         match unsafe { j::jack_port_monitoring_input(self.raw()) } {
             0 => Ok(false),
             _ => Ok(true),
@@ -166,7 +169,7 @@ impl<PS> Port<PS> {
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
@@ -179,7 +182,7 @@ impl<PS> Port<PS> {
     /// off, and turns it off if only one request has been made to turn it on.  Otherwise it does
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
-        self.check_client_life()?;
+        let _life = self.client_life.enter()?;
         let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
@@ -191,9 +194,14 @@ impl<PS> Port<PS> {
     /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
-        self.check_client_life()?;
-        let short_name = ffi::CString::new(short_name).unwrap();
-        let res = unsafe { j::jack_port_set_name(self.raw(), short_name.as_ptr()) };
+        let _life = self.client_life.enter()?;
+        let short_name = to_cstring(short_name)?;
+        // Prefer `jack_port_rename`. The deprecated `jack_port_set_name` does not notify port rename
+        // callbacks, and PipeWire ignores it entirely.
+        let res = unsafe {
+            j::jack_port_rename(self.client_ptr, self.raw(), short_name.as_ptr())
+                .unwrap_or_else(|| j::jack_port_set_name(self.raw(), short_name.as_ptr()))
+        };
         match res {
             0 => Ok(()),
             _ => Err(Error::PortNamingError),
@@ -211,8 +219,8 @@ impl<PS> Port<PS> {
     /// Ports can have up to two aliases - if both are already set, this function will return an
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
-        self.check_client_life()?;
-        let alias = ffi::CString::new(alias).unwrap();
+        let _life = self.client_life.enter()?;
+        let alias = to_cstring(alias)?;
         let res = unsafe { j::jack_port_set_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
@@ -224,8 +232,8 @@ impl<PS> Port<PS> {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
-        self.check_client_life()?;
-        let alias = ffi::CString::new(alias).unwrap();
+        let _life = self.client_life.enter()?;
+        let alias = to_cstring(alias)?;
         let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
@@ -239,11 +247,11 @@ impl<PS> Port<PS> {
     ///
     /// # Safety
     /// It is unsafe to create a `Port` from raw pointers.
-    pub unsafe fn from_raw(
+    pub(crate) unsafe fn from_raw(
         spec: PS,
         client_ptr: *mut j::jack_client_t,
         port_ptr: *mut j::jack_port_t,
-        client_life: Weak<()>,
+        client_life: Arc<ClientLife>,
     ) -> Self {
         Port {
             spec,
@@ -270,13 +278,14 @@ impl<PS> Port<PS> {
     }
 
     /// Obtain the buffer that the Port is holding. For standard audio and midi ports, consider
-    /// using the `AudioInPort`, `AudioOutPort`, `MidiInPort`, or `MidiOutPort` adapter. For more
+    /// using `Port<AudioIn>::as_slice`, `Port<AudioOut>::as_mut_slice`, `Port<MidiIn>::iter`, or
+    /// `Port<MidiOut>::writer` instead. For more
     /// custom data, consider implementing your own adapter that safely uses the `Port::buffer`
     /// method.
     ///
     /// # Safety
     /// It is unsafe to extract a buffer. Prefer to use one of the type specific wrappers such as
-    /// `.as_mut_slice()` for audio and `.midi_iter` for midi.
+    /// `.as_mut_slice()` for audio and `.iter()` for midi.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
         // We don't check for life to improve performance in a very hot codepath.
@@ -291,12 +300,18 @@ impl<PS> Port<PS> {
     /// for a description of what the latency values mean and some best practices. This function should
     /// **only** be used inside a latency callback.
     #[inline(always)]
-    pub fn set_latency_range(&self, mode: LatencyType, range: (Frames, Frames)) {
+    pub fn set_latency_range(
+        &self,
+        mode: LatencyType,
+        range: (Frames, Frames),
+    ) -> Result<(), Error> {
+        let _life = self.client_life.enter()?;
         let mut ffi_range = j::Struct__jack_latency_range {
             min: range.0,
             max: range.1,
         };
         unsafe { j::jack_port_set_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
+        Ok(())
     }
 
     /// Returns a tuple of the minimum and maximum latencies defined by mode for port, in frames.
@@ -305,39 +320,39 @@ impl<PS> Port<PS> {
     /// for a description of what the latency values mean and some best practices. This is normally
     /// used in the LatencyCallback. and therefore safe to execute from callbacks.
     #[inline(always)]
-    pub fn get_latency_range(&self, mode: LatencyType) -> (Frames, Frames) {
+    pub fn get_latency_range(&self, mode: LatencyType) -> Result<(Frames, Frames), Error> {
+        let _life = self.client_life.enter()?;
         let mut ffi_range = j::Struct__jack_latency_range { min: 0, max: 0 };
         unsafe { j::jack_port_get_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
-        (ffi_range.min, ffi_range.max)
-    }
-
-    fn check_client_life(&self) -> Result<(), Error> {
-        self.client_life
-            .upgrade()
-            .map(|_| ())
-            .ok_or(Error::ClientIsNoLongerAlive)
+        Ok((ffi_range.min, ffi_range.max))
     }
 }
 
 impl<PS> Port<PS> {
     /// Returns the fully-qualified name of all ports currently connected to this one
     /// Remarks: Not realtime safe
-    pub fn get_connections(&self) -> Vec<String> {
-        unsafe {
+    pub fn get_connections(&self) -> Result<Vec<String>, Error> {
+        let _life = self.client_life.enter()?;
+        Ok(unsafe {
             crate::jack_utils::collect_strs(jack_sys::jack_port_get_connections(self.port_ptr))
-        }
+        })
     }
 
     /// Returns the UUIDs of all clients currently connected to this one
+    ///
+    /// Clients that disconnect or close while this runs are left out.
+    ///
     /// Remarks: Not realtime safe
-    pub fn get_connected_client_uuids(&self) -> Vec<jack_sys::jack_uuid_t> {
-        self.get_connections()
+    pub fn get_connected_client_uuids(&self) -> Result<Vec<jack_sys::jack_uuid_t>, Error> {
+        let _life = self.client_life.enter()?;
+        Ok(self
+            .get_connections()?
             .into_iter()
-            .map(|name| {
-                let (client, _port) = name.split_once(':').unwrap();
-                crate::Client::uuid_of_client_by_name_raw(self.client_ptr(), client).unwrap()
+            .filter_map(|name| {
+                let (client, _port) = name.split_once(':')?;
+                crate::Client::uuid_of_client_by_name_raw(self.client_ptr(), client)
             })
-            .collect()
+            .collect())
     }
 }
 

@@ -21,6 +21,12 @@
   non-UTF-8 keys, values or types. Invalid bytes are replaced with `U+FFFD`.
 - Actually stop processing if buffer size callback returns Quit. This was not
   respected in Pipewire.
+- `Port` and `Transport` methods no longer call into a client that is being closed on another
+  thread. Dropping a `Client` now waits for in-flight `Port` and `Transport` calls to finish.
+- `Port::flags`, `get_latency_range`, `set_latency_range`, `get_connections` and
+  `get_connected_client_uuids` now return a `Result`, with `Err(Error::ClientIsNoLongerAlive)`
+  once the client has been closed, instead of reading freed memory.
+- `Port::from_raw` is no longer public.
 
 ## 0.9.0
 

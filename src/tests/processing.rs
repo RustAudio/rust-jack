@@ -202,3 +202,162 @@ fn activating_client_notifies_buffer_size_before_beginning() {
     let initial_buffer_size = client.buffer_size() as usize;
     assert_ne!(initial_buffer_size, 0);
 }
+
+#[test]
+fn deactivated_client_survives_graph_changes() {
+    // After deactivation, JACK must not call into the freed callback context. Before all callbacks
+    // were cleared on deactivation, this crashed the test binary with a use-after-free.
+    struct Handler(std::sync::Arc<std::sync::atomic::AtomicUsize>);
+    impl crate::NotificationHandler for Handler {
+        fn client_registration(&mut self, _: &crate::Client, _: &str, _: bool) {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    let registrations = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let (client, _) = crate::Client::new("deactivated", crate::ClientOptions::default()).unwrap();
+    let ac = client
+        .activate_async(Handler(registrations.clone()), ())
+        .unwrap();
+    let (client, _handler, _) = ac.deactivate().unwrap();
+    let registrations_at_deactivation = registrations.load(std::sync::atomic::Ordering::SeqCst);
+    for i in 0..3 {
+        let name = format!("graph-change-{i}");
+        let (other, _) = crate::Client::new(&name, crate::ClientOptions::default()).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        drop(other);
+    }
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert_eq!(
+        registrations.load(std::sync::atomic::Ordering::SeqCst),
+        registrations_at_deactivation
+    );
+    drop(client);
+}
+
+#[test]
+fn set_freewheel_notifies_freewheel_handler() {
+    struct Handler(std::sync::mpsc::SyncSender<bool>);
+    impl crate::NotificationHandler for Handler {
+        fn freewheel(&mut self, _: &crate::Client, is_freewheel_enabled: bool) {
+            self.0.try_send(is_freewheel_enabled).ok();
+        }
+    }
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(4);
+    let ac = client.activate_async(Handler(send), ()).unwrap();
+    let timeout = std::time::Duration::from_secs(1);
+    ac.as_client().set_freewheel(true).unwrap();
+    assert_eq!(recv.recv_timeout(timeout), Ok(true));
+    ac.as_client().set_freewheel(false).unwrap();
+    assert_eq!(recv.recv_timeout(timeout), Ok(false));
+    ac.deactivate().unwrap();
+}
+
+#[test]
+fn renaming_a_port_calls_port_rename() {
+    struct Handler(std::sync::mpsc::SyncSender<(String, String)>);
+    impl crate::NotificationHandler for Handler {
+        fn port_rename(
+            &mut self,
+            _: &crate::Client,
+            _: crate::PortId,
+            old_name: &str,
+            new_name: &str,
+        ) -> crate::Control {
+            self.0
+                .try_send((old_name.to_string(), new_name.to_string()))
+                .ok();
+            crate::Control::Continue
+        }
+    }
+    let (owner, _) = crate::Client::new("renamer", crate::ClientOptions::default()).unwrap();
+    let mut port = owner
+        .register_port("before", crate::AudioIn::default())
+        .unwrap();
+    let _owner = owner.activate_async((), ()).unwrap();
+    let (observer, _) = crate::Client::new("observer", crate::ClientOptions::default()).unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(4);
+    let ac = observer.activate_async(Handler(send), ()).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    port.set_name("after").unwrap();
+    let (old_name, new_name) = recv
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    assert!(old_name.ends_with(":before"), "{}", old_name);
+    assert!(new_name.ends_with(":after"), "{}", new_name);
+    ac.deactivate().unwrap();
+}
+
+#[test]
+fn writing_too_much_midi_returns_not_enough_space() {
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let mut output = client
+        .register_port("out", crate::MidiOut::default())
+        .unwrap();
+    let (send, recv) = std::sync::mpsc::sync_channel(1);
+    let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, ps| {
+        let mut writer = output.writer(ps);
+        let too_big = vec![0x90; writer.max_event_size() + 1];
+        let result = writer.write(&crate::RawMidi {
+            time: 0,
+            bytes: &too_big,
+        });
+        send.try_send(result).ok();
+        crate::Control::Quit
+    });
+    let ac = client.activate_async((), process_handler).unwrap();
+    let result = recv
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    ac.deactivate().ok();
+    assert_eq!(result, Err(crate::Error::NotEnoughSpace));
+}
+
+#[test]
+fn failed_activation_returns_an_error_and_drops_the_handlers() {
+    struct DropFlag(std::sync::Arc<std::sync::atomic::AtomicBool>);
+    impl Drop for DropFlag {
+        fn drop(&mut self) {
+            self.0.store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+    impl crate::NotificationHandler for DropFlag {}
+
+    let dropped = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    // JACK refuses to register callbacks on a client that is already active.
+    assert_eq!(unsafe { jack_sys::jack_activate(client.raw()) }, 0);
+    let res = client.activate_async(DropFlag(dropped.clone()), ());
+    assert!(
+        matches!(res, Err(crate::Error::CallbackRegistrationError)),
+        "{:?}",
+        res.map(|_| ())
+    );
+    assert!(dropped.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+#[test]
+fn deactivating_while_process_writes_to_stderr_does_not_abort() {
+    // PipeWire's JACK stops its process thread with `pthread_cancel`. If the cancellation lands
+    // on a cancellation point inside a Rust callback (such as the `write` behind `eprintln!`), the
+    // forced unwind used to run through `catch_unwind` and abort the whole process with "FATAL:
+    // exception not rethrown".
+    for _ in 0..10 {
+        let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+        let (send, recv) = std::sync::mpsc::sync_channel(1);
+        let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
+            send.try_send(()).ok();
+            for _ in 0..1000 {
+                eprint!("");
+                std::io::Write::flush(&mut std::io::stderr()).ok();
+                // `write` with a zero length still reaches a cancellation point.
+                unsafe { libc::write(2, std::ptr::null(), 0) };
+            }
+            crate::Control::Continue
+        });
+        let ac = client.activate_async((), process_handler).unwrap();
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
+        ac.deactivate().unwrap();
+    }
+}

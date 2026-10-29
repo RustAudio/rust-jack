@@ -10,8 +10,3 @@ impl ProcessHandler for () {
         Control::Continue
     }
 }
-
-/// Wrap a closure that can handle the `process` callback. This is called every time data from ports
-/// is available from JACK.
-#[deprecated = "Prefer using jack::contrib::ClosureProcessHandler directly."]
-pub type ClosureProcessHandler<F> = crate::contrib::ClosureProcessHandler<(), F>;

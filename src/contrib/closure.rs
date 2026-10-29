@@ -42,6 +42,24 @@ where
     }
 }
 
+/// The process and buffer size callbacks of a [`ClosureProcessHandler`] created with
+/// [`ClosureProcessHandler::with_state`].
+///
+/// ```
+/// fn handler() -> jack::contrib::ClosureProcessHandler<
+///     u32,
+///     jack::contrib::ProcessCallbacks<
+///         fn(&mut u32, &jack::Client, &jack::ProcessScope) -> jack::Control,
+///         fn(&mut u32, &jack::Client, jack::Frames) -> jack::Control,
+///     >,
+/// > {
+///     jack::contrib::ClosureProcessHandler::with_state(
+///         0,
+///         |_, _, _| jack::Control::Continue,
+///         |_, _, _| jack::Control::Continue,
+///     )
+/// }
+/// ```
 pub struct ProcessCallbacks<ProcessCallback, BufferCallback> {
     process: ProcessCallback,
     buffer: BufferCallback,

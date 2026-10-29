@@ -1,7 +1,7 @@
 mod async_client;
 mod callbacks;
 mod client_impl;
-mod common;
+pub(crate) mod common;
 mod handler_impls;
 
 /// Contains `ClientOptions` flags used when opening a client.
@@ -16,6 +16,3 @@ pub use self::client_impl::{Client, CycleTimes, InternalClientID, ProcessScope};
 pub use self::client_options::ClientOptions;
 pub use self::client_status::ClientStatus;
 pub use self::common::CLIENT_NAME_SIZE;
-
-#[allow(deprecated)]
-pub use self::handler_impls::ClosureProcessHandler;

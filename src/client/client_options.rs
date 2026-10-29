@@ -3,6 +3,11 @@ use jack_sys as j;
 
 bitflags! {
     /// Option flags for opening a JACK client.
+    ///
+    /// JACK's `JackServerName`, `JackLoadName` and `JackLoadInit` options are not provided. They
+    /// make `jack_client_open` read extra arguments that `Client::new` does not pass, and
+    /// `Client::new` ignores them if they are set with `ClientOptions::from_bits_retain`.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub struct ClientOptions: j::Enum_JackOptions {
         /// Do not automatically start the JACK server when it is not already running. This option
         /// is always selected if `$JACK_NO_START_SERVER` is defined in the calling process
@@ -12,21 +17,6 @@ bitflags! {
         /// Use the exact client name requested. Otherwise, JACK
         /// automatically generates a unique one if needed.
         const USE_EXACT_NAME  = j::JackUseExactName;
-
-        /// Open with optional `server_name` parameter.
-        ///
-        /// TODO: implement
-        const SERVER_NAME     = j::JackServerName;
-
-        /// Load internal client from optional `load_name`, otherwise use the `client_name`.
-        ///
-        /// TODO(wmedrano): Implement `load_name` functionality
-        const LOAD_NAME       = j::JackLoadName;
-
-        /// Pass optional `load_init` to `jack_initialize()` entry point of an internal client.
-        ///
-        /// TODO: implement
-        const LOAD_INIT       = j::JackLoadInit;
 
         /// Pass a SessionID token. This allows the session manager to identify the client again.
         const SESSION_ID      = j::JackSessionID;

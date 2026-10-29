@@ -9,16 +9,26 @@ use jack_sys as j;
 /// `subject` and `key`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum PropertyChange<'a> {
-    Created { subject: uuid, key: &'a str },
-    Changed { subject: uuid, key: &'a str },
-    Deleted { subject: uuid, key: &'a str },
+    Created {
+        subject: uuid,
+        key: &'a str,
+    },
+    Changed {
+        subject: uuid,
+        key: &'a str,
+    },
+    /// A property was deleted. `key` is `None` when every property of `subject` was removed at
+    /// once, for example by [`Client::property_remove_subject`](crate::Client::property_remove_subject)
+    /// or [`Client::property_remove_all`](crate::Client::property_remove_all).
+    Deleted {
+        subject: uuid,
+        key: Option<&'a str>,
+    },
 }
 
 /// A trait for reacting to property changes.
 ///
-/// # Remarks
-///
-/// * Only used if the `metadata` feature is enabled.
+/// Register one with [`Client::register_property_change_handler`](crate::Client::register_property_change_handler).
 pub trait PropertyChangeHandler: Send {
     fn property_changed(&mut self, change: &PropertyChange);
 }
@@ -31,14 +41,27 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
 ) where
     P: PropertyChangeHandler,
 {
+    let _defer_cancel = crate::jack_utils::DeferThreadCancellation::new();
     let res = catch_unwind(|| {
         let h: &mut P = &mut *(arg as *mut P);
-        let key_c = std::ffi::CStr::from_ptr(key);
-        let key = key_c.to_str().expect("to convert key to valid str");
+        // JACK passes a NULL key when all properties of `subject` were removed. Keys should be
+        // URIs, but convert lossily rather than panic if one is not valid UTF-8.
+        let key = if key.is_null() {
+            None
+        } else {
+            Some(std::ffi::CStr::from_ptr(key).to_string_lossy())
+        };
+        let key = key.as_deref();
         let c = match change {
-            j::PropertyCreated => PropertyChange::Created { subject, key },
+            j::PropertyCreated => PropertyChange::Created {
+                subject,
+                key: key.unwrap_or_default(),
+            },
             j::PropertyDeleted => PropertyChange::Deleted { subject, key },
-            _ => PropertyChange::Changed { subject, key },
+            _ => PropertyChange::Changed {
+                subject,
+                key: key.unwrap_or_default(),
+            },
         };
         h.property_changed(&c);
     });
@@ -52,6 +75,7 @@ pub use metadata::*;
 
 mod metadata {
     use super::{j, uuid, PropertyChange, PropertyChangeHandler};
+    use crate::jack_utils::to_cstring;
     use crate::Error;
     use std::{
         collections::HashMap,
@@ -67,7 +91,7 @@ mod metadata {
     pub enum PropertyChangeOwned {
         Created { subject: uuid, key: String },
         Changed { subject: uuid, key: String },
-        Deleted { subject: uuid, key: String },
+        Deleted { subject: uuid, key: Option<String> },
     }
 
     /// A piece of Metadata on a Jack `subject`: either a port or a client.
@@ -193,7 +217,7 @@ mod metadata {
         /// * `subject` - The subject of the property.
         /// * `key` - The key of the property, a URI String.
         pub fn property_get(&self, subject: uuid, key: &str) -> Option<Property> {
-            let key = ffi::CString::new(key).expect("key to be convert to CString");
+            let key = to_cstring(key).ok()?;
             let mut value: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
             let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
 
@@ -278,12 +302,11 @@ mod metadata {
             key: &str,
             property: &Property,
         ) -> Result<(), Error> {
-            let key = ffi::CString::new(key).expect("to create cstring from key");
-            let value =
-                ffi::CString::new(property.value.as_str()).expect("to create cstring from value");
+            let key = to_cstring(key)?;
+            let value = to_cstring(property.value.as_str())?;
+            let typ = property.typ().map(to_cstring).transpose()?;
             map_error(|| unsafe {
-                if let Some(t) = property.typ() {
-                    let t = ffi::CString::new(t).unwrap();
+                if let Some(t) = typ {
                     j::jack_set_property(
                         self.raw(),
                         subject,
@@ -310,7 +333,7 @@ mod metadata {
         /// * `subject` - The subject to remove all properties from.
         /// * `key` - The key of the property to be removed. A URI string.
         pub fn property_remove(&self, subject: uuid, key: &str) -> Result<(), Error> {
-            let key = ffi::CString::new(key).expect("to create cstring from key");
+            let key = to_cstring(key)?;
             map_error(|| unsafe { j::jack_remove_property(self.raw(), subject, key.as_ptr()) })
         }
 
@@ -352,7 +375,7 @@ mod metadata {
                 },
                 PropertyChange::Deleted { subject, key } => Self::Deleted {
                     subject: *subject,
-                    key: key.to_string(),
+                    key: key.map(str::to_string),
                 },
             }
         }
@@ -401,6 +424,53 @@ mod metadata {
             assert_eq!(sub.get("blah"), Some(&prop1));
             assert_eq!(sub.get("mutant"), Some(&prop2));
             assert_eq!(sub.get("asdf"), None);
+        }
+
+        /// Calls the C property-change callback directly and returns what the handler received.
+        fn deliver_change(
+            subject: uuid,
+            key: *const libc::c_char,
+            change: j::jack_property_change_t,
+        ) -> Vec<PropertyChangeOwned> {
+            struct Recorder(Vec<PropertyChangeOwned>);
+            impl PropertyChangeHandler for Recorder {
+                fn property_changed(&mut self, change: &PropertyChange) {
+                    self.0.push(change.into());
+                }
+            }
+            let mut recorder = Recorder(Vec::new());
+            unsafe {
+                super::super::property_changed::<Recorder>(
+                    subject,
+                    key,
+                    change,
+                    &mut recorder as *mut Recorder as *mut libc::c_void,
+                );
+            }
+            recorder.0
+        }
+
+        #[test]
+        fn property_changed_with_null_key_reports_all_keys_deleted() {
+            assert_eq!(
+                deliver_change(7, ptr::null(), j::PropertyDeleted),
+                vec![PropertyChangeOwned::Deleted {
+                    subject: 7,
+                    key: None
+                }]
+            );
+        }
+
+        #[test]
+        fn property_changed_with_non_utf8_key_is_delivered() {
+            let key = b"bad\xff\0";
+            assert_eq!(
+                deliver_change(7, key.as_ptr() as *const libc::c_char, j::PropertyCreated),
+                vec![PropertyChangeOwned::Created {
+                    subject: 7,
+                    key: "bad\u{fffd}".into()
+                }]
+            );
         }
 
         #[test]
@@ -579,7 +649,7 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Deleted {
                     subject: c2.uuid(),
-                    key: "blah".into()
+                    key: Some("blah".into())
                 }),
                 r
             );
@@ -608,15 +678,16 @@ mod metadata {
         }
 
         #[test]
-        #[should_panic]
         fn double_register() {
             let (mut c, _) = Client::new("client1", ClientOptions::default()).unwrap();
             assert_eq!(
                 Ok(()),
                 c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}))
             );
-            let _panic =
-                c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}));
+            assert_eq!(
+                Err(Error::CallbackRegistrationError),
+                c.register_property_change_handler(ClosurePropertyChangeHandler::new(|_| {}))
+            );
         }
     }
 }

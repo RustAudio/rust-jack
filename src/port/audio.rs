@@ -33,7 +33,7 @@ pub struct AudioIn {
 /// let client = jack::Client::new("rusty_client", jack::ClientOptions::default())
 ///     .unwrap()
 ///     .0;
-/// let spec = jack::AudioIn::default();
+/// let spec = jack::AudioOut::default();
 /// let audio_out_port = client.register_port("out", spec).unwrap();
 /// ```
 #[derive(Copy, Clone, Debug, Default)]
@@ -73,6 +73,20 @@ unsafe impl PortSpec for AudioIn {
 
 impl Port<AudioIn> {
     /// Read the received audio data.
+    ///
+    /// # Aliasing
+    ///
+    /// A JACK server may hand out the same memory for an input port and the output port it is
+    /// connected to. If a client connects one of its own `AudioOut` ports to one of its own
+    /// `AudioIn` ports, the slices from [`Port<AudioIn>::as_slice`] and
+    /// [`Port<AudioOut>::as_mut_slice`] could then overlap, which breaks Rust's aliasing rules. Do
+    /// not connect a client's output ports to its own input ports while holding both slices.
+    ///
+    /// This depends on the server, and more research is needed to say which ones are affected.
+    /// From reading the source, JACK2 passes an output buffer straight through to an input port
+    /// with one connection, but copies it when both ports belong to the same client, so it does not
+    /// alias in this case. PipeWire's JACK layer returns the peer's buffer for a single connection
+    /// without a same-client check, so it may alias, but this has not been verified at runtime.
     pub fn as_slice<'a>(&'a self, ps: &'a ProcessScope) -> &'a [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         unsafe {
@@ -86,6 +100,20 @@ impl Port<AudioIn> {
 
 impl Port<AudioOut> {
     /// Get a slice to write audio data to.
+    ///
+    /// # Aliasing
+    ///
+    /// A JACK server may hand out the same memory for an input port and the output port it is
+    /// connected to. If a client connects one of its own `AudioOut` ports to one of its own
+    /// `AudioIn` ports, the slices from [`Port<AudioIn>::as_slice`] and
+    /// [`Port<AudioOut>::as_mut_slice`] could then overlap, which breaks Rust's aliasing rules. Do
+    /// not connect a client's output ports to its own input ports while holding both slices.
+    ///
+    /// This depends on the server, and more research is needed to say which ones are affected.
+    /// From reading the source, JACK2 passes an output buffer straight through to an input port
+    /// with one connection, but copies it when both ports belong to the same client, so it does not
+    /// alias in this case. PipeWire's JACK layer returns the peer's buffer for a single connection
+    /// without a same-client check, so it may alias, but this has not been verified at runtime.
     pub fn as_mut_slice<'a>(&'a mut self, ps: &'a ProcessScope) -> &'a mut [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
         unsafe {

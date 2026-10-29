@@ -1,6 +1,8 @@
 use jack_sys as j;
-use std::mem;
+use std::mem::ManuallyDrop;
+use std::ptr;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// A lock-free ringbuffer. The key attribute of a ringbuffer is that it can be safely accessed by
 /// two threads simultaneously, one reading from the buffer and the other writing to it - without
@@ -25,6 +27,9 @@ pub struct RingBuffer(*mut j::jack_ringbuffer_t);
 impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, crate::Error> {
+        if let Err(err) = jack_sys::ensure_loaded() {
+            return Err(crate::Error::LibraryError(err.to_string()));
+        }
         let insize = size as libc::size_t;
         let handle = unsafe { j::jack_ringbuffer_create(insize) };
 
@@ -47,9 +52,14 @@ impl RingBuffer {
 
     /// Create a reader and writer, to use the ring buffer.
     pub fn into_reader_writer(self) -> (RingBufferReader, RingBufferWriter) {
-        let out = unsafe { (RingBufferReader::new(self.0), RingBufferWriter::new(self.0)) };
-        mem::forget(self);
-        out
+        let this = ManuallyDrop::new(self);
+        let both_live = Arc::new(AtomicBool::new(true));
+        unsafe {
+            (
+                RingBufferReader::new(this.0, both_live.clone()),
+                RingBufferWriter::new(this.0, both_live),
+            )
+        }
     }
 
     /// Re-create the ring buffer object from reader and writer. useful if you need to call reset.
@@ -65,20 +75,30 @@ impl RingBuffer {
             panic!("mismatching read and write handles!")
         }
 
-        // The next 3 lines transfer ownership of the ringbuffer from both reader and writer to the
-        // new buffer object.
-        let handle = RingBuffer(r.ringbuffer_handle);
-        mem::forget(r);
-        mem::forget(w);
-
-        handle
+        // Transfer ownership of the ringbuffer from both reader and writer to the new buffer
+        // object. Their `Drop` must not run, but their shared liveness flag still has to be freed.
+        let r = ManuallyDrop::new(r);
+        let w = ManuallyDrop::new(w);
+        unsafe {
+            drop(ptr::read(&r.both_live));
+            drop(ptr::read(&w.both_live));
+        }
+        RingBuffer(r.ringbuffer_handle)
     }
+}
+
+// Counts the ring buffers freed on the current thread, so tests can detect leaks.
+#[cfg(test)]
+thread_local! {
+    pub(crate) static FREED_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 impl Drop for RingBuffer {
     fn drop(&mut self) {
         if !self.0.is_null() {
             unsafe { j::jack_ringbuffer_free(self.0) };
+            #[cfg(test)]
+            FREED_COUNT.with(|c| c.set(c.get() + 1));
         }
         self.0 = std::ptr::null_mut();
     }
@@ -91,9 +111,9 @@ unsafe impl Sync for RingBuffer {}
 /// thread).
 pub struct RingBufferReader {
     ringbuffer_handle: *mut j::jack_ringbuffer_t,
-    /// A marker to check if both halves of the ringbuffer are live. Destroying a ringbuffer is not
-    /// a realtime operation.
-    both_live: AtomicBool,
+    /// Shared with the writer. `true` while both halves are live. The half that is dropped last
+    /// frees the ringbuffer. Destroying a ringbuffer is not a realtime operation.
+    both_live: Arc<AtomicBool>,
 }
 
 unsafe impl Send for RingBufferReader {}
@@ -103,7 +123,8 @@ unsafe impl Sync for RingBufferReader {}
 /// thread).
 pub struct RingBufferWriter {
     ringbuffer_handle: *mut j::jack_ringbuffer_t,
-    both_live: AtomicBool,
+    /// Shared with the reader. See `RingBufferReader::both_live`.
+    both_live: Arc<AtomicBool>,
 }
 
 unsafe impl Send for RingBufferWriter {}
@@ -112,10 +133,10 @@ unsafe impl Sync for RingBufferWriter {}
 impl RingBufferReader {
     // safety: this method must be called as part of the splitting of the ringbuffer into 2
     // channels.
-    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t, both_live: Arc<AtomicBool>) -> Self {
         RingBufferReader {
             ringbuffer_handle: raw,
-            both_live: AtomicBool::new(true),
+            both_live,
         }
     }
 
@@ -217,14 +238,10 @@ impl std::io::Read for RingBufferReader {
 
 impl Drop for RingBufferReader {
     fn drop(&mut self) {
-        match self
-            .both_live
-            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
-        {
-            Ok(false) | Err(false) => {
-                drop(RingBuffer(self.ringbuffer_handle));
-            }
-            _ => (),
+        // The first half to be dropped flips the flag. The second one sees it already cleared and
+        // frees the ringbuffer.
+        if !self.both_live.swap(false, Ordering::AcqRel) {
+            drop(RingBuffer(self.ringbuffer_handle));
         }
     }
 }
@@ -232,10 +249,10 @@ impl Drop for RingBufferReader {
 impl RingBufferWriter {
     // safety: this method must be called as part of the splitting of the ringbuffer into 2
     // channels.
-    unsafe fn new(raw: *mut j::jack_ringbuffer_t) -> Self {
+    unsafe fn new(raw: *mut j::jack_ringbuffer_t, both_live: Arc<AtomicBool>) -> Self {
         RingBufferWriter {
             ringbuffer_handle: raw,
-            both_live: AtomicBool::new(true),
+            both_live,
         }
     }
 
@@ -317,14 +334,10 @@ impl std::io::Write for RingBufferWriter {
 
 impl Drop for RingBufferWriter {
     fn drop(&mut self) {
-        match self
-            .both_live
-            .compare_exchange(true, false, Ordering::SeqCst, Ordering::SeqCst)
-        {
-            Ok(false) | Err(false) => {
-                drop(RingBuffer(self.ringbuffer_handle));
-            }
-            _ => (),
+        // The first half to be dropped flips the flag. The second one sees it already cleared and
+        // frees the ringbuffer.
+        if !self.both_live.swap(false, Ordering::AcqRel) {
+            drop(RingBuffer(self.ringbuffer_handle));
         }
     }
 }

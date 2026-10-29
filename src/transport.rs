@@ -1,15 +1,16 @@
 //! JACK transport wrappers.
 //! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
+use crate::client::common::ClientLife;
 use crate::{Frames, Time};
 use jack_sys as j;
-use std::sync::Weak;
+use std::sync::Arc;
 
 pub type Result<T> = ::std::result::Result<T, crate::Error>;
 
 /// A structure for querying and manipulating the JACK transport.
 pub struct Transport {
     pub(crate) client_ptr: *mut j::jack_client_t,
-    pub(crate) client_life: Weak<()>,
+    pub(crate) client_life: Arc<ClientLife>,
 }
 
 //all exposed methods are realtime safe
@@ -21,7 +22,20 @@ unsafe impl Sync for Transport {}
 pub struct TransportPosition(j::jack_position_t);
 
 /// A representation of transport state.
+///
+/// New states may be added in the future, so matches need a wildcard arm:
+///
+/// ```compile_fail
+/// fn describe(state: jack::TransportState) -> &'static str {
+///     match state {
+///         jack::TransportState::Stopped => "stopped",
+///         jack::TransportState::Rolling => "rolling",
+///         jack::TransportState::Starting => "starting",
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum TransportState {
     Stopped,
     Rolling,
@@ -79,6 +93,8 @@ pub enum TransportBBTValidationError {
     BPMRange,
     ///`tick` must be less than `ticks_per_beat`
     TickRange,
+    ///`bar_start_tick` must be a finite number
+    BarStartTickRange,
 }
 
 impl std::fmt::Display for TransportBBTValidationError {
@@ -202,11 +218,8 @@ impl Transport {
     }
 
     fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
-        if self.client_life.upgrade().is_some() {
-            Ok(func(self.client_ptr))
-        } else {
-            Err(crate::Error::ClientIsNoLongerAlive)
-        }
+        let _life = self.client_life.enter()?;
+        Ok(func(self.client_ptr))
     }
 
     // Helper to create generic error from jack response
@@ -274,6 +287,9 @@ impl TransportPosition {
     }
 
     /// Get the BarBeatsTick data if it is valid.
+    ///
+    /// Returns `None` if the position has no BarBeatsTick data, or if the data fails
+    /// [`TransportBBT::validated`].
     pub fn bbt(&self) -> Option<TransportBBT> {
         if self.valid_bbt() {
             TransportBBT {
@@ -351,16 +367,14 @@ impl TransportPosition {
     ///
     /// * If this value is 0, the bbt time refers to the first frame of this cycle.
     /// * Otherwise, the bbt time refers to a frame that many frames **before** the start of the cycle.
-    pub fn set_bbt_offset(&mut self, frame: Option<Frames>) -> std::result::Result<(), Frames> {
+    pub fn set_bbt_offset(&mut self, frame: Option<Frames>) {
         match frame {
             None => {
                 self.0.valid &= !j::JackBBTFrameOffset;
-                Ok(())
             }
             Some(frame) => {
                 self.0.bbt_offset = frame;
                 self.0.valid |= j::JackBBTFrameOffset;
-                Ok(())
             }
         }
     }
@@ -433,21 +447,29 @@ impl TransportBBT {
     }
 
     /// Returns `self` is valid, otherwise returns an error describing what is invalid.
+    ///
+    /// NaN and infinite values are invalid.
     pub fn validated(&'_ self) -> std::result::Result<Self, TransportBBTValidationError> {
+        // The comparisons are written so that NaN fails them. The time signature is checked
+        // before `beat` and `ticks_per_beat` before `tick`, since those ranges depend on them.
+        let positive_f32 = |x: f32| x > 0. && x.is_finite();
+        let positive_f64 = |x: f64| x > 0. && x.is_finite();
         if self.bar == 0 {
             Err(TransportBBTValidationError::BarZero)
+        } else if !positive_f32(self.sig_num) {
+            Err(TransportBBTValidationError::SigNumRange)
+        } else if !positive_f32(self.sig_denom) {
+            Err(TransportBBTValidationError::SigDenomRange)
         } else if self.beat == 0 || self.beat > self.sig_num.ceil() as _ {
             Err(TransportBBTValidationError::BeatRange)
-        } else if self.ticks_per_beat <= 0. {
+        } else if !positive_f64(self.ticks_per_beat) {
             Err(TransportBBTValidationError::TicksPerBeatRange)
-        } else if self.sig_num <= 0. {
-            Err(TransportBBTValidationError::SigNumRange)
-        } else if self.sig_denom <= 0. {
-            Err(TransportBBTValidationError::SigDenomRange)
-        } else if self.bpm < 0. {
+        } else if !(self.bpm >= 0. && self.bpm.is_finite()) {
             Err(TransportBBTValidationError::BPMRange)
         } else if self.tick >= self.ticks_per_beat.ceil() as _ {
             Err(TransportBBTValidationError::TickRange)
+        } else if !self.bar_start_tick.is_finite() {
+            Err(TransportBBTValidationError::BarStartTickRange)
         } else {
             Ok(*self)
         }
