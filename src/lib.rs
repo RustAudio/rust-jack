@@ -30,16 +30,26 @@
 //! [`MidiOut`].
 //!
 //! To access the data of registered ports, use their specialized methods within a `ProcessHandler`
-//! callback. For example, [`Port<AudioIn>::as_mut_slice`] returns a audio buffer that can be written
+//! callback. For example, [`Port<AudioOut>::as_mut_slice`] returns an audio buffer that can be written
 //! to.
+//!
+//! ```compile_fail
+//! // Removed in 1.0: use `Client::time` instead.
+//! let _ = jack::get_time();
+//! ```
+//!
+//! ```compile_fail
+//! // Removed in 1.0: use `jack::contrib::ClosureProcessHandler` instead.
+//! let _ = jack::ClosureProcessHandler::new(|_: &jack::Client, _: &jack::ProcessScope| {
+//!     jack::Control::Continue
+//! });
+//! ```
 
-#[allow(deprecated)]
-pub use crate::client::ClosureProcessHandler;
 pub use crate::client::{
     AsyncClient, Client, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
     NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
-pub use crate::jack_enums::{Control, Error, LatencyType};
+pub use crate::jack_enums::{CodeOrMessage, Control, Error, LatencyType};
 pub use crate::logging::{set_logger, LoggerType};
 pub use crate::port::{
     AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
@@ -71,7 +81,7 @@ mod transport;
 pub mod contrib {
     mod closure;
 
-    pub use closure::ClosureProcessHandler;
+    pub use closure::{ClosureProcessHandler, ProcessCallbacks};
 
     #[cfg(feature = "controller")]
     pub mod controller;
@@ -79,16 +89,3 @@ pub mod contrib {
 
 #[cfg(test)]
 mod tests;
-
-static TIME_CLIENT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
-    Client::new("deprecated_get_time", ClientOptions::default())
-        .unwrap()
-        .0
-});
-
-/// Return JACK's current system time in microseconds, using the JACK clock
-/// source.
-#[deprecated = "Prefer using Client::time. get_time will be eventually be removed and it requires an extra client initialization."]
-pub fn get_time() -> primitive_types::Time {
-    TIME_CLIENT.time()
-}

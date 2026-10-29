@@ -19,5 +19,5 @@ bitflags = "2"
 pkg-config = "0.3"
 
 [features]
-default_features = ["dynamic_loading"]
+default = ["dynamic_loading"]
 dynamic_loading = []

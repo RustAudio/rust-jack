@@ -1,18 +1,36 @@
 use crate::ClientStatus;
 
 /// An error that can occur in JACK.
+///
+/// New variants may be added in the future, so matches need a wildcard arm:
+///
+/// ```compile_fail
+/// fn describe(err: jack::Error) -> &'static str {
+///     use jack::Error::*;
+///     match err {
+///         LibraryError(_) | CallbackRegistrationError | ClientActivationError
+///         | ClientDeactivationError | ClientError(_) | FreewheelError | NotEnoughSpace
+///         | PortAliasError | PortAlreadyConnected(..) | PortConnectionError { .. }
+///         | PortDisconnectionError | PortMonitorError | PortNamingError
+///         | PortRegistrationError(_) | SetBufferSizeError | TimeError | WeakFunctionNotFound(_)
+///         | ClientIsNoLongerAlive | ClientPanicked | RingbufferCreateFailed
+///         | UnknownError { .. } => "error",
+///     }
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
     LibraryError(String),
-    CallbackDeregistrationError,
+    /// A string argument could not be passed to JACK because it contains a NUL byte.
+    InvalidString(String),
     CallbackRegistrationError,
     ClientActivationError,
     ClientDeactivationError,
     ClientError(ClientStatus),
     FreewheelError,
-    InvalidDeactivation,
     NotEnoughSpace,
+    InvalidMidiEvent,
     PortAliasError,
     PortAlreadyConnected(String, String),
     PortConnectionError {
@@ -40,14 +58,17 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Error::LibraryError(err) => write!(f, "library error {err}"),
-            Error::CallbackDeregistrationError => write!(f, "callback deregistration error"),
+            Error::InvalidString(s) => write!(f, "invalid string {s:?}, it contains a NUL byte"),
             Error::CallbackRegistrationError => write!(f, "callback registration error"),
             Error::ClientActivationError => write!(f, "client activation error"),
             Error::ClientDeactivationError => write!(f, "client deactivation error"),
             Error::ClientError(status) => write!(f, "client error, status is {status:?}"),
             Error::FreewheelError => write!(f, "freewheel error"),
-            Error::InvalidDeactivation => write!(f, "invalid deactivation"),
             Error::NotEnoughSpace => write!(f, "not enough space"),
+            Error::InvalidMidiEvent => write!(
+                f,
+                "invalid midi event, its time may be out of order or outside the cycle"
+            ),
             Error::PortAliasError => write!(f, "port alias error"),
             Error::PortAlreadyConnected(a, b) => write!(f, "port {a} is already connected to {b}"),
             Error::PortConnectionError {
@@ -78,15 +99,32 @@ impl std::fmt::Display for Error {
             Error::TimeError => write!(f, "time error"),
             Error::WeakFunctionNotFound(func) => write!(f, "weak function {func} not found"),
             Error::ClientIsNoLongerAlive => write!(f, "client is no longer alive"),
-            Error::ClientPanicked => write!(f, "client notifcation or processor panicked"),
+            Error::ClientPanicked => write!(f, "client notification or processor panicked"),
             Error::RingbufferCreateFailed => write!(f, "ringbuffer creation failed"),
-            Error::UnknownError { error_code } => write!(f, "unkown error with code {error_code}"),
+            Error::UnknownError { error_code } => write!(f, "unknown error with code {error_code}"),
         }
     }
 }
 
 impl std::error::Error for Error {}
 
+/// Details for [`Error::PortConnectionError`]: either the raw JACK error code or an explanation.
+///
+/// ```
+/// fn explain(err: &jack::Error) -> Option<String> {
+///     match err {
+///         jack::Error::PortConnectionError {
+///             code_or_message: jack::CodeOrMessage::Message(msg),
+///             ..
+///         } => Some(msg.to_string()),
+///         jack::Error::PortConnectionError {
+///             code_or_message: jack::CodeOrMessage::Code(code),
+///             ..
+///         } => Some(format!("code {code}")),
+///         _ => None,
+///     }
+/// }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CodeOrMessage {
     Code(libc::c_int),

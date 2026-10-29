@@ -44,10 +44,11 @@ bitflags! {
         /// Client's protocol version does not match
         const VERSION_ERROR   = j::JackVersionError;
 
-        /// No documentation found. TODO: dig deeper
+        /// The server's audio backend (driver) reported an error.
         const BACKEND_ERROR   = j::JackBackendError;
 
-        /// No documentation found. TODO: dig deeper
+        /// The client was "zombified" by the server, usually because it took too long in its
+        /// process callback, and it no longer takes part in processing.
         const CLIENT_ZOMBIE   = j::JackClientZombie;
     }
 }

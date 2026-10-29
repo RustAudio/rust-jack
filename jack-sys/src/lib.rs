@@ -26,10 +26,18 @@ lazy_static! {
 /// the library.
 ///
 /// # Example
-/// ```rust
-/// let symbol = library.get::<unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int>(b"jack_release_timebase").unwrap();
-/// let raw_symbol = symbol.into_raw();
-/// let func = *raw_symbol.deref() as unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int;
+/// ```no_run
+/// use jack_sys::jack_client_t;
+///
+/// let library = jack_sys::library().unwrap();
+/// let func = unsafe {
+///     library
+///         .get::<unsafe extern "C" fn(client: *mut jack_client_t) -> ::libc::c_int>(
+///             b"jack_release_timebase",
+///         )
+///         .unwrap()
+/// };
+/// # let _ = func;
 /// ```
 pub fn library() -> Result<&'static libloading::Library, impl std::error::Error> {
     LIB_RESULT.as_ref()

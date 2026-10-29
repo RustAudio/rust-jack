@@ -14,9 +14,7 @@ bitflags! {
         /// Port corresponds to some kind of physical I/O connector.
         const IS_PHYSICAL = j::JackPortIsPhysical;
 
-        /// A call to `jack_port_request_monitor()` makes sense.
-        ///
-        /// # TODO implement
+        /// A call to [`Port::request_monitor`](crate::Port::request_monitor) makes sense.
         ///
         /// Precisely what this means it dependent on the client. A typical result of it being
         /// called with `true` as the second argument is that data that would be available from an

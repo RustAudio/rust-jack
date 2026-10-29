@@ -1,12 +1,61 @@
 use crate::types::*;
-pub unsafe fn jack_get_cycle_times(
-    _client: *const jack_client_t,
-    _current_frames: *mut jack_nframes_t,
-    _current_usecs: *mut jack_time_t,
-    _next_usecs: *mut jack_time_t,
-    _period_usecs: *mut ::libc::c_float,
-) -> Option<::libc::c_int> {
+
+/// Resolve an optional JACK function at runtime.
+///
+/// Some JACK functions are missing from older or alternative JACK implementations, so they can't
+/// be linked directly without breaking the build there. Since libjack is already linked into the
+/// process, look them up with `dlsym(RTLD_DEFAULT)` instead. The result is cached in `cache`, so
+/// only the first call does the lookup; later calls are lock-free and realtime safe.
+///
+/// # Safety
+/// `F` must be the correct function pointer type for `name`, which must be NUL terminated.
+#[cfg(unix)]
+unsafe fn optional_function<F: Copy>(
+    cache: &'static std::sync::OnceLock<usize>,
+    name: &'static [u8],
+) -> Option<F> {
+    debug_assert_eq!(name.last(), Some(&0));
+    debug_assert_eq!(std::mem::size_of::<F>(), std::mem::size_of::<usize>());
+    let addr =
+        *cache.get_or_init(|| libc::dlsym(libc::RTLD_DEFAULT, name.as_ptr().cast()) as usize);
+    if addr == 0 {
+        None
+    } else {
+        Some(std::mem::transmute_copy::<usize, F>(&addr))
+    }
+}
+
+#[cfg(not(unix))]
+unsafe fn optional_function<F: Copy>(
+    _cache: &'static std::sync::OnceLock<usize>,
+    _name: &'static [u8],
+) -> Option<F> {
     None
+}
+
+pub unsafe fn jack_get_cycle_times(
+    client: *const jack_client_t,
+    current_frames: *mut jack_nframes_t,
+    current_usecs: *mut jack_time_t,
+    next_usecs: *mut jack_time_t,
+    period_usecs: *mut ::libc::c_float,
+) -> Option<::libc::c_int> {
+    static CACHE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    type F = unsafe extern "C" fn(
+        *const jack_client_t,
+        *mut jack_nframes_t,
+        *mut jack_time_t,
+        *mut jack_time_t,
+        *mut ::libc::c_float,
+    ) -> ::libc::c_int;
+    let f: F = optional_function(&CACHE, b"jack_get_cycle_times\0")?;
+    Some(f(
+        client,
+        current_frames,
+        current_usecs,
+        next_usecs,
+        period_usecs,
+    ))
 }
 pub unsafe fn jack_internal_client_new(
     _client_name: *const ::libc::c_char,
@@ -239,21 +288,42 @@ pub unsafe fn jack_internal_client_handle(
 ) -> Option<jack_intclient_t> {
     None
 }
+/// `jack_internal_client_load` is variadic in C. This wrapper always passes both `load_name` and
+/// `load_init`, so `options` should contain `JackLoadName | JackLoadInit`.
 pub unsafe fn jack_internal_client_load(
-    _client: *mut jack_client_t,
-    _client_name: *const ::libc::c_char,
-    _options: jack_options_t,
-    _status: *mut jack_status_t,
-    _load_name: *const ::libc::c_char,
-    _load_init: *const ::libc::c_char,
+    client: *mut jack_client_t,
+    client_name: *const ::libc::c_char,
+    options: jack_options_t,
+    status: *mut jack_status_t,
+    load_name: *const ::libc::c_char,
+    load_init: *const ::libc::c_char,
 ) -> Option<jack_intclient_t> {
-    None
+    static CACHE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    type F = unsafe extern "C" fn(
+        *mut jack_client_t,
+        *const ::libc::c_char,
+        jack_options_t,
+        *mut jack_status_t,
+        ...
+    ) -> jack_intclient_t;
+    let f: F = optional_function(&CACHE, b"jack_internal_client_load\0")?;
+    Some(f(
+        client,
+        client_name,
+        options,
+        status,
+        load_name,
+        load_init,
+    ))
 }
 pub unsafe fn jack_internal_client_unload(
-    _client: *mut jack_client_t,
-    _intclient: jack_intclient_t,
+    client: *mut jack_client_t,
+    intclient: jack_intclient_t,
 ) -> Option<jack_status_t> {
-    None
+    static CACHE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    type F = unsafe extern "C" fn(*mut jack_client_t, jack_intclient_t) -> jack_status_t;
+    let f: F = optional_function(&CACHE, b"jack_internal_client_unload\0")?;
+    Some(f(client, intclient))
 }
 #[link(name = "jack")]
 extern "C" {
@@ -294,10 +364,13 @@ extern "C" {
         client: *mut jack_client_t,
         tinfo: *mut jack_transport_info_t,
     ) -> ();
+    /// Variadic: the optional arguments selected by `options` (such as the server name for
+    /// `JackServerName`) follow `status`.
     pub fn jack_client_open(
         client_name: *const ::libc::c_char,
         options: jack_options_t,
         status: *mut jack_status_t,
+        ...
     ) -> *mut jack_client_t;
     pub fn jack_client_new(client_name: *const ::libc::c_char) -> *mut jack_client_t;
     pub fn jack_client_close(client: *mut jack_client_t) -> ::libc::c_int;
@@ -438,6 +511,12 @@ extern "C" {
     pub fn jack_port_tie(src: *mut jack_port_t, dst: *mut jack_port_t) -> ::libc::c_int;
     pub fn jack_port_untie(port: *mut jack_port_t) -> ::libc::c_int;
     pub fn jack_port_set_name(
+        port: *mut jack_port_t,
+        port_name: *const ::libc::c_char,
+    ) -> ::libc::c_int;
+    #[link_name = "jack_port_rename"]
+    fn jack_port_rename_impl(
+        client: *mut jack_client_t,
         port: *mut jack_port_t,
         port_name: *const ::libc::c_char,
     ) -> ::libc::c_int;
@@ -658,4 +737,20 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
     pub fn jack_uuid_unparse(arg1: jack_uuid_t, buf: *mut ::std::os::raw::c_char) -> ();
     pub fn jack_uuid_empty(arg1: jack_uuid_t) -> ::std::os::raw::c_int;
+}
+
+/// Load the JACK library and all of its required functions.
+///
+/// With static linking, the library is loaded by the system linker, so this always succeeds.
+pub fn ensure_loaded() -> Result<(), &'static str> {
+    Ok(())
+}
+
+/// Rename `port`. Unlike `jack_port_set_name`, this notifies port rename callbacks.
+pub unsafe fn jack_port_rename(
+    client: *mut jack_client_t,
+    port: *mut jack_port_t,
+    port_name: *const ::libc::c_char,
+) -> Option<::libc::c_int> {
+    Some(jack_port_rename_impl(client, port, port_name))
 }

@@ -43,7 +43,12 @@ impl Default for LoggerType {
 }
 
 /// Set the logger.
+///
+/// Does nothing if the JACK library could not be loaded.
 pub fn set_logger(logger: LoggerType) {
+    if jack_sys::ensure_loaded().is_err() {
+        return;
+    }
     // Prevents maybe_init_logging from resetting the logger.
     if !INIT_LOGGING.is_completed() {
         INIT_LOGGING.call_once(|| {});
@@ -74,6 +79,7 @@ fn set_logger_impl(logger: LoggerType) {
 
 #[cfg(feature = "log")]
 unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
+    let _defer_cancel = crate::jack_utils::DeferThreadCancellation::new();
     let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => log::error!("{}", msg),
         Err(err) => log::error!("failed to log to JACK error: {:?}", err),
@@ -86,6 +92,7 @@ unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
 
 #[cfg(feature = "log")]
 unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
+    let _defer_cancel = crate::jack_utils::DeferThreadCancellation::new();
     let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => log::info!("{}", msg),
         Err(err) => log::error!("failed to log to JACK info: {:?}", err),
@@ -97,6 +104,7 @@ unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
 }
 
 unsafe extern "C" fn stderr_handler(msg: *const libc::c_char) {
+    let _defer_cancel = crate::jack_utils::DeferThreadCancellation::new();
     let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => eprintln!("{}", msg),
         Err(err) => eprintln!("failed to log to JACK error: {:?}", err),
@@ -108,6 +116,7 @@ unsafe extern "C" fn stderr_handler(msg: *const libc::c_char) {
 }
 
 unsafe extern "C" fn stdout_handler(msg: *const libc::c_char) {
+    let _defer_cancel = crate::jack_utils::DeferThreadCancellation::new();
     let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
         Ok(msg) => println!("{}", msg),
         Err(err) => println!("failed to log to JACK info: {:?}", err),

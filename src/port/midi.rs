@@ -176,6 +176,19 @@ impl Port<MidiOut> {
     }
 }
 
+/// Convert the return value of `jack_midi_event_write` into a `Result`.
+///
+/// JACK1 returns a positive errno on failure, while JACK2 and PipeWire return a negative one, so
+/// both are accepted.
+fn midi_write_result(res: libc::c_int) -> Result<(), Error> {
+    match res.abs() {
+        0 => Ok(()),
+        libc::ENOBUFS => Err(Error::NotEnoughSpace),
+        libc::EINVAL => Err(Error::InvalidMidiEvent),
+        _ => Err(Error::UnknownError { error_code: res }),
+    }
+}
+
 /// Write midi events to an output midi port.
 #[derive(Debug)]
 pub struct MidiWriter<'a> {
@@ -189,6 +202,10 @@ impl MidiWriter<'_> {
     /// Clients must write normalised MIDI data to the port - no running status and no (1-byte)
     /// realtime messages interspersed with other messagse (realtime messages are fine when they
     /// occur on their own, like other messages).
+    ///
+    /// Returns `Err(Error::NotEnoughSpace)` if the event does not fit in the buffer, and
+    /// `Err(Error::InvalidMidiEvent)` if JACK rejects it, for example because its time is earlier
+    /// than the previously written event or outside the current cycle.
     pub fn write(&mut self, message: &RawMidi) -> Result<(), Error> {
         let ev = j::jack_midi_event_t {
             time: message.time,
@@ -196,11 +213,7 @@ impl MidiWriter<'_> {
             buffer: message.bytes.as_ptr() as *mut u8,
         };
         let res = unsafe { j::jack_midi_event_write(self.buffer, ev.time, ev.buffer, ev.size) };
-        match -res {
-            0 => Ok(()),
-            libc::ENOBUFS => Err(Error::NotEnoughSpace),
-            error_code => Err(Error::UnknownError { error_code }),
-        }
+        midi_write_result(res)
     }
 
     /// Get the number of events that could not be written to port_buffer.
@@ -260,5 +273,30 @@ mod tests {
             assert_eq!(iter.next(), None);
         }
         assert_eq!(iter.size_hint(), (0, Some(0)));
+    }
+
+    #[test]
+    fn midi_write_result_accepts_both_errno_conventions() {
+        assert_eq!(midi_write_result(0), Ok(()));
+        // JACK1 returns a positive errno, JACK2 and PipeWire a negative one.
+        assert_eq!(midi_write_result(libc::ENOBUFS), Err(Error::NotEnoughSpace));
+        assert_eq!(
+            midi_write_result(-libc::ENOBUFS),
+            Err(Error::NotEnoughSpace)
+        );
+        assert_eq!(
+            midi_write_result(libc::EINVAL),
+            Err(Error::InvalidMidiEvent)
+        );
+        assert_eq!(
+            midi_write_result(-libc::EINVAL),
+            Err(Error::InvalidMidiEvent)
+        );
+        assert_eq!(
+            midi_write_result(-libc::EIO),
+            Err(Error::UnknownError {
+                error_code: -libc::EIO
+            })
+        );
     }
 }

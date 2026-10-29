@@ -12,7 +12,7 @@ version = "0.13.5"
 
 [dependencies]
 bitflags = "2"
-jack-sys = {version = "0.5", path = "./jack-sys"}
+jack-sys = {version = "0.5", path = "./jack-sys", default-features = false}
 lazy_static = "1.4"
 libc = "0.2"
 log = { version = "0.4", optional = true}
