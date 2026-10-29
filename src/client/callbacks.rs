@@ -537,10 +537,14 @@ where
 
     /// Mark the callback context as invalid.
     ///
-    /// This usually happens after a panic.
+    /// This usually happens after a panic or when a callback returns `Control::Quit`.
+    ///
+    /// TODO: `pipewire-jack` ignores non-zero return values (`Control::Quit`) from callbacks such
+    /// as `buffer_size` and continues invoking `process`, so we rely on `is_valid_for_callback` to
+    /// prevent invoking user callbacks after quitting or panicking.
     #[cold]
     pub fn mark_invalid(&mut self, did_panic: bool) {
-        self.is_valid_for_callback.store(true, Ordering::Relaxed);
+        self.is_valid_for_callback.store(false, Ordering::Relaxed);
         self.has_panic.store(did_panic, Ordering::Relaxed);
     }
 

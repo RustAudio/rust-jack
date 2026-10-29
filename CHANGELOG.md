@@ -19,6 +19,8 @@
   Non-UTF-8 property types no longer panic.
 - `Client::property_get`, `property_get_subject` and `property_get_all` no longer panic on
   non-UTF-8 keys, values or types. Invalid bytes are replaced with `U+FFFD`.
+- Actually stop processing if buffer size callback returns Quit. This was not
+  respected in Pipewire.
 
 ## 0.9.0
 
