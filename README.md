@@ -87,10 +87,13 @@ Tests require a dummy JACK server and must run single-threaded:
 
 ```sh
 ./dummy_jack_server.sh &
-cargo nextest run
+cargo nextest run --run-ignored all
 ```
 
-If `cargo nextest` is unavailable: `RUST_TEST_THREADS=1 cargo test`
+If `cargo nextest` is unavailable: `RUST_TEST_THREADS=1 cargo test -- --include-ignored`
+
+Some tests are `#[ignore]`d because they fail on `pipewire-jack`; they are
+expected to pass on JACK2 and are run in CI.
 
 ### Troubleshooting
 

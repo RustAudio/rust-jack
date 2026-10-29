@@ -31,6 +31,6 @@ jobs:
       - name: Build (examples)
         run: cargo build --verbose --examples --all-features
       - name: Run Tests (Default Features)
-        run: cargo nextest run
+        run: cargo nextest run --run-ignored all
       - name: Run Doc Tests
         run: cargo doc && cargo test --doc

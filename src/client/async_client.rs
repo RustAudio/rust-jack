@@ -62,6 +62,7 @@ where
                 process: process_handler,
                 is_valid_for_callback: AtomicBool::new(true),
                 has_panic: AtomicBool::new(false),
+                callback_lock: std::sync::Mutex::new(()),
             });
             CallbackContext::register_callbacks(&mut callback_context)?;
             let res = j::jack_activate(callback_context.client.raw());
@@ -109,6 +110,9 @@ impl<N, P> AsyncClient<N, P> {
             return Err(Error::ClientIsNoLongerAlive);
         }
         let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
+        drop(cb.callback_lock.lock());
+        cb.is_valid_for_callback
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         // deactivate
         if unsafe { j::jack_deactivate(cb.client.raw()) } != 0 {
             drop(m);

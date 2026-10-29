@@ -30,6 +30,7 @@ fn time_is_montonically_increasing() {
 }
 
 #[test]
+#[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
 fn maybe_client_can_set_buffer_size() {
     let initial_buffer_size = DEFAULT_TEST_CLIENT.buffer_size();
     if let Err(err) = DEFAULT_TEST_CLIENT.set_buffer_size(initial_buffer_size * 2) {

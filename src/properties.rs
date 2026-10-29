@@ -452,6 +452,7 @@ mod metadata {
         }
 
         #[test]
+        #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn can_remove() {
             let (c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
             let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
@@ -502,6 +503,7 @@ mod metadata {
         }
 
         #[test]
+        #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn can_property_remove_all() {
             let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
             let prop = Property::new("foo", Some("bar".into()));
@@ -524,6 +526,7 @@ mod metadata {
         }
 
         #[test]
+        #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn client_callbacks() {
             let timeout = std::time::Duration::from_millis(50);
             let prop1 = Property::new("foo", None);

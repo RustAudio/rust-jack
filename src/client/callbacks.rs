@@ -175,6 +175,12 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
+    let Some(ctx_ref) = (unsafe { (data as *const CallbackContext<N, P>).as_ref() }) else {
+        return Control::Quit.to_ffi();
+    };
+    let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
+        return Control::Quit.to_ffi();
+    };
     let res = catch_unwind(|| {
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
@@ -262,6 +268,12 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
+    let Some(ctx_ref) = (unsafe { (data as *const CallbackContext<N, P>).as_ref() }) else {
+        return Control::Quit.to_ffi();
+    };
+    let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
+        return Control::Quit.to_ffi();
+    };
     let res = catch_unwind(|| {
         let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
             return Control::Quit;
@@ -517,6 +529,10 @@ pub struct CallbackContext<N, P> {
     pub is_valid_for_callback: AtomicBool,
     /// True if the callback has panicked.
     pub has_panic: AtomicBool,
+    /// Guard held while a callback is actively executing, so `deactivate` waits for any
+    /// in-flight callback (and any panic unwind catching) to finish before calling
+    /// `jack_deactivate`.
+    pub callback_lock: std::sync::Mutex<()>,
 }
 
 impl<N, P> CallbackContext<N, P>

@@ -107,8 +107,6 @@ fn buffer_size_is_called_before_process() {
 fn signals_in_audio_ports_are_forwarded() {
     // Setup clients and ports.
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
-    let buffer_size = client.buffer_size() as usize;
-    assert_ne!(buffer_size, 0);
     let input = client
         .register_port("in", crate::AudioIn::default())
         .unwrap();
@@ -120,6 +118,9 @@ fn signals_in_audio_ports_are_forwarded() {
 
     // Setup checks.
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, ps| {
+        // The buffer size can change after activation, so use the current process cycle's size.
+        let buffer_size = ps.n_frames() as usize;
+        assert_ne!(buffer_size, 0);
         let test_val = 0.25;
         output.as_mut_slice(ps).fill(test_val);
         assert_eq!(output.as_mut_slice(ps).len(), buffer_size);
