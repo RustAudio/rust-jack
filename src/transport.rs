@@ -80,7 +80,7 @@ pub enum TransportBBTValidationError {
 
 impl std::fmt::Display for TransportBBTValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "TransportBBTValidationError: {:?}", &self)
+        write!(f, "TransportBBTValidationError: {:?}", self)
     }
 }
 
