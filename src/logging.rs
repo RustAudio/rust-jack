@@ -11,6 +11,25 @@ pub(crate) fn maybe_init_logging() {
     });
 }
 
+type LogFn = unsafe extern "C" fn(*const libc::c_char);
+
+/// The error function most recently registered with JACK.
+static ERROR_FN: std::sync::Mutex<Option<LogFn>> = std::sync::Mutex::new(None);
+
+/// Log an error message through the same handler JACK uses for its own errors. Does not allocate.
+///
+/// `msg` must be NUL-terminated, e.g. `b"message\0"`; otherwise nothing is logged.
+pub(crate) fn log_error(msg: &'static [u8]) {
+    if msg.last() != Some(&0) {
+        return;
+    }
+    maybe_init_logging();
+    let error_fn = ERROR_FN.lock().ok().and_then(|f| *f);
+    if let Some(error_fn) = error_fn {
+        unsafe { error_fn(msg.as_ptr() as *const libc::c_char) };
+    }
+}
+
 /// Describes how JACK should log info and error messages.
 #[derive(Copy, Clone, Debug)]
 pub enum LoggerType {
@@ -66,6 +85,9 @@ fn set_logger_impl(logger: LoggerType) {
         LoggerType::Log => error_handler,
         LoggerType::Custom { error, .. } => error,
     };
+    if let Ok(mut f) = ERROR_FN.lock() {
+        *f = Some(error_fn);
+    }
     unsafe {
         jack_sys::jack_set_error_function(Some(error_fn));
         jack_sys::jack_set_info_function(Some(info_fn));

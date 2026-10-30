@@ -496,30 +496,45 @@ where
     }
 }
 
+unsafe extern "C" fn noop_thread_init_callback(_: *mut libc::c_void) {}
+
 /// Unsafe ffi wrapper that clears the callbacks registered to `client`.
 ///
 /// This is mostly for use within the jack crate itself.
 ///
 /// Returns `Err(Error::CallbackDeregistrationError)` on failure.
 ///
-/// # Unsafe
-///
-/// * Uses ffi calls, be careful.
-///
-/// # TODO
-///
-/// * Implement correctly. Freezes on my system. Maybe this makes sense now? it doesn't disturb my program
+/// # Safety
+/// The pointer must refer to a valid, inactive JACK client.
 pub unsafe fn clear_callbacks(client: *mut j::jack_client_t) -> Result<(), Error> {
-    j::jack_set_thread_init_callback(client, None, std::ptr::null_mut());
-    j::jack_set_process_callback(client, None, std::ptr::null_mut());
-    Ok(())
+    let data = std::ptr::null_mut();
+    j::jack_on_info_shutdown(client, None, data);
+    let results = [
+        // jackd2 rejects a null thread init callback, so install a no-op instead.
+        j::jack_set_thread_init_callback(client, Some(noop_thread_init_callback), data),
+        j::jack_set_process_callback(client, None, data),
+        j::jack_set_sync_callback(client, None, data),
+        j::jack_set_freewheel_callback(client, None, data),
+        j::jack_set_buffer_size_callback(client, None, data),
+        j::jack_set_sample_rate_callback(client, None, data),
+        j::jack_set_client_registration_callback(client, None, data),
+        j::jack_set_port_registration_callback(client, None, data),
+        j::jack_set_port_connect_callback(client, None, data),
+        j::jack_set_graph_order_callback(client, None, data),
+        j::jack_set_xrun_callback(client, None, data),
+    ];
+    if results.iter().any(|&result| result != 0) {
+        Err(Error::CallbackDeregistrationError)
+    } else {
+        Ok(())
+    }
 }
 
 /// The information used by JACK to process data.
 pub struct CallbackContext<N, P> {
     /// The underlying JACK client.
-    /// Keep this field first so the client is closed, stopping callbacks, before the handlers
-    /// and the rest of the context are dropped.
+    /// Callbacks must be stopped and detached before this context is dropped:
+    /// ports and transport may keep the JACK client open afterwards.
     pub client: Client,
     /// The handler for notifications.
     pub notification: N,

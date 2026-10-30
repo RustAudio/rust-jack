@@ -1,6 +1,6 @@
 use jack_sys as j;
 use std::fmt::Debug;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{ffi, fmt, ptr};
 
 use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
@@ -30,15 +30,31 @@ use crate::{
 /// ```
 pub type InternalClientID = j::jack_intclient_t;
 
-#[allow(dead_code)]
-pub struct Client(
-    *mut j::jack_client_t,
-    Arc<()>,
-    Option<Box<dyn PropertyChangeHandler>>,
-);
+pub struct Client(Arc<ClientHandle>);
 
-unsafe impl Send for Client {}
-unsafe impl Sync for Client {}
+/// Shared ownership of an open JACK client.
+///
+/// The client is closed when the last strong reference is dropped.
+pub struct ClientHandle {
+    client_ptr: *mut j::jack_client_t,
+    // Keep callback storage alive until after jack_client_close returns.
+    property_change_handler: Mutex<Option<Box<dyn PropertyChangeHandler>>>,
+}
+
+// JACK clients support calls from multiple threads. Callback storage is only
+// accessed through the mutex during registration and by JACK's callback thread.
+unsafe impl Send for ClientHandle {}
+unsafe impl Sync for ClientHandle {}
+
+impl ClientHandle {
+    /// Return the underlying JACK client pointer.
+    ///
+    /// Keep a strong reference to this handle alive while using the pointer.
+    #[inline(always)]
+    pub fn as_ptr(&self) -> *mut j::jack_client_t {
+        self.client_ptr
+    }
+}
 
 impl Client {
     /// Opens a JACK client with the given name and options. If the client is successfully opened,
@@ -69,7 +85,7 @@ impl Client {
         if client.is_null() {
             Err(Error::ClientError(status))
         } else {
-            Ok((Client(client, Arc::default(), None), status))
+            Ok((unsafe { Client::from_raw(client) }, status))
         }
     }
 
@@ -302,7 +318,7 @@ impl Client {
         if pp.is_null() {
             Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
-            Ok(unsafe { Port::from_raw(port_spec, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Ok(unsafe { Port::from_raw(port_spec, pp, Arc::clone(&self.0)) })
         }
     }
 
@@ -312,7 +328,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Some(unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) })
         }
     }
 
@@ -323,7 +339,7 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, self.raw(), pp, Arc::downgrade(&self.1)) })
+            Some(unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) })
         }
     }
 
@@ -621,7 +637,7 @@ impl Client {
     /// This is mostly for use within the jack crate itself.
     #[inline(always)]
     pub fn raw(&self) -> *mut j::jack_client_t {
-        self.0
+        self.0.as_ptr()
     }
 
     /// Create a `Client` from an ffi pointer.
@@ -631,17 +647,19 @@ impl Client {
     /// # Safety
     /// It is unsafe to create a `Client` from a raw pointer.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
-        Client(p, Arc::default(), None)
+        Client(Arc::new(ClientHandle {
+            client_ptr: p,
+            property_change_handler: Mutex::new(None),
+        }))
     }
 
     /// Get a `Transport` object associated with this client.
     ///
     /// # Remarks
-    /// * The transport methods will only work during this client's lifetime.
+    /// * The transport keeps the JACK client open even after this `Client` is dropped.
     pub fn transport(&self) -> Transport {
         Transport {
-            client_ptr: self.0,
-            client_life: Arc::downgrade(&self.1),
+            client: Arc::clone(&self.0),
         }
     }
 
@@ -656,10 +674,11 @@ impl Client {
         &mut self,
         handler: H,
     ) -> Result<(), Error> {
-        assert!(self.2.is_none());
+        let mut property_change_handler = self.0.property_change_handler.lock().unwrap();
+        assert!(property_change_handler.is_none());
         let handler = Box::into_raw(Box::new(handler));
         unsafe {
-            self.2 = Some(Box::from_raw(handler));
+            *property_change_handler = Some(Box::from_raw(handler));
             let res = j::jack_set_property_change_callback(
                 self.raw(),
                 Some(crate::properties::property_changed::<H>),
@@ -674,14 +693,14 @@ impl Client {
 }
 
 /// Close the client.
-impl Drop for Client {
+impl Drop for ClientHandle {
     fn drop(&mut self) {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
         // Rep invariant.
-        debug_assert!(!self.raw().is_null());
+        debug_assert!(!self.client_ptr.is_null());
         // Best effort close client.
-        let _res = unsafe { j::jack_client_close(self.raw()) };
-        self.0 = ptr::null_mut();
+        let _res = unsafe { j::jack_client_close(self.client_ptr) };
+        self.client_ptr = ptr::null_mut();
     }
 }
 
@@ -793,4 +812,47 @@ pub struct CycleTimes {
     pub current_usecs: Time,
     pub next_usecs: Time,
     pub period_usecs: libc::c_float,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct Handler(Arc<AtomicBool>);
+
+    impl PropertyChangeHandler for Handler {
+        fn property_changed(&mut self, _: &crate::PropertyChange) {}
+    }
+
+    impl Drop for Handler {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    #[test]
+    fn property_handler_lives_until_client_handle_closes() {
+        let (mut client, _) = Client::new("", Default::default()).unwrap();
+        // Registration must also work after other owners have been created.
+        let transport = client.transport();
+        let dropped = Arc::new(AtomicBool::new(false));
+        client
+            .register_property_change_handler(Handler(dropped.clone()))
+            .unwrap();
+        let port = client
+            .register_port("retained", crate::AudioIn::default())
+            .unwrap();
+
+        drop(client);
+        assert!(!dropped.load(Ordering::SeqCst));
+        assert!(transport.query_state().is_ok());
+
+        drop(transport);
+        assert!(!dropped.load(Ordering::SeqCst));
+        assert!(port.name().is_ok());
+
+        drop(port);
+        assert!(dropped.load(Ordering::SeqCst));
+    }
 }

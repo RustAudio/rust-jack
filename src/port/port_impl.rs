@@ -4,10 +4,10 @@ use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::marker::Sized;
-use std::sync::Weak;
+use std::sync::Arc;
 use std::{ffi, fmt, iter};
 
-use crate::{Error, Frames, LatencyType, PortFlags};
+use crate::{ClientHandle, Error, Frames, LatencyType, PortFlags};
 
 lazy_static! {
     /// The maximum string length for port names.
@@ -43,12 +43,13 @@ pub unsafe trait PortSpec: Sized {
 /// Most JACK functionality is exposed, including the raw pointers, but it should be possible to
 /// create a client without the need for calling `unsafe` `Port` methods.
 ///
+/// A port keeps its JACK client open, even after the original `Client` is dropped.
+///
 /// Also, ports can be compared and hashed using their raw pointers.
 pub struct Port<PS> {
     spec: PS,
-    client_ptr: *mut j::jack_client_t,
     port_ptr: *mut j::jack_port_t,
-    client_life: Weak<()>,
+    client: Arc<ClientHandle>,
 }
 
 unsafe impl<PS: PortSpec + Send> Send for Port<PS> {}
@@ -65,15 +66,13 @@ impl<PS> Port<PS> {
     pub fn clone_unowned(&self) -> Port<Unowned> {
         Port {
             spec: Unowned,
-            client_ptr: self.client_ptr(),
             port_ptr: self.raw(),
-            client_life: self.client_life.clone(),
+            client: self.client.clone(),
         }
     }
 
     /// Returns the full name of the port, including the "client_name:" prefix.
     pub fn name(&self) -> Result<String, Error> {
-        self.check_client_life()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_name(self.raw()))
                 .to_string_lossy()
@@ -85,7 +84,6 @@ impl<PS> Port<PS> {
     /// Returns the short name of the port, it excludes the "client_name:"
     /// prefix.
     pub fn short_name(&self) -> Result<String, Error> {
-        self.check_client_life()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_short_name(self.raw()))
                 .to_string_lossy()
@@ -104,7 +102,6 @@ impl<PS> Port<PS> {
     /// The port type. JACK's built in types include `"32 bit float mono audio`" and `"8 bit raw
     /// midi"`. Custom types may also be used.
     pub fn port_type(&self) -> Result<String, Error> {
-        self.check_client_life()?;
         let s = unsafe {
             ffi::CStr::from_ptr(j::jack_port_type(self.raw()))
                 .to_string_lossy()
@@ -115,7 +112,6 @@ impl<PS> Port<PS> {
 
     /// Number of ports connected to/from `&self`.
     pub fn connected_count(&self) -> Result<usize, Error> {
-        self.check_client_life()?;
         let n = unsafe { j::jack_port_connected(self.raw()) };
         Ok(n as usize)
     }
@@ -123,7 +119,6 @@ impl<PS> Port<PS> {
     /// Returns `true` if the port is directly connected to a port with the
     /// name `port_name`.
     pub fn is_connected_to(&self, port_name: &str) -> Result<bool, Error> {
-        self.check_client_life()?;
         let res = unsafe {
             let port_name = ffi::CString::new(port_name).unwrap();
             j::jack_port_connected_to(self.raw(), port_name.as_ptr())
@@ -138,7 +133,6 @@ impl<PS> Port<PS> {
     ///
     /// Will return up to 2 strings.
     pub fn aliases(&self) -> Result<Vec<String>, Error> {
-        self.check_client_life()?;
         let mut a: Vec<libc::c_char> = iter::repeat_n(0, *PORT_NAME_SIZE + 1).collect();
         let mut b = a.clone();
         unsafe {
@@ -155,7 +149,6 @@ impl<PS> Port<PS> {
 
     /// Returns `true` if monitoring has been requested for `self`.
     pub fn is_monitoring_input(&self) -> Result<bool, Error> {
-        self.check_client_life()?;
         match unsafe { j::jack_port_monitoring_input(self.raw()) } {
             0 => Ok(false),
             _ => Ok(true),
@@ -166,7 +159,6 @@ impl<PS> Port<PS> {
     ///
     /// This only works if the port has the `CAN_MONITOR` flag set.
     pub fn request_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
-        self.check_client_life()?;
         let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_request_monitor(self.raw(), onoff) };
         match res {
@@ -179,7 +171,6 @@ impl<PS> Port<PS> {
     /// off, and turns it off if only one request has been made to turn it on.  Otherwise it does
     /// nothing.
     pub fn ensure_monitor(&self, enable_monitor: bool) -> Result<(), Error> {
-        self.check_client_life()?;
         let onoff = i32::from(enable_monitor);
         let res = unsafe { j::jack_port_ensure_monitor(self.raw(), onoff) };
         match res {
@@ -191,7 +182,6 @@ impl<PS> Port<PS> {
     /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
-        self.check_client_life()?;
         let short_name = ffi::CString::new(short_name).unwrap();
         let res = unsafe { j::jack_port_set_name(self.raw(), short_name.as_ptr()) };
         match res {
@@ -211,7 +201,6 @@ impl<PS> Port<PS> {
     /// Ports can have up to two aliases - if both are already set, this function will return an
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
-        self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_set_alias(self.raw(), alias.as_ptr()) };
         match res {
@@ -224,7 +213,6 @@ impl<PS> Port<PS> {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
-        self.check_client_life()?;
         let alias = ffi::CString::new(alias).unwrap();
         let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
         match res {
@@ -233,32 +221,32 @@ impl<PS> Port<PS> {
         }
     }
 
-    /// Create a Port from raw JACK pointers.
+    /// Create a Port from a raw JACK port pointer and a client handle.
     ///
     /// This is mostly for use within the jack crate itself.
     ///
     /// # Safety
-    /// It is unsafe to create a `Port` from raw pointers.
+    /// The pointer must refer to a valid port, and `client` must be the handle
+    /// of the client through which the port was obtained.
     pub unsafe fn from_raw(
         spec: PS,
-        client_ptr: *mut j::jack_client_t,
         port_ptr: *mut j::jack_port_t,
-        client_life: Weak<()>,
+        client: Arc<ClientHandle>,
     ) -> Self {
         Port {
             spec,
             port_ptr,
-            client_ptr,
-            client_life,
+            client,
         }
     }
 
     /// Obtain the client pointer that spawned this port.
     ///
     /// This is mostly for use within the jack crate itself.
+    /// Keep this port or another strong reference to the client alive while using the pointer.
     #[inline(always)]
     pub fn client_ptr(&self) -> *mut j::jack_client_t {
-        self.client_ptr
+        self.client.as_ptr()
     }
 
     /// Obtain the ffi port pointer.
@@ -279,8 +267,6 @@ impl<PS> Port<PS> {
     /// `.as_mut_slice()` for audio and `.midi_iter` for midi.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
-        // We don't check for life to improve performance in a very hot codepath.
-        // self.check_client_life()?;
         j::jack_port_get_buffer(self.port_ptr, n_frames)
     }
 
@@ -310,13 +296,6 @@ impl<PS> Port<PS> {
         unsafe { j::jack_port_get_latency_range(self.port_ptr, mode.to_ffi(), &mut ffi_range) };
         (ffi_range.min, ffi_range.max)
     }
-
-    fn check_client_life(&self) -> Result<(), Error> {
-        self.client_life
-            .upgrade()
-            .map(|_| ())
-            .ok_or(Error::ClientIsNoLongerAlive)
-    }
 }
 
 impl<PS> Port<PS> {
@@ -334,8 +313,9 @@ impl<PS> Port<PS> {
         self.get_connections()
             .into_iter()
             .map(|name| {
-                let (client, _port) = name.split_once(':').unwrap();
-                crate::Client::uuid_of_client_by_name_raw(self.client_ptr(), client).unwrap()
+                let (client_name, _port) = name.split_once(':').unwrap();
+                crate::Client::uuid_of_client_by_name_raw(self.client.as_ptr(), client_name)
+                    .unwrap()
             })
             .collect()
     }
@@ -409,5 +389,38 @@ impl<PS> Hash for Port<PS> {
 impl Clone for Port<Unowned> {
     fn clone(&self) -> Self {
         self.clone_unowned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{AudioIn, Client};
+
+    #[test]
+    fn ports_keep_client_alive_until_last_port_is_dropped() {
+        let (client, _) = Client::new("", Default::default()).unwrap();
+        let port = client
+            .register_port("retained", AudioIn::default())
+            .unwrap();
+        let life = Arc::downgrade(&port.client);
+        let name = port.name().unwrap();
+        let unowned = client.port_by_name(&name).unwrap();
+        let clone = port.clone_unowned();
+        let ptr = client.raw();
+
+        std::thread::spawn(move || drop(client)).join().unwrap();
+        assert_eq!(port.name(), Ok(name.clone()));
+        assert_eq!(port.client_ptr(), ptr);
+        assert_eq!(unowned.client_ptr(), ptr);
+        assert_eq!(clone.client_ptr(), ptr);
+
+        drop(port);
+        drop(unowned);
+        assert_eq!(clone.name(), Ok(name));
+        assert!(life.upgrade().is_some());
+
+        drop(clone);
+        assert!(life.upgrade().is_none());
     }
 }

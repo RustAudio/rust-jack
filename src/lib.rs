@@ -36,7 +36,7 @@
 #[allow(deprecated)]
 pub use crate::client::ClosureProcessHandler;
 pub use crate::client::{
-    AsyncClient, Client, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
+    AsyncClient, Client, ClientHandle, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
     NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};

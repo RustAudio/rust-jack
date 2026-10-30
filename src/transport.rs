@@ -1,20 +1,17 @@
 //! JACK transport wrappers.
 //! See the [transport design api docs](https://jackaudio.org/api/transport-design.html) for more info.
-use crate::{Frames, Time};
+use crate::{ClientHandle, Frames, Time};
 use jack_sys as j;
-use std::sync::Weak;
+use std::sync::Arc;
 
 pub type Result<T> = ::std::result::Result<T, crate::Error>;
 
 /// A structure for querying and manipulating the JACK transport.
+///
+/// Keeps its JACK client open even after the original `Client` is dropped.
 pub struct Transport {
-    pub(crate) client_ptr: *mut j::jack_client_t,
-    pub(crate) client_life: Weak<()>,
+    pub(crate) client: Arc<ClientHandle>,
 }
-
-//all exposed methods are realtime safe
-unsafe impl Send for Transport {}
-unsafe impl Sync for Transport {}
 
 /// A structure representing the transport position.
 #[repr(transparent)]
@@ -201,12 +198,8 @@ impl Transport {
         })
     }
 
-    fn with_client<F: Fn(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
-        if self.client_life.upgrade().is_some() {
-            Ok(func(self.client_ptr))
-        } else {
-            Err(crate::Error::ClientIsNoLongerAlive)
-        }
+    fn with_client<F: FnOnce(*mut j::jack_client_t) -> R, R>(&self, func: F) -> Result<R> {
+        Ok(func(self.client.as_ptr()))
     }
 
     // Helper to create generic error from jack response
@@ -478,5 +471,28 @@ impl Default for TransportBBT {
             bpm: 120.,
             bar_start_tick: 0.,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Client;
+
+    #[test]
+    fn transport_keeps_client_alive_until_dropped() {
+        let (client, _) = Client::new("", Default::default()).unwrap();
+        let transport = client.transport();
+        let life = Arc::downgrade(&transport.client);
+
+        std::thread::spawn(move || drop(client)).join().unwrap();
+        assert_eq!(transport.stop(), Ok(()));
+        assert!(transport.query_state().is_ok());
+        assert!(transport.query().is_ok());
+        assert_eq!(transport.locate(0), Ok(()));
+        assert!(life.upgrade().is_some());
+
+        drop(transport);
+        assert!(life.upgrade().is_none());
     }
 }
