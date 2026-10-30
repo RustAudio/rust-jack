@@ -31,7 +31,7 @@ use crate::Error;
 ///     eprintln!("Error deactivating client: {err}");
 /// };
 /// ```
-#[must_use = "The jack client is shut down when the AsyncClient is dropped. You most likely want to keep this alive and manually tear down with `AsyncClient::deactivate`."]
+#[must_use = "Processing stops when the AsyncClient is dropped. You most likely want to keep this alive and manually tear down with `AsyncClient::deactivate`."]
 pub struct AsyncClient<N, P> {
     callback: Option<Box<CallbackContext<N, P>>>,
 }
@@ -48,8 +48,9 @@ where
     /// methods specified by the `NotificationHandler` and `ProcessHandler` objects.
     ///
     /// On failure, either `Err(Error::CallbackRegistrationError)` or
-    /// `Err(Error::ClientActivationError)` is returned. The client is closed and both handlers
-    /// are dropped.
+    /// `Err(Error::ClientActivationError)` is returned. Callbacks are detached and both handlers
+    /// are dropped. Ports and transport objects may keep the JACK client open.
+    /// If callback cleanup also fails, the callback context is retained to keep JACK's pointers valid.
     ///
     /// `notification_handler` and `process_handler` are consumed, but they are returned when
     /// `Client::deactivate` is called.
@@ -78,13 +79,26 @@ where
             callback_lock: std::sync::Mutex::new(()),
         });
         // Declare the guard after the context so it is released before error cleanup:
-        // Client::drop also acquires this mutex.
+        // ClientHandle::drop also acquires this mutex.
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
-        unsafe {
-            CallbackContext::register_callbacks(&mut callback_context)?;
-        }
-        if activate(&callback_context.client) != 0 {
-            return Err(Error::ClientActivationError);
+        let registration = unsafe { CallbackContext::register_callbacks(&mut callback_context) };
+        let result = registration.and_then(|()| {
+            if activate(&callback_context.client) == 0 {
+                Ok(())
+            } else {
+                Err(Error::ClientActivationError)
+            }
+        });
+        if let Err(error) = result {
+            if Self::detach_callbacks(&callback_context).is_err() {
+                crate::logging::log_error(
+                    b"Failed to detach callbacks after activation error. Leaking callback context.\0",
+                );
+                // JACK may still hold pointers into the context. Retain it rather
+                // than free memory that a callback could still access.
+                Box::leak(callback_context);
+            }
+            return Err(error);
         }
         Ok(AsyncClient {
             callback: Some(callback_context),
@@ -106,8 +120,9 @@ impl<N, P> AsyncClient<N, P> {
     /// The `handler` that was used for `Client::activate` is returned on success. Its state may
     /// have changed due to JACK calling its methods.
     ///
-    /// In the case of error, the `Client` is destroyed because its state is unknown, and it is
-    /// therefore unsafe to continue using.
+    /// In the case of error, the `Client` is dropped. Ports and transport objects may keep the
+    /// underlying JACK client open.
+    /// If callback cleanup fails, the callback context is retained to keep JACK's pointers valid.
     pub fn deactivate(self) -> Result<(Client, N, P), Error> {
         let mut c = self;
         c.maybe_deactivate()
@@ -123,17 +138,16 @@ impl<N, P> AsyncClient<N, P> {
             return Err(Error::ClientIsNoLongerAlive);
         }
         let cb = self.callback.take().ok_or(Error::ClientIsNoLongerAlive)?;
-        drop(cb.callback_lock.lock());
-        cb.is_valid_for_callback
-            .store(false, std::sync::atomic::Ordering::Relaxed);
-        // deactivate
-        if unsafe { j::jack_deactivate(cb.client.raw()) } != 0 {
+        if let Err(error) = Self::detach_callbacks(&cb) {
+            crate::logging::log_error(
+                b"Failed to detach callbacks on deactivation. Leaking callback context.\0",
+            );
+            // Keep the callback data alive if JACK could still use it.
+            Box::leak(cb);
             drop(m);
-            return Err(Error::ClientDeactivationError);
+            return Err(error);
         }
 
-        // clear the callbacks
-        unsafe { clear_callbacks(cb.client.raw()) }?;
         // done, take ownership of callback
         if cb.has_panic.load(std::sync::atomic::Ordering::Relaxed) {
             drop(m);
@@ -141,11 +155,23 @@ impl<N, P> AsyncClient<N, P> {
         }
         Ok(cb)
     }
+
+    fn detach_callbacks(cb: &CallbackContext<N, P>) -> Result<(), Error> {
+        {
+            let _guard = cb.callback_lock.lock();
+            cb.is_valid_for_callback
+                .store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+        if unsafe { j::jack_deactivate(cb.client.raw()) } != 0 {
+            return Err(Error::ClientDeactivationError);
+        }
+        unsafe { clear_callbacks(cb.client.raw()) }
+    }
 }
 
-/// Closes the client.
+/// Stops processing and releases this reference to the client.
 impl<N, P> Drop for AsyncClient<N, P> {
-    // Deactivate and close the client.
+    // Deactivate and release the client.
     fn drop(&mut self) {
         let _ = self.maybe_deactivate();
     }
@@ -195,8 +221,8 @@ mod tests {
 
     impl Drop for Handler {
         fn drop(&mut self) {
-            // The client must be closed before either handler is destroyed.
-            assert_eq!(self.port.name(), Err(Error::ClientIsNoLongerAlive));
+            // Each handler's port keeps the client alive during destruction.
+            assert!(self.port.name().is_ok());
             self.drops.fetch_add(1, Ordering::SeqCst);
         }
     }
@@ -204,6 +230,8 @@ mod tests {
     fn check_activation_failure(start_processing: bool) {
         let (client, _) = Client::new("", ClientOptions::default()).unwrap();
         let port = client.register_port("input", AudioIn::default()).unwrap();
+        let transport = client.transport();
+        let life = Arc::downgrade(&transport.client);
         let notification_drops = Arc::new(AtomicUsize::new(0));
         let process_drops = Arc::new(AtomicUsize::new(0));
         let (send, recv) = sync_channel(1);
@@ -229,16 +257,49 @@ mod tests {
         assert_eq!(result.err(), Some(Error::ClientActivationError));
         assert_eq!(notification_drops.load(Ordering::SeqCst), 1);
         assert_eq!(process_drops.load(Ordering::SeqCst), 1);
-        assert_eq!(port.name(), Err(Error::ClientIsNoLongerAlive));
+        assert!(port.name().is_ok());
+        // The retained client must be safe to activate after its original
+        // callback context and handlers have been freed.
+        assert_eq!(unsafe { j::jack_activate(port.client_ptr()) }, 0);
+        assert_eq!(unsafe { j::jack_deactivate(port.client_ptr()) }, 0);
+        drop(port);
+        assert!(life.upgrade().is_some());
+        drop(transport);
+        assert!(life.upgrade().is_none());
     }
 
     #[test]
-    fn activation_failure_closes_client_and_drops_handlers() {
+    fn activation_failure_detaches_callbacks_and_drops_handlers() {
         check_activation_failure(false);
     }
 
     #[test]
-    fn activation_failure_after_start_closes_client_and_drops_handlers() {
+    fn activation_failure_after_start_detaches_callbacks_and_drops_handlers() {
         check_activation_failure(true);
+    }
+
+    #[test]
+    fn dropping_async_client_detaches_callbacks_while_port_keeps_client_alive() {
+        let (client, _) = Client::new("", ClientOptions::default()).unwrap();
+        let port = client.register_port("input", AudioIn::default()).unwrap();
+        let transport = client.transport();
+        let life = Arc::downgrade(&transport.client);
+        let drops = Arc::new(AtomicUsize::new(0));
+        let handler = || Handler {
+            drops: drops.clone(),
+            port: port.clone_unowned(),
+            processed: None,
+        };
+        let active = client.activate_async(handler(), handler()).unwrap();
+
+        drop(active);
+        assert_eq!(drops.load(Ordering::SeqCst), 2);
+        assert!(port.name().is_ok());
+        assert_eq!(unsafe { j::jack_activate(port.client_ptr()) }, 0);
+        assert_eq!(unsafe { j::jack_deactivate(port.client_ptr()) }, 0);
+
+        drop(port);
+        drop(transport);
+        assert!(life.upgrade().is_none());
     }
 }

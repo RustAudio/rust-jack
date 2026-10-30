@@ -2,8 +2,13 @@
 
 ## Unreleased
 
-- Failed client activation now closes the client and frees both callback handlers instead of
-  leaking them ([#232](https://github.com/RustAudio/rust-jack/issues/232)).
+- Ports and transport objects now hold strong references to their JACK client and remain
+  usable after `Client` is dropped.
+- Added `ClientHandle` with an `as_ptr` method. `Port::from_raw` now takes
+  `Arc<ClientHandle>` instead of `Weak<()>` and no longer takes a separate client pointer.
+- Callback cleanup now explicitly stops processing and detaches callbacks before freeing
+  their handlers, including after failed activation, even if ports or transport keep the
+  client open ([#232](https://github.com/RustAudio/rust-jack/issues/232)).
 - `Error` is now `#[non_exhaustive]`. `match`es on it outside of this crate need a wildcard arm.
 - Added `Error::PortUnregistrationError`.
 - `Client::unregister_port` now returns `Err(Error::PortUnregistrationError)` on failure instead
