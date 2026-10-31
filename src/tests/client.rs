@@ -15,6 +15,53 @@ fn client_can_open() {
 }
 
 #[test]
+fn client_new_rejects_options_that_need_extra_arguments() {
+    for flag in [
+        crate::ClientOptions::SERVER_NAME,
+        crate::ClientOptions::LOAD_NAME,
+        crate::ClientOptions::LOAD_INIT,
+        crate::ClientOptions::SESSION_ID,
+    ] {
+        let options = crate::ClientOptions::default() | flag;
+        let err = crate::Client::new("invalid options client", options).err();
+        assert_eq!(err, Some(crate::Error::InvalidClientOptions(options)));
+    }
+}
+
+#[test]
+fn client_can_open_with_server_name() {
+    let (client, _) = crate::Client::new_with_server_name(
+        "server name client",
+        "default",
+        crate::ClientOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(client.name(), "server name client");
+
+    // Explicitly passing `SERVER_NAME` is redundant but allowed.
+    crate::Client::new_with_server_name(
+        "server name client 2",
+        "default",
+        crate::ClientOptions::default() | crate::ClientOptions::SERVER_NAME,
+    )
+    .unwrap();
+}
+
+#[test]
+fn client_with_server_name_rejects_other_options_that_need_extra_arguments() {
+    for flag in [
+        crate::ClientOptions::LOAD_NAME,
+        crate::ClientOptions::LOAD_INIT,
+        crate::ClientOptions::SESSION_ID,
+    ] {
+        let options = crate::ClientOptions::default() | flag;
+        let err =
+            crate::Client::new_with_server_name("invalid options client", "default", options).err();
+        assert_eq!(err, Some(crate::Error::InvalidClientOptions(options)));
+    }
+}
+
+#[test]
 fn time_is_montonically_increasing() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let ac = client.activate_async((), ()).unwrap();
@@ -112,5 +159,21 @@ fn registering_an_unowned_port_is_an_error() {
     assert_eq!(
         client.register_port("p", crate::Unowned).map(|_| ()),
         Err(crate::Error::PortRegistrationError("p".to_string()))
+    );
+}
+
+#[test]
+fn client_with_unknown_server_name_fails_to_open() {
+    // Proves the server name actually reaches JACK, rather than being dropped.
+    let err = crate::Client::new_with_server_name(
+        "unknown server client",
+        "rust-jack-nonexistent-server",
+        crate::ClientOptions::NO_START_SERVER,
+    )
+    .err();
+    assert!(
+        matches!(err, Some(crate::Error::ClientError(_))),
+        "expected ClientError, got {:?}",
+        err
     );
 }

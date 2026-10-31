@@ -1,4 +1,4 @@
-use crate::ClientStatus;
+use crate::{ClientOptions, ClientStatus};
 
 /// An error that can occur in JACK.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,6 +10,8 @@ pub enum Error {
     ClientActivationError,
     ClientDeactivationError,
     ClientError(ClientStatus),
+    /// The given `ClientOptions` are not valid for the function they were passed to.
+    InvalidClientOptions(ClientOptions),
     FreewheelError,
     InvalidDeactivation,
     NotEnoughSpace,
@@ -45,6 +47,9 @@ impl std::fmt::Display for Error {
             Error::ClientActivationError => write!(f, "client activation error"),
             Error::ClientDeactivationError => write!(f, "client deactivation error"),
             Error::ClientError(status) => write!(f, "client error, status is {status:?}"),
+            Error::InvalidClientOptions(options) => {
+                write!(f, "invalid client options {options:?}")
+            }
             Error::FreewheelError => write!(f, "freewheel error"),
             Error::InvalidDeactivation => write!(f, "invalid deactivation"),
             Error::NotEnoughSpace => write!(f, "not enough space"),

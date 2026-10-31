@@ -65,7 +65,49 @@ impl Client {
     ///
     /// Although the client may be successful in opening, there still may be some errors minor
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
+    ///
+    /// `options` must not contain `SERVER_NAME`, `LOAD_NAME`, `LOAD_INIT`, or `SESSION_ID`, since
+    /// those require extra arguments that this function does not take. If any are present,
+    /// `Err(Error::InvalidClientOptions(options))` is returned. To connect to a named server, use
+    /// [`Client::new_with_server_name`].
     pub fn new(client_name: &str, options: ClientOptions) -> Result<(Self, ClientStatus), Error> {
+        Self::open(client_name, None, options)
+    }
+
+    /// Opens a JACK client connected to the JACK server named `server_name`. Behaves like
+    /// [`Client::new`] otherwise.
+    ///
+    /// `ClientOptions::SERVER_NAME` is set automatically, and may also be included in `options`.
+    /// `options` must not contain `LOAD_NAME`, `LOAD_INIT`, or `SESSION_ID`; if any are present,
+    /// `Err(Error::InvalidClientOptions(options))` is returned.
+    pub fn new_with_server_name(
+        client_name: &str,
+        server_name: &str,
+        options: ClientOptions,
+    ) -> Result<(Self, ClientStatus), Error> {
+        Self::open(client_name, Some(server_name), options)
+    }
+
+    fn open(
+        client_name: &str,
+        server_name: Option<&str>,
+        options: ClientOptions,
+    ) -> Result<(Self, ClientStatus), Error> {
+        // `jack_client_open` is variadic: these options make libjack read extra arguments via
+        // `va_arg`. Only the server name argument is ever passed, so any other such option would
+        // cause libjack to read garbage.
+        let mut allowed_vararg_options = ClientOptions::empty();
+        if server_name.is_some() {
+            allowed_vararg_options |= ClientOptions::SERVER_NAME;
+        }
+        if !options
+            .intersection(ClientOptions::VARARG_OPTIONS)
+            .difference(allowed_vararg_options)
+            .is_empty()
+        {
+            return Err(Error::InvalidClientOptions(options));
+        }
+
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
 
         // All of the jack_sys functions below assume the client library is loaded and will panic if
@@ -77,9 +119,22 @@ impl Client {
 
         crate::logging::maybe_init_logging();
         let mut status_bits = 0;
-        let client = unsafe {
-            let client_name = ffi::CString::new(client_name).unwrap();
-            j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
+        let client_name = ffi::CString::new(client_name).unwrap();
+        let client = match server_name {
+            None => unsafe {
+                j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
+            },
+            Some(server_name) => {
+                let server_name = ffi::CString::new(server_name).unwrap();
+                unsafe {
+                    j::jack_client_open_with_server_name(
+                        client_name.as_ptr(),
+                        options.bits(),
+                        &mut status_bits,
+                        server_name.as_ptr(),
+                    )
+                }
+            }
         };
         let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
         if client.is_null() {

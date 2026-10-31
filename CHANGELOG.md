@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fix `Client::new` now returns an error when used with the server name
+  option. Introduced `Client::new_with_server_name` for this use case.
 - Ports and transport objects now hold strong references to their JACK client and remain
   usable after `Client` is dropped.
 - Added `ClientHandle` with an `as_ptr` method. `Port::from_raw` now takes
