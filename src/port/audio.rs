@@ -73,26 +73,30 @@ unsafe impl PortSpec for AudioIn {
 
 impl Port<AudioIn> {
     /// Read the received audio data.
+    ///
+    /// Returns an empty slice if the port is dangling.
     pub fn as_slice<'a>(&'a self, ps: &'a ProcessScope) -> &'a [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
-        unsafe {
-            slice::from_raw_parts(
-                self.buffer(ps.n_frames()) as *const f32,
-                ps.n_frames() as usize,
-            )
+        let buffer = unsafe { self.buffer(ps.n_frames()) } as *const f32;
+        if buffer.is_null() {
+            // The port is dangling.
+            return &[];
         }
+        unsafe { slice::from_raw_parts(buffer, ps.n_frames() as usize) }
     }
 }
 
 impl Port<AudioOut> {
     /// Get a slice to write audio data to.
+    ///
+    /// Returns an empty slice if the port is dangling.
     pub fn as_mut_slice<'a>(&'a mut self, ps: &'a ProcessScope) -> &'a mut [f32] {
         assert_eq!(self.client_ptr(), ps.client_ptr());
-        unsafe {
-            slice::from_raw_parts_mut(
-                self.buffer(ps.n_frames()) as *mut f32,
-                ps.n_frames() as usize,
-            )
+        let buffer = unsafe { self.buffer(ps.n_frames()) } as *mut f32;
+        if buffer.is_null() {
+            // The port is dangling.
+            return &mut [];
         }
+        unsafe { slice::from_raw_parts_mut(buffer, ps.n_frames() as usize) }
     }
 }

@@ -1,11 +1,14 @@
 use jack_sys as j;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, Weak};
 use std::{ffi, fmt, ptr};
 
 use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::jack_enums::CodeOrMessage;
 use crate::jack_utils::{collect_strs, to_cstring};
+use crate::port::PortState;
 use crate::properties::PropertyChangeHandler;
 use crate::transport::Transport;
 use crate::{
@@ -32,6 +35,11 @@ pub type InternalClientID = j::jack_intclient_t;
 
 pub struct Client(Arc<ClientHandle>);
 
+enum PortEntry {
+    Live(Weak<PortState>),
+    Removed,
+}
+
 /// Shared ownership of an open JACK client.
 ///
 /// The client is closed when the last strong reference is dropped.
@@ -42,6 +50,13 @@ pub struct ClientHandle {
     name: Box<str>,
     // Keep callback storage alive until after jack_client_close returns.
     property_change_handler: Mutex<Option<Box<dyn PropertyChangeHandler>>>,
+    // Liveness of every `Port` created through this client, keyed by the JACK port pointer.
+    // Live entries are weak so that dropping a `Port` never takes this lock, which keeps
+    // `Port::drop` safe to call from the process callback. Expired live entries are pruned on
+    // insertion; removed entries persist until a registration reuses the pointer.
+    ports: Mutex<HashMap<usize, PortEntry>>,
+    // Set once the JACK server shuts the client down. Every port is invalid after that.
+    shut_down: AtomicBool,
 }
 
 // JACK clients support calls from multiple threads. Callback storage is only
@@ -56,6 +71,68 @@ impl ClientHandle {
     #[inline(always)]
     pub fn as_ptr(&self) -> *mut j::jack_client_t {
         self.client_ptr
+    }
+
+    /// Return the liveness state for `port_ptr`, shared with every other live `Port` for it.
+    ///
+    /// A lookup cannot revive a removed port, even after every old handle has been dropped.
+    /// Only a registration can allow a fresh valid state for its pointer.
+    pub(crate) fn get_or_create_port_state(&self, port_ptr: *mut j::jack_port_t) -> Arc<PortState> {
+        let mut ports = self.ports.lock().unwrap_or_else(|e| e.into_inner());
+        let key = port_ptr as usize;
+        match ports.get(&key) {
+            Some(PortEntry::Removed) => {
+                let state = Arc::new(PortState::new());
+                state.invalidate();
+                return state;
+            }
+            Some(PortEntry::Live(state)) => {
+                if let Some(state) = state.upgrade() {
+                    return state;
+                }
+            }
+            None => {}
+        }
+        ports.retain(|_, entry| match entry {
+            PortEntry::Live(state) => state.strong_count() > 0,
+            PortEntry::Removed => true,
+        });
+        let state = Arc::new(PortState::new());
+        ports.insert(key, PortEntry::Live(Arc::downgrade(&state)));
+        state
+    }
+
+    /// Allow a new port at `port_ptr` without replacing an existing live port's state.
+    pub(crate) fn mark_port_registered(&self, port_ptr: *mut j::jack_port_t) {
+        let mut ports = self.ports.lock().unwrap_or_else(|e| e.into_inner());
+        let entry = ports
+            .entry(port_ptr as usize)
+            .or_insert_with(|| PortEntry::Live(Weak::new()));
+        if matches!(entry, PortEntry::Removed) {
+            *entry = PortEntry::Live(Weak::new());
+        }
+    }
+
+    /// Mark every `Port` for `port_ptr` as dangling.
+    pub(crate) fn invalidate_port(&self, port_ptr: *mut j::jack_port_t) {
+        let mut ports = self.ports.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(PortEntry::Live(state)) = ports.insert(port_ptr as usize, PortEntry::Removed) {
+            if let Some(state) = state.upgrade() {
+                state.invalidate();
+            }
+        }
+    }
+
+    /// Mark every port as dangling because the JACK server shut down.
+    ///
+    /// Lock-free, since it is called from the shutdown callback.
+    pub(crate) fn mark_shut_down(&self) {
+        self.shut_down.store(true, Ordering::Release);
+    }
+
+    #[inline(always)]
+    pub(crate) fn is_shut_down(&self) -> bool {
+        self.shut_down.load(Ordering::Acquire)
     }
 }
 
@@ -373,21 +450,27 @@ impl Client {
         if pp.is_null() {
             Err(Error::PortRegistrationError(port_name.to_string()))
         } else {
+            self.0.mark_port_registered(pp);
             Ok(unsafe { Port::from_raw(port_spec, pp, Arc::clone(&self.0)) })
         }
     }
 
     /// Get a `Port` by its port id.
+    ///
+    /// Returns `None` if the port is known to be removed or the client has shut down.
     pub fn port_by_id(&self, port_id: PortId) -> Option<Port<Unowned>> {
         let pp = unsafe { j::jack_port_by_id(self.raw(), port_id) };
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) })
+            let port = unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) };
+            port.is_valid().then_some(port)
         }
     }
 
     /// Get a `Port` by its port name.
+    ///
+    /// Returns `None` if the port is known to be removed or the client has shut down.
     pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
         // No port name contains a NUL byte.
         let port_name = ffi::CString::new(port_name).ok()?;
@@ -395,7 +478,8 @@ impl Client {
         if pp.is_null() {
             None
         } else {
-            Some(unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) })
+            let port = unsafe { Port::from_raw(Unowned {}, pp, Arc::clone(&self.0)) };
+            port.is_valid().then_some(port)
         }
     }
 
@@ -499,7 +583,7 @@ impl Client {
 
     /// Returns `true` if the port `port` belongs to this client.
     pub fn is_mine<PS: PortSpec>(&self, port: &Port<PS>) -> bool {
-        matches!(unsafe { j::jack_port_is_mine(self.raw(), port.raw()) }, 1)
+        port.with_ptr(|p| unsafe { j::jack_port_is_mine(self.raw(), p) }) == Ok(1)
     }
 
     /// Toggle input monitoring for the port with name `port_name`.
@@ -584,7 +668,8 @@ impl Client {
             code => {
                 let code_or_message = if self
                     .port_by_name(source_port)
-                    .map(|p| p.flags().contains(PortFlags::IS_INPUT))
+                    .and_then(|p| p.flags().ok())
+                    .map(|f| f.contains(PortFlags::IS_INPUT))
                     .unwrap_or(false)
                 {
                     CodeOrMessage::Message(
@@ -592,7 +677,8 @@ impl Client {
                     )
                 } else if self
                     .port_by_name(destination_port)
-                    .map(|p| p.flags().contains(PortFlags::IS_OUTPUT))
+                    .and_then(|p| p.flags().ok())
+                    .map(|f| f.contains(PortFlags::IS_OUTPUT))
                     .unwrap_or(false)
                 {
                     CodeOrMessage::Message(
@@ -633,7 +719,7 @@ impl Client {
 
     /// Remove all connections to/from the port.
     pub fn disconnect<PS>(&self, port: &Port<PS>) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_disconnect(self.raw(), port.raw()) };
+        let res = port.with_ptr(|p| unsafe { j::jack_port_disconnect(self.raw(), p) })?;
         match res {
             0 => Ok(()),
             _ => Err(Error::PortDisconnectionError),
@@ -645,7 +731,15 @@ impl Client {
     /// `Err(Error::PortUnregistrationError)` is returned on failure, for example if the port does
     /// not belong to this client.
     pub fn unregister_port<PS>(&self, port: Port<PS>) -> Result<(), Error> {
-        let res = unsafe { j::jack_port_unregister(self.raw(), port.raw()) };
+        let res = port.with_ptr(|p| unsafe {
+            // Invalidate other handles to the port, such as those from `Port::clone_unowned`,
+            // before JACK frees it. Only do so for our own ports: unregistering another
+            // client's port fails and leaves that port alive.
+            if j::jack_port_is_mine(self.raw(), p) == 1 {
+                self.0.invalidate_port(p);
+            }
+            j::jack_port_unregister(self.raw(), p)
+        })?;
         match res {
             0 => Ok(()),
             _ => Err(Error::PortUnregistrationError),
@@ -702,6 +796,11 @@ impl Client {
         self.0.as_ptr()
     }
 
+    /// The shared handle that ports and transports keep alive.
+    pub(crate) fn handle(&self) -> &ClientHandle {
+        &self.0
+    }
+
     /// Create a `Client` from an ffi pointer.
     ///
     /// This is mostly for use within the jack crate itself.
@@ -721,6 +820,8 @@ impl Client {
             client_ptr: p,
             name,
             property_change_handler: Mutex::new(None),
+            ports: Mutex::new(HashMap::new()),
+            shut_down: AtomicBool::new(false),
         }))
     }
 
@@ -889,6 +990,51 @@ pub struct CycleTimes {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicBool, Ordering};
+
+    #[test]
+    fn removed_port_state_survives_handle_drops_and_pruning() {
+        let (client, _) = Client::new("", Default::default()).unwrap();
+        let handle = client.handle();
+        // Registry keys are opaque here; these pointers are never passed to JACK.
+        let key = ptr::dangling_mut::<j::jack_port_t>();
+        let state = handle.get_or_create_port_state(key);
+        handle.invalidate_port(key);
+        assert!(!state.is_valid());
+        assert!(!handle.get_or_create_port_state(key).is_valid());
+        drop(state);
+
+        // Inserting another state prunes expired live entries, but must retain removals.
+        let other_key = ptr::null_mut();
+        drop(handle.get_or_create_port_state(other_key));
+        assert!(!handle.get_or_create_port_state(key).is_valid());
+
+        // Removal must also be remembered when there was no live state to invalidate.
+        handle.invalidate_port(other_key);
+        assert!(!handle.get_or_create_port_state(other_key).is_valid());
+
+        let mut untracked = 0u8;
+        let untracked_key = ptr::from_mut(&mut untracked).cast();
+        handle.invalidate_port(untracked_key);
+        assert!(!handle.get_or_create_port_state(untracked_key).is_valid());
+    }
+
+    #[test]
+    fn registration_at_the_same_pointer_preserves_old_invalidation() {
+        let (client, _) = Client::new("", Default::default()).unwrap();
+        let handle = client.handle();
+        let key = ptr::dangling_mut::<j::jack_port_t>();
+        let old = handle.get_or_create_port_state(key);
+        handle.invalidate_port(key);
+        handle.mark_port_registered(key);
+        let fresh = handle.get_or_create_port_state(key);
+        assert!(fresh.is_valid());
+        assert!(!old.is_valid());
+        assert!(!Arc::ptr_eq(&old, &fresh));
+
+        // The explicit registration and its notification can both reach this operation.
+        handle.mark_port_registered(key);
+        assert!(Arc::ptr_eq(&fresh, &handle.get_or_create_port_state(key)));
+    }
 
     struct Handler(Arc<AtomicBool>);
 

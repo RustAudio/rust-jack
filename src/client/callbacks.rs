@@ -157,6 +157,7 @@ unsafe extern "C" fn shutdown<N, P>(
             let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
                 return;
             };
+            ctx.client.handle().mark_shut_down();
             let cstr = ffi::CStr::from_ptr(reason);
             let reason_str = cstr.to_str().unwrap_or("Failed to interpret error.");
             ctx.notification.shutdown(
@@ -381,6 +382,16 @@ unsafe extern "C" fn port_registration<N, P>(
                 return;
             };
             let register = !matches!(register, 0);
+            // Update liveness before the user's handler can look up or use the port.
+            // JACK may still resolve the id of a port that has been unregistered.
+            let pp = j::jack_port_by_id(ctx.client.raw(), port_id);
+            if !pp.is_null() {
+                if register {
+                    ctx.client.handle().mark_port_registered(pp);
+                } else {
+                    ctx.client.handle().invalidate_port(pp);
+                }
+            }
             ctx.notification
                 .port_registration(&ctx.client, port_id, register);
         });

@@ -22,6 +22,8 @@ pub enum Error {
         destination: String,
         code_or_message: CodeOrMessage,
     },
+    /// The port is no longer valid, for example because it was unregistered.
+    InvalidPort,
     PortDisconnectionError,
     PortMonitorError,
     PortNamingError,
@@ -73,6 +75,7 @@ impl std::fmt::Display for Error {
                 f,
                 "error (code={code}) connecting port {source} to port {destination}, perhaps the source or destination port is not part of an active client"
             ),
+            Error::InvalidPort => write!(f, "port is no longer valid"),
             Error::PortDisconnectionError => write!(f, "port disconnection error"),
             Error::PortMonitorError => write!(f, "port monitoring error"),
             Error::PortNamingError => write!(f, "port naming error"),
