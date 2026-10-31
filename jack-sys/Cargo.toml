@@ -2,6 +2,7 @@
 authors = ["Patrick Reisert"]
 description = "Low-level binding to the JACK audio API."
 edition = "2024"
+rust-version = "1.85"
 license = "MIT OR Apache-2.0"
 links = "jack"
 name = "jack-sys"

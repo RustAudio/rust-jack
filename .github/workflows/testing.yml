@@ -34,3 +34,26 @@ jobs:
         run: cargo nextest run --run-ignored all
       - name: Run Doc Tests
         run: cargo doc && cargo test --doc
+  msrv:
+    # Keep the toolchain version in sync with `rust-version` in Cargo.toml and
+    # jack-sys/Cargo.toml.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install libjack-jackd2-dev
+      - name: Install Rust 1.85
+        uses: dtolnay/rust-toolchain@1.85
+      - name: Check jack (Default Features)
+        run: cargo check --verbose
+      - name: Check jack (No Features)
+        run: cargo check --verbose --no-default-features
+      - name: Check jack (All Features)
+        run: cargo check --verbose --all-features
+      - name: Check jack-sys (No Features)
+        run: cargo check --verbose
+        working-directory: jack-sys
+      - name: Check jack-sys (dynamic_loading)
+        run: cargo check --verbose --features dynamic_loading
+        working-directory: jack-sys

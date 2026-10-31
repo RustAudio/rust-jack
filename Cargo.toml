@@ -3,6 +3,7 @@ authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi with JACK."
 documentation = "https://docs.rs/jack"
 edition = "2024"
+rust-version = "1.85"
 keywords = ["jack", "realtime", "audio", "midi", "music"]
 license = "MIT"
 name = "jack"
@@ -12,7 +13,7 @@ version = "0.13.5"
 
 [dependencies]
 bitflags = "2"
-jack-sys = {version = "0.5", path = "./jack-sys"}
+jack-sys = {version = "0.6", path = "./jack-sys"}
 lazy_static = "1.4"
 libc = "0.2"
 log = { version = "0.4", optional = true}
