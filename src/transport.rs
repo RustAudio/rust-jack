@@ -66,15 +66,15 @@ pub enum TransportBBTValidationError {
     BarZero,
     ///`beat` must be greater than zero and less than `sig_num`
     BeatRange,
-    ///There must more than zero ticks per beat
+    ///`ticks_per_beat` must be finite and greater than zero
     TicksPerBeatRange,
-    ///Time signature numerator, `sig_num` must be greater than zero
+    ///Time signature numerator, `sig_num` must be finite and greater than zero
     SigNumRange,
-    ///Time signature denominator, `sig_denom` must be greater than zero
+    ///Time signature denominator, `sig_denom` must be finite and greater than zero
     SigDenomRange,
-    ///`bpm` must be greater than or equal to zero
+    ///`bpm` must be finite and greater than or equal to zero
     BPMRange,
-    ///`tick` must be less than `ticks_per_beat`
+    ///`tick` must be less than `ticks_per_beat`, and `bar_start_tick` must be finite
     TickRange,
 }
 
@@ -427,19 +427,23 @@ impl TransportBBT {
 
     /// Returns `self` is valid, otherwise returns an error describing what is invalid.
     pub fn validated(&'_ self) -> std::result::Result<Self, TransportBBTValidationError> {
+        // The comparisons are written so that NaN fails them. `sig_num` is checked for finiteness
+        // before `beat`, because the `beat` check casts it to an integer.
         if self.bar == 0 {
             Err(TransportBBTValidationError::BarZero)
+        } else if !self.sig_num.is_finite() {
+            Err(TransportBBTValidationError::SigNumRange)
         } else if self.beat == 0 || self.beat > self.sig_num.ceil() as _ {
             Err(TransportBBTValidationError::BeatRange)
-        } else if self.ticks_per_beat <= 0. {
+        } else if !(self.ticks_per_beat.is_finite() && self.ticks_per_beat > 0.) {
             Err(TransportBBTValidationError::TicksPerBeatRange)
         } else if self.sig_num <= 0. {
             Err(TransportBBTValidationError::SigNumRange)
-        } else if self.sig_denom <= 0. {
+        } else if !(self.sig_denom.is_finite() && self.sig_denom > 0.) {
             Err(TransportBBTValidationError::SigDenomRange)
-        } else if self.bpm < 0. {
+        } else if !(self.bpm.is_finite() && self.bpm >= 0.) {
             Err(TransportBBTValidationError::BPMRange)
-        } else if self.tick >= self.ticks_per_beat.ceil() as _ {
+        } else if self.tick >= self.ticks_per_beat.ceil() as _ || !self.bar_start_tick.is_finite() {
             Err(TransportBBTValidationError::TickRange)
         } else {
             Ok(*self)
@@ -494,5 +498,48 @@ mod tests {
 
         drop(transport);
         assert!(life.upgrade().is_none());
+    }
+
+    #[test]
+    fn bbt_validation_rejects_non_finite_values() {
+        use TransportBBTValidationError::*;
+        assert_eq!(
+            TransportBBT::default().validated(),
+            Ok(TransportBBT::default())
+        );
+
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            let bbt = TransportBBT {
+                bpm: bad,
+                ..Default::default()
+            };
+            assert_eq!(bbt.validated(), Err(BPMRange), "bpm = {bad}");
+            let bbt = TransportBBT {
+                ticks_per_beat: bad,
+                ..Default::default()
+            };
+            assert_eq!(
+                bbt.validated(),
+                Err(TicksPerBeatRange),
+                "ticks_per_beat = {bad}"
+            );
+            let bbt = TransportBBT {
+                bar_start_tick: bad,
+                ..Default::default()
+            };
+            assert_eq!(bbt.validated(), Err(TickRange), "bar_start_tick = {bad}");
+        }
+        for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let bbt = TransportBBT {
+                sig_num: bad,
+                ..Default::default()
+            };
+            assert_eq!(bbt.validated(), Err(SigNumRange), "sig_num = {bad}");
+            let bbt = TransportBBT {
+                sig_denom: bad,
+                ..Default::default()
+            };
+            assert_eq!(bbt.validated(), Err(SigDenomRange), "sig_denom = {bad}");
+        }
     }
 }
