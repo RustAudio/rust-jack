@@ -5,7 +5,7 @@ use std::{ffi, fmt, ptr};
 
 use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::jack_enums::CodeOrMessage;
-use crate::jack_utils::collect_strs;
+use crate::jack_utils::{collect_strs, to_cstring};
 use crate::properties::PropertyChangeHandler;
 use crate::transport::Transport;
 use crate::{
@@ -120,24 +120,23 @@ impl Client {
             return Err(Error::LibraryError(err.to_string()));
         }
 
+        let client_name = to_cstring(client_name)?;
+        let server_name = server_name.map(to_cstring).transpose()?;
+
         crate::logging::maybe_init_logging();
         let mut status_bits = 0;
-        let client_name = ffi::CString::new(client_name).unwrap();
         let client = match server_name {
             None => unsafe {
                 j::jack_client_open(client_name.as_ptr(), options.bits(), &mut status_bits)
             },
-            Some(server_name) => {
-                let server_name = ffi::CString::new(server_name).unwrap();
-                unsafe {
-                    j::jack_client_open_with_server_name(
-                        client_name.as_ptr(),
-                        options.bits(),
-                        &mut status_bits,
-                        server_name.as_ptr(),
-                    )
-                }
-            }
+            Some(server_name) => unsafe {
+                j::jack_client_open_with_server_name(
+                    client_name.as_ptr(),
+                    options.bits(),
+                    &mut status_bits,
+                    server_name.as_ptr(),
+                )
+            },
         };
         let status = ClientStatus::from_bits(status_bits).unwrap_or_else(ClientStatus::empty);
         if client.is_null() {
@@ -244,7 +243,7 @@ impl Client {
         raw: *mut jack_sys::jack_client_t,
         name: &str,
     ) -> Option<jack_sys::jack_uuid_t> {
-        let name = ffi::CString::new(name).unwrap();
+        let name = ffi::CString::new(name).ok()?;
         let mut uuid: jack_sys::jack_uuid_t = Default::default();
         unsafe {
             let uuid_s = jack_sys::jack_get_uuid_for_client_name(raw, name.as_ptr());
@@ -294,7 +293,7 @@ impl Client {
 
     /// Get the name of a client by its `&str` uuid.
     pub fn name_by_uuid_str(&self, uuid: &str) -> Option<String> {
-        let uuid = ffi::CString::new(uuid).unwrap();
+        let uuid = ffi::CString::new(uuid).ok()?;
         unsafe { self.name_by_uuid_raw(uuid.as_ptr()) }
     }
 
@@ -316,8 +315,14 @@ impl Client {
         type_name_pattern: Option<&str>,
         flags: PortFlags,
     ) -> Vec<String> {
-        let port_name_pattern_cstr = ffi::CString::new(port_name_pattern.unwrap_or("")).unwrap();
-        let type_name_pattern_cstr = ffi::CString::new(type_name_pattern.unwrap_or("")).unwrap();
+        // A pattern containing a NUL byte can't be passed to JACK, and no port name or type
+        // contains one, so nothing matches.
+        let (Ok(port_name_pattern_cstr), Ok(type_name_pattern_cstr)) = (
+            ffi::CString::new(port_name_pattern.unwrap_or("")),
+            ffi::CString::new(type_name_pattern.unwrap_or("")),
+        ) else {
+            return Vec::new();
+        };
         let flags = libc::c_ulong::from(flags.bits());
         unsafe {
             let ports = j::jack_get_ports(
@@ -352,8 +357,8 @@ impl Client {
         if port_spec.jack_port_type().is_empty() {
             return Err(Error::PortRegistrationError(port_name.to_string()));
         }
-        let port_name_c = ffi::CString::new(port_name).unwrap();
-        let port_type_c = ffi::CString::new(port_spec.jack_port_type()).unwrap();
+        let port_name_c = to_cstring(port_name)?;
+        let port_type_c = to_cstring(port_spec.jack_port_type())?;
         let port_flags = port_spec.jack_flags().bits();
         let buffer_size = port_spec.jack_buffer_size();
         let pp = unsafe {
@@ -384,7 +389,8 @@ impl Client {
 
     /// Get a `Port` by its port name.
     pub fn port_by_name(&self, port_name: &str) -> Option<Port<Unowned>> {
-        let port_name = ffi::CString::new(port_name).unwrap();
+        // No port name contains a NUL byte.
+        let port_name = ffi::CString::new(port_name).ok()?;
         let pp = unsafe { j::jack_port_by_name(self.raw(), port_name.as_ptr()) };
         if pp.is_null() {
             None
@@ -412,9 +418,9 @@ impl Client {
         client_bin_name: &str,
         client_args: &str,
     ) -> Result<InternalClientID, Error> {
-        let ffi_client_name = ffi::CString::new(client_name).unwrap();
-        let ffi_client_bin = ffi::CString::new(client_bin_name).unwrap();
-        let ffi_client_args = ffi::CString::new(client_args).unwrap();
+        let ffi_client_name = to_cstring(client_name)?;
+        let ffi_client_bin = to_cstring(client_bin_name)?;
+        let ffi_client_args = to_cstring(client_args)?;
 
         let mut status_bits = 0;
         let options: j::Enum_JackOptions = j::JackLoadName | j::JackLoadInit;
@@ -506,7 +512,7 @@ impl Client {
         port_name: &str,
         enable_monitor: bool,
     ) -> Result<(), Error> {
-        let port_name_cstr = ffi::CString::new(port_name).unwrap();
+        let port_name_cstr = to_cstring(port_name)?;
         let res = unsafe {
             j::jack_port_request_monitor_by_name(
                 self.raw(),
@@ -558,15 +564,15 @@ impl Client {
     /// 3. The port flags of the `destination_port` must include `IS_INPUT`.
     /// 4. Both ports must be owned by active clients.
     ///
-    /// # Panics
-    /// Panics if it is not possible to convert `source_port` or `destination_port` to a `CString`.
+    /// Returns `Err(Error::InteriorNul)` if `source_port` or `destination_port` contains a NUL
+    /// byte.
     pub fn connect_ports_by_name(
         &self,
         source_port: &str,
         destination_port: &str,
     ) -> Result<(), Error> {
-        let source_cstr = ffi::CString::new(source_port).unwrap();
-        let destination_cstr = ffi::CString::new(destination_port).unwrap();
+        let source_cstr = to_cstring(source_port)?;
+        let destination_cstr = to_cstring(destination_port)?;
         let res =
             unsafe { j::jack_connect(self.raw(), source_cstr.as_ptr(), destination_cstr.as_ptr()) };
         match res {
@@ -661,8 +667,8 @@ impl Client {
         source_port: &str,
         destination_port: &str,
     ) -> Result<(), Error> {
-        let source_port = ffi::CString::new(source_port).unwrap();
-        let destination_port = ffi::CString::new(destination_port).unwrap();
+        let source_port = to_cstring(source_port)?;
+        let destination_port = to_cstring(destination_port)?;
         let res = unsafe {
             j::jack_disconnect(self.raw(), source_port.as_ptr(), destination_port.as_ptr())
         };
@@ -674,12 +680,16 @@ impl Client {
 
     /// The buffer size of a port type
     ///
+    /// Returns 0 if `port_type` contains a NUL byte, since no port type does.
+    ///
     /// # Safety
     ///
     /// * This function may only be called in a buffer size callback.
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
         unsafe {
-            let port_type = ffi::CString::new(port_type).unwrap();
+            let Ok(port_type) = ffi::CString::new(port_type) else {
+                return 0;
+            };
             j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr())
         }
     }

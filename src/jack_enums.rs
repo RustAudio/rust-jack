@@ -33,6 +33,8 @@ pub enum Error {
     ClientIsNoLongerAlive,
     ClientPanicked,
     RingbufferCreateFailed,
+    /// A string argument contained an interior NUL byte, so it cannot be passed to JACK.
+    InteriorNul(String),
     UnknownError {
         error_code: libc::c_int,
     },
@@ -85,6 +87,7 @@ impl std::fmt::Display for Error {
             Error::ClientIsNoLongerAlive => write!(f, "client is no longer alive"),
             Error::ClientPanicked => write!(f, "client notifcation or processor panicked"),
             Error::RingbufferCreateFailed => write!(f, "ringbuffer creation failed"),
+            Error::InteriorNul(s) => write!(f, "string {s:?} contains an interior NUL byte"),
             Error::UnknownError { error_code } => write!(f, "unkown error with code {error_code}"),
         }
     }

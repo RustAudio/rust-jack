@@ -1,4 +1,4 @@
-use crate::tests::DEFAULT_TEST_CLIENT;
+use crate::{Error::InteriorNul, tests::DEFAULT_TEST_CLIENT};
 
 #[test]
 fn client_can_open() {
@@ -241,4 +241,91 @@ fn non_utf8_client_registration_does_not_stop_processing() {
     std::thread::sleep(std::time::Duration::from_millis(200));
     assert!(cycles.load(Ordering::Relaxed) > before);
     ac.deactivate().unwrap();
+}
+
+#[test]
+fn client_open_rejects_interior_nul() {
+    let nul = "a\0b";
+    let options = crate::ClientOptions::default();
+    assert_eq!(
+        crate::Client::new(nul, options).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        crate::Client::new_with_server_name("ok", nul, options).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+}
+
+#[test]
+fn client_methods_reject_interior_nul() {
+    let nul = "a\0b";
+    let client = &*DEFAULT_TEST_CLIENT;
+    assert_eq!(
+        client.register_port(nul, crate::AudioIn::default()).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        client.request_monitor_by_name(nul, true).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        client.connect_ports_by_name(nul, "x").err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        client.connect_ports_by_name("x", nul).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        client.disconnect_ports_by_name(nul, "x").err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+    assert_eq!(
+        client.load_internal_client(nul, "x", "").err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+}
+
+#[test]
+fn property_methods_reject_interior_nul() {
+    let nul = "a\0b";
+    let client = &*DEFAULT_TEST_CLIENT;
+    let uuid = client.uuid();
+    let nul_key = client.property_set(uuid, nul, &crate::Property::new("v", None));
+    assert_eq!(nul_key.err(), Some(InteriorNul(nul.to_string())));
+    let nul_value = client.property_set(uuid, "k", &crate::Property::new(nul, None));
+    assert_eq!(nul_value.err(), Some(InteriorNul(nul.to_string())));
+    let nul_type = client.property_set(uuid, "k", &crate::Property::new("v", Some(nul.into())));
+    assert_eq!(nul_type.err(), Some(InteriorNul(nul.to_string())));
+    assert_eq!(
+        client.property_remove(uuid, nul).err(),
+        Some(InteriorNul(nul.to_string()))
+    );
+}
+
+#[test]
+fn lookups_with_interior_nul_find_nothing() {
+    let nul = "a\0b";
+    let client = &*DEFAULT_TEST_CLIENT;
+    let flags = crate::PortFlags::empty();
+    assert!(client.port_by_name(nul).is_none());
+    assert!(client.uuid_of_client_by_name(nul).is_none());
+    assert!(client.name_by_uuid_str(nul).is_none());
+    assert!(client.property_get(client.uuid(), nul).is_none());
+    assert!(client.ports(Some(nul), None, flags).is_empty());
+    assert!(client.ports(None, Some(nul), flags).is_empty());
+}
+
+#[test]
+fn port_methods_reject_interior_nul() {
+    let nul = "a\0b";
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let mut port = client
+        .register_port("p", crate::AudioIn::default())
+        .unwrap();
+    assert_eq!(port.set_name(nul), Err(InteriorNul(nul.to_string())));
+    assert_eq!(port.set_alias(nul), Err(InteriorNul(nul.to_string())));
+    assert_eq!(port.unset_alias(nul), Err(InteriorNul(nul.to_string())));
+    assert_eq!(port.is_connected_to(nul), Ok(false));
 }

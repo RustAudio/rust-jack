@@ -1,6 +1,13 @@
 use jack_sys as j;
 use std::ffi;
 
+use crate::Error;
+
+/// Converts `s` to a `CString`, returning `Error::InteriorNul` if `s` contains a NUL byte.
+pub(crate) fn to_cstring(s: &str) -> Result<ffi::CString, Error> {
+    ffi::CString::new(s).map_err(|_| Error::InteriorNul(s.to_string()))
+}
+
 /// Collects strings from an array of c-strings into a Rust vector of strings
 /// and frees the memory pointed to by `ptr`. The end of the array is marked by
 /// the value of the c-string being the null pointer. `ptr` may be `null`, in

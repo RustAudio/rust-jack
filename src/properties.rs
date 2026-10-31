@@ -85,6 +85,7 @@ pub use metadata::*;
 mod metadata {
     use super::{PropertyChange, PropertyChangeHandler, j, uuid};
     use crate::Error;
+    use crate::jack_utils::to_cstring;
     use std::{
         collections::HashMap,
         ffi,
@@ -231,7 +232,8 @@ mod metadata {
         /// * `subject` - The subject of the property.
         /// * `key` - The key of the property, a URI String.
         pub fn property_get(&self, subject: uuid, key: &str) -> Option<Property> {
-            let key = ffi::CString::new(key).expect("key to be convert to CString");
+            // No key contains a NUL byte.
+            let key = ffi::CString::new(key).ok()?;
             let mut value: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
             let mut typ: MaybeUninit<*mut ::libc::c_char> = MaybeUninit::uninit();
 
@@ -316,12 +318,11 @@ mod metadata {
             key: &str,
             property: &Property,
         ) -> Result<(), Error> {
-            let key = ffi::CString::new(key).expect("to create cstring from key");
-            let value =
-                ffi::CString::new(property.value.as_str()).expect("to create cstring from value");
+            let key = to_cstring(key)?;
+            let value = to_cstring(&property.value)?;
+            let typ = property.typ().map(to_cstring).transpose()?;
             map_error(|| unsafe {
-                if let Some(t) = property.typ() {
-                    let t = ffi::CString::new(t).unwrap();
+                if let Some(t) = &typ {
                     j::jack_set_property(
                         self.raw(),
                         subject,
@@ -348,7 +349,7 @@ mod metadata {
         /// * `subject` - The subject to remove all properties from.
         /// * `key` - The key of the property to be removed. A URI string.
         pub fn property_remove(&self, subject: uuid, key: &str) -> Result<(), Error> {
-            let key = ffi::CString::new(key).expect("to create cstring from key");
+            let key = to_cstring(key)?;
             map_error(|| unsafe { j::jack_remove_property(self.raw(), subject, key.as_ptr()) })
         }
 

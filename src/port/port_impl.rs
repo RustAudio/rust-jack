@@ -7,6 +7,7 @@ use std::marker::Sized;
 use std::sync::Arc;
 use std::{ffi, fmt, iter};
 
+use crate::jack_utils::to_cstring;
 use crate::{ClientHandle, Error, Frames, LatencyType, PortFlags};
 
 lazy_static! {
@@ -120,7 +121,10 @@ impl<PS> Port<PS> {
     /// name `port_name`.
     pub fn is_connected_to(&self, port_name: &str) -> Result<bool, Error> {
         let res = unsafe {
-            let port_name = ffi::CString::new(port_name).unwrap();
+            // No port name contains a NUL byte.
+            let Ok(port_name) = ffi::CString::new(port_name) else {
+                return Ok(false);
+            };
             j::jack_port_connected_to(self.raw(), port_name.as_ptr())
         };
         match res {
@@ -182,7 +186,7 @@ impl<PS> Port<PS> {
     /// Set's the short name of the port. If the full name is longer than `PORT_NAME_SIZE`, then it
     /// will be truncated.
     pub fn set_name(&mut self, short_name: &str) -> Result<(), Error> {
-        let short_name = ffi::CString::new(short_name).unwrap();
+        let short_name = to_cstring(short_name)?;
         let res = unsafe { j::jack_port_set_name(self.raw(), short_name.as_ptr()) };
         match res {
             0 => Ok(()),
@@ -201,7 +205,7 @@ impl<PS> Port<PS> {
     /// Ports can have up to two aliases - if both are already set, this function will return an
     /// error.
     pub fn set_alias(&mut self, alias: &str) -> Result<(), Error> {
-        let alias = ffi::CString::new(alias).unwrap();
+        let alias = to_cstring(alias)?;
         let res = unsafe { j::jack_port_set_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),
@@ -213,7 +217,7 @@ impl<PS> Port<PS> {
     ///
     /// After a successful call, `alias` can no longer be used as an alternate name for `self`.
     pub fn unset_alias(&mut self, alias: &str) -> Result<(), Error> {
-        let alias = ffi::CString::new(alias).unwrap();
+        let alias = to_cstring(alias)?;
         let res = unsafe { j::jack_port_unset_alias(self.raw(), alias.as_ptr()) };
         match res {
             0 => Ok(()),

@@ -28,6 +28,8 @@
   Non-UTF-8 property types no longer panic.
 - `Client::property_get`, `property_get_subject` and `property_get_all` no longer panic on
   non-UTF-8 keys, values or types. Invalid bytes are replaced with `U+FFFD`.
+- Added `Error::InteriorNul`. Methods that take strings now return it instead of panicking
+  when a string contains a NUL byte.
 - `PropertyChange` keys are now `Option<Cow<'a, str>>` and `PropertyChangeOwned`
   keys are now `Option<String>`. The key is `None` when all properties of a subject were removed
   (`Client::property_remove_subject`) or all properties were removed
