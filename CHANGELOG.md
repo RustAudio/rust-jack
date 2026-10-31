@@ -28,6 +28,12 @@
   Non-UTF-8 property types no longer panic.
 - `Client::property_get`, `property_get_subject` and `property_get_all` no longer panic on
   non-UTF-8 keys, values or types. Invalid bytes are replaced with `U+FFFD`.
+- `PropertyChange` keys are now `Option<Cow<'a, str>>` and `PropertyChangeOwned`
+  keys are now `Option<String>`. The key is `None` when all properties of a subject were removed
+  (`Client::property_remove_subject`) or all properties were removed
+  (`Client::property_remove_all`).
+- Non-UTF-8 keys in the property change callback no longer silently drop the event. Invalid
+  bytes are replaced with `U+FFFD`. `PropertyChange` now implements `Clone`.
 - Actually stop processing if buffer size callback returns Quit. This was not
   respected in Pipewire.
 

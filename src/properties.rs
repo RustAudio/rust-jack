@@ -1,17 +1,37 @@
 //! Properties, AKA [Meta Data](https://jackaudio.org/api/group__Metadata.html)
 //!
+use std::borrow::Cow;
 use std::panic::catch_unwind;
 
 use j::jack_uuid_t as uuid;
 use jack_sys as j;
 
-/// A description of a Metadata change describint a creation, change or deletion, its owner
+/// A description of a Metadata change describing a creation, change or deletion, its owner
 /// `subject` and `key`.
-#[derive(Debug, PartialEq, Eq)]
+///
+/// `key` is `None` when JACK reports a change without a key. This happens for `Deleted` when all
+/// properties of `subject` were removed (see [`Client::property_remove_subject`]), or when all
+/// properties of all subjects were removed (see [`Client::property_remove_all`]), in which case
+/// `subject` is the empty UUID `0`.
+///
+/// Non-UTF-8 keys are converted lossily, invalid bytes are replaced with `U+FFFD`.
+///
+/// [`Client::property_remove_subject`]: crate::Client::property_remove_subject
+/// [`Client::property_remove_all`]: crate::Client::property_remove_all
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyChange<'a> {
-    Created { subject: uuid, key: &'a str },
-    Changed { subject: uuid, key: &'a str },
-    Deleted { subject: uuid, key: &'a str },
+    Created {
+        subject: uuid,
+        key: Option<Cow<'a, str>>,
+    },
+    Changed {
+        subject: uuid,
+        key: Option<Cow<'a, str>>,
+    },
+    Deleted {
+        subject: uuid,
+        key: Option<Cow<'a, str>>,
+    },
 }
 
 /// A trait for reacting to property changes.
@@ -34,8 +54,13 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
     unsafe {
         let res = catch_unwind(|| {
             let h: &mut P = &mut *(arg as *mut P);
-            let key_c = std::ffi::CStr::from_ptr(key);
-            let key = key_c.to_str().expect("to convert key to valid str");
+            // JACK passes a NULL key when all properties of a subject (or of all subjects) were
+            // deleted.
+            let key = if key.is_null() {
+                None
+            } else {
+                Some(std::ffi::CStr::from_ptr(key).to_string_lossy())
+            };
             let c = match change {
                 j::PropertyCreated => PropertyChange::Created { subject, key },
                 j::PropertyDeleted => PropertyChange::Deleted { subject, key },
@@ -44,7 +69,12 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
             h.property_changed(&c);
         });
         if let Err(err) = res {
-            eprintln!("{err:?}");
+            let msg = err
+                .downcast_ref::<&str>()
+                .copied()
+                .or_else(|| err.downcast_ref::<String>().map(String::as_str))
+                .unwrap_or("unknown panic");
+            eprintln!("panic in property change handler: {msg}");
             std::mem::forget(err);
         }
     }
@@ -65,11 +95,13 @@ mod metadata {
     use crate::Client;
 
     /// A helper enum, allowing for sending changes between threads.
+    ///
+    /// See [`PropertyChange`] for the meaning of a `None` key.
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum PropertyChangeOwned {
-        Created { subject: uuid, key: String },
-        Changed { subject: uuid, key: String },
-        Deleted { subject: uuid, key: String },
+        Created { subject: uuid, key: Option<String> },
+        Changed { subject: uuid, key: Option<String> },
+        Deleted { subject: uuid, key: Option<String> },
     }
 
     /// A piece of Metadata on a Jack `subject`: either a port or a client.
@@ -350,15 +382,15 @@ mod metadata {
             match property {
                 PropertyChange::Created { subject, key } => Self::Created {
                     subject: *subject,
-                    key: key.to_string(),
+                    key: key.as_deref().map(str::to_string),
                 },
                 PropertyChange::Changed { subject, key } => Self::Changed {
                     subject: *subject,
-                    key: key.to_string(),
+                    key: key.as_deref().map(str::to_string),
                 },
                 PropertyChange::Deleted { subject, key } => Self::Deleted {
                     subject: *subject,
-                    key: key.to_string(),
+                    key: key.as_deref().map(str::to_string),
                 },
             }
         }
@@ -561,7 +593,7 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Created {
                     subject: c2.uuid(),
-                    key: "blah".into()
+                    key: Some("blah".into())
                 }),
                 r
             );
@@ -575,7 +607,7 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Changed {
                     subject: c2.uuid(),
-                    key: "blah".into()
+                    key: Some("blah".into())
                 }),
                 r
             );
@@ -585,7 +617,7 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Deleted {
                     subject: c2.uuid(),
-                    key: "blah".into()
+                    key: Some("blah".into())
                 }),
                 r
             );
@@ -599,7 +631,7 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Created {
                     subject: c2.uuid(),
-                    key: "blah".into()
+                    key: Some("blah".into())
                 }),
                 r
             );
@@ -607,10 +639,98 @@ mod metadata {
             assert_eq!(
                 Ok(PropertyChangeOwned::Created {
                     subject: ac.as_client().uuid(),
-                    key: "mutant".into()
+                    key: Some("mutant".into())
                 }),
                 r
             );
+        }
+
+        fn call_property_changed(
+            key: *const ::libc::c_char,
+            change: j::jack_property_change_t,
+        ) -> Vec<PropertyChangeOwned> {
+            let (sender, receiver) = channel::<PropertyChangeOwned>();
+            let mut handler = ClosurePropertyChangeHandler::new(move |c: &PropertyChange| {
+                sender.send(c.into()).unwrap();
+            });
+            fn call<P: PropertyChangeHandler>(
+                handler: &mut P,
+                key: *const ::libc::c_char,
+                change: j::jack_property_change_t,
+            ) {
+                unsafe {
+                    crate::properties::property_changed::<P>(
+                        42,
+                        key,
+                        change,
+                        handler as *mut P as *mut ::libc::c_void,
+                    )
+                }
+            }
+            call(&mut handler, key, change);
+            drop(handler);
+            receiver.iter().collect()
+        }
+
+        #[test]
+        fn property_changed_null_key() {
+            assert_eq!(
+                call_property_changed(ptr::null(), j::PropertyDeleted),
+                vec![PropertyChangeOwned::Deleted {
+                    subject: 42,
+                    key: None
+                }]
+            );
+        }
+
+        #[test]
+        fn property_changed_non_utf8_key() {
+            let key = ffi::CString::new(&b"key-\xff"[..]).unwrap();
+            assert_eq!(
+                call_property_changed(key.as_ptr(), j::PropertyCreated),
+                vec![PropertyChangeOwned::Created {
+                    subject: 42,
+                    key: Some("key-\u{fffd}".into())
+                }]
+            );
+        }
+
+        #[test]
+        #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
+        fn client_callbacks_remove_subject_and_all() {
+            let timeout = std::time::Duration::from_millis(50);
+            let prop = Property::new("foo", None);
+            let (mut c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
+            let (c2, _) = Client::new("client2", ClientOptions::default()).unwrap();
+            let (sender, receiver): (Sender<PropertyChangeOwned>, _) = channel();
+            assert_eq!(
+                Ok(()),
+                c1.register_property_change_handler(ClosurePropertyChangeHandler::new(
+                    move |change| {
+                        let _ = sender.send(change.into());
+                    }
+                ))
+            );
+            let _ac = c1.activate_async((), ()).unwrap();
+
+            assert_eq!(c2.property_set(c2.uuid(), "blah", &prop), Ok(()));
+            assert!(receiver.recv_timeout(timeout).is_ok());
+            assert_eq!(c2.property_remove_subject(c2.uuid()), Ok(()));
+            assert_eq!(
+                receiver.recv_timeout(timeout),
+                Ok(PropertyChangeOwned::Deleted {
+                    subject: c2.uuid(),
+                    key: None
+                })
+            );
+
+            assert_eq!(c2.property_set(c2.uuid(), "blah", &prop), Ok(()));
+            assert!(receiver.recv_timeout(timeout).is_ok());
+            assert_eq!(c2.property_remove_all(), Ok(()));
+            assert!(matches!(
+                receiver.recv_timeout(timeout),
+                Ok(PropertyChangeOwned::Deleted { key: None, .. })
+            ));
         }
 
         #[test]
