@@ -36,6 +36,8 @@
   bytes are replaced with `U+FFFD`. `PropertyChange` now implements `Clone`.
 - Actually stop processing if buffer size callback returns Quit. This was not
   respected in Pipewire.
+- Use lossy string decoding for non-UTF8 names. May affect reading metadata from
+  non-Rust clients.
 
 ## 0.9.0
 

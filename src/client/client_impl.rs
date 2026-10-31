@@ -37,6 +37,9 @@ pub struct Client(Arc<ClientHandle>);
 /// The client is closed when the last strong reference is dropped.
 pub struct ClientHandle {
     client_ptr: *mut j::jack_client_t,
+    // The client name, decoded lossily once when the client is opened. JACK never renames an
+    // open client, so the cached value stays accurate.
+    name: Box<str>,
     // Keep callback storage alive until after jack_client_close returns.
     property_change_handler: Mutex<Option<Box<dyn PropertyChangeHandler>>>,
 }
@@ -189,12 +192,10 @@ impl Client {
     /// as JACK will may rename a client if necessary (ie: name collision, name too long). The name
     /// will only the be different than the one passed to `Client::new` if the `ClientStatus` was
     /// `NAME_NOT_UNIQUE`.
+    ///
+    /// Bytes that are not valid UTF-8 are replaced with `U+FFFD REPLACEMENT CHARACTER`.
     pub fn name(&self) -> &str {
-        unsafe {
-            let ptr = j::jack_get_client_name(self.raw());
-            let cstr = ffi::CStr::from_ptr(ptr);
-            cstr.to_str().unwrap()
-        }
+        &self.0.name
     }
 
     /// The current maximum size that will every be passed to the process
@@ -264,10 +265,7 @@ impl Client {
         unsafe {
             let uuid_s = j::jack_client_get_uuid(self.raw());
             assert!(!uuid_s.is_null());
-            let uuid = ffi::CStr::from_ptr(uuid_s)
-                .to_str()
-                .expect("uuid is valid string")
-                .to_string();
+            let uuid = ffi::CStr::from_ptr(uuid_s).to_string_lossy().into_owned();
             j::jack_free(uuid_s as _);
             uuid
         }
@@ -280,12 +278,7 @@ impl Client {
             if name_ptr.is_null() {
                 None
             } else {
-                Some(
-                    ffi::CStr::from_ptr(name_ptr)
-                        .to_str()
-                        .expect("name convert to a valid str")
-                        .to_string(),
-                )
+                Some(ffi::CStr::from_ptr(name_ptr).to_string_lossy().into_owned())
             }
         }
     }
@@ -706,8 +699,17 @@ impl Client {
     /// # Safety
     /// It is unsafe to create a `Client` from a raw pointer.
     pub unsafe fn from_raw(p: *mut j::jack_client_t) -> Self {
+        let name = unsafe {
+            let name_ptr = j::jack_get_client_name(p);
+            if name_ptr.is_null() {
+                Box::default()
+            } else {
+                ffi::CStr::from_ptr(name_ptr).to_string_lossy().into()
+            }
+        };
         Client(Arc::new(ClientHandle {
             client_ptr: p,
+            name,
             property_change_handler: Mutex::new(None),
         }))
     }

@@ -352,10 +352,10 @@ unsafe extern "C" fn client_registration<N, P>(
             let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
                 return;
             };
-            let name = ffi::CStr::from_ptr(name).to_str().unwrap();
+            let name = ffi::CStr::from_ptr(name).to_string_lossy();
             let register = !matches!(register, 0);
             ctx.notification
-                .client_registration(&ctx.client, name, register);
+                .client_registration(&ctx.client, &name, register);
         });
         if let Err(err) = res {
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
@@ -410,11 +410,11 @@ where
             let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
                 return Control::Quit;
             };
-            let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
-            let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
+            let old_name = ffi::CStr::from_ptr(old_name).to_string_lossy();
+            let new_name = ffi::CStr::from_ptr(new_name).to_string_lossy();
             let c = ctx
                 .notification
-                .port_rename(&ctx.client, port_id, old_name, new_name);
+                .port_rename(&ctx.client, port_id, &old_name, &new_name);
             if c == Control::Quit {
                 ctx.mark_invalid(false);
             }

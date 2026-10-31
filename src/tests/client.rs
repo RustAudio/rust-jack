@@ -177,3 +177,68 @@ fn client_with_unknown_server_name_fails_to_open() {
         err
     );
 }
+
+/// Opens a client whose name is not valid UTF-8. `Client::new` only accepts `&str`, but other
+/// processes on the server can use any bytes.
+fn open_non_utf8_client(name: &[u8]) -> crate::Client {
+    let name = std::ffi::CString::new(name).unwrap();
+    let mut status = 0;
+    let ptr = unsafe {
+        jack_sys::jack_client_open(name.as_ptr(), jack_sys::JackNoStartServer, &mut status)
+    };
+    assert!(!ptr.is_null(), "jack_client_open failed: {status:#x}");
+    unsafe { crate::Client::from_raw(ptr) }
+}
+
+#[test]
+fn non_utf8_client_name_is_decoded_lossily() {
+    let client = open_non_utf8_client(b"non-utf8-\xff");
+    assert_eq!(client.name(), "non-utf8-\u{fffd}");
+    assert_eq!(
+        client.name_by_uuid(client.uuid()).as_deref(),
+        Some("non-utf8-\u{fffd}")
+    );
+}
+
+#[test]
+fn non_utf8_client_registration_does_not_stop_processing() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    struct Registrations(Arc<Mutex<Vec<String>>>);
+    impl crate::NotificationHandler for Registrations {
+        fn client_registration(&mut self, _: &crate::Client, name: &str, is_registered: bool) {
+            if is_registered {
+                self.0.lock().unwrap().push(name.to_string());
+            }
+        }
+    }
+
+    let names = Arc::new(Mutex::new(Vec::new()));
+    let cycles = Arc::new(AtomicUsize::new(0));
+    let process = {
+        let cycles = cycles.clone();
+        crate::contrib::ClosureProcessHandler::new(move |_, _| {
+            cycles.fetch_add(1, Ordering::Relaxed);
+            crate::Control::Continue
+        })
+    };
+    let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
+    let ac = client
+        .activate_async(Registrations(names.clone()), process)
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    let _other = open_non_utf8_client(b"other-\xfe");
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(
+        names.lock().unwrap().iter().any(|n| n == "other-\u{fffd}"),
+        "{:?}",
+        names.lock().unwrap()
+    );
+
+    let before = cycles.load(Ordering::Relaxed);
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(cycles.load(Ordering::Relaxed) > before);
+    ac.deactivate().unwrap();
+}
