@@ -267,7 +267,7 @@ impl<PS> Port<PS> {
     /// `.as_mut_slice()` for audio and `.midi_iter` for midi.
     #[inline(always)]
     pub unsafe fn buffer(&self, n_frames: Frames) -> *mut libc::c_void {
-        j::jack_port_get_buffer(self.port_ptr, n_frames)
+        unsafe { j::jack_port_get_buffer(self.port_ptr, n_frames) }
     }
 
     /// Set the minimum and maximum latencies defined by mode for port, in frames.

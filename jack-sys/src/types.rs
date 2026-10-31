@@ -328,24 +328,34 @@ pub struct Union_jackctl_parameter_value {
 }
 impl Union_jackctl_parameter_value {
     pub unsafe fn ui(&mut self) -> *mut u32 {
-        let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
-        ::std::mem::transmute(raw.offset(0))
+        unsafe {
+            let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
+            ::std::mem::transmute(raw.offset(0))
+        }
     }
     pub unsafe fn i(&mut self) -> *mut i32 {
-        let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
-        ::std::mem::transmute(raw.offset(0))
+        unsafe {
+            let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
+            ::std::mem::transmute(raw.offset(0))
+        }
     }
     pub unsafe fn c(&mut self) -> *mut ::libc::c_char {
-        let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
-        ::std::mem::transmute(raw.offset(0))
+        unsafe {
+            let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
+            ::std::mem::transmute(raw.offset(0))
+        }
     }
     pub unsafe fn str(&mut self) -> *mut [::libc::c_char; 128usize] {
-        let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
-        ::std::mem::transmute(raw.offset(0))
+        unsafe {
+            let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
+            ::std::mem::transmute(raw.offset(0))
+        }
     }
     pub unsafe fn b(&mut self) -> *mut u8 {
-        let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
-        ::std::mem::transmute(raw.offset(0))
+        unsafe {
+            let raw: *mut u8 = ::std::mem::transmute(&self._bindgen_data_);
+            ::std::mem::transmute(raw.offset(0))
+        }
     }
 }
 impl ::std::clone::Clone for Union_jackctl_parameter_value {
@@ -475,7 +485,7 @@ impl ::std::default::Default for Struct_Unnamed12 {
     }
 }
 pub type jack_ringbuffer_t = Struct_Unnamed12;
-extern "C" {
+unsafe extern "C" {
     pub static mut jack_error_callback:
         ::std::option::Option<unsafe extern "C" fn(msg: *const ::libc::c_char) -> ()>;
     pub static mut jack_info_callback:

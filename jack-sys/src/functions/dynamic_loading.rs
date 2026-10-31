@@ -43,6 +43,7 @@ pub struct JackFunctions {
         *const ::libc::c_char,
         jack_options_t,
         *mut jack_status_t,
+        ...
     ) -> *mut jack_client_t,
     jack_client_new_impl: unsafe extern "C" fn(*const ::libc::c_char) -> *mut jack_client_t,
     jack_client_close_impl: unsafe extern "C" fn(*mut jack_client_t) -> ::libc::c_int,
@@ -416,8 +417,7 @@ pub struct JackFunctions {
             *const ::libc::c_char,
             jack_options_t,
             *mut jack_status_t,
-            *const ::libc::c_char,
-            *const ::libc::c_char,
+            ...
         ) -> jack_intclient_t,
     >,
     jack_internal_client_unload_impl:
@@ -646,6 +646,7 @@ lazy_static! {
                 client_name: *const ::libc::c_char,
                 options: jack_options_t,
                 status: *mut jack_status_t,
+                ...
             ) -> *mut jack_client_t>(b"jack_client_open")
             .unwrap();
         let jack_client_open_impl = jack_client_open_impl.into_raw();
@@ -654,6 +655,7 @@ lazy_static! {
                 client_name: *const ::libc::c_char,
                 options: jack_options_t,
                 status: *mut jack_status_t,
+                ...
             ) -> *mut jack_client_t;
         let jack_client_new_impl = library
             .get::<unsafe extern "C" fn(client_name: *const ::libc::c_char) -> *mut jack_client_t>(
@@ -2309,8 +2311,7 @@ lazy_static! {
                 client_name: *const ::libc::c_char,
                 options: jack_options_t,
                 status: *mut jack_status_t,
-                load_name: *const ::libc::c_char,
-                load_init: *const ::libc::c_char,
+                ...
             ) -> jack_intclient_t>(b"jack_internal_client_load")
             .ok();
         let jack_internal_client_load_impl =
@@ -2322,8 +2323,7 @@ lazy_static! {
                     client_name: *const ::libc::c_char,
                     options: jack_options_t,
                     status: *mut jack_status_t,
-                    load_name: *const ::libc::c_char,
-                    load_init: *const ::libc::c_char,
+                    ...
                 ) -> jack_intclient_t
         });
         let jack_internal_client_unload_impl = library
@@ -2818,8 +2818,10 @@ lazy_static! {
 }
 
 pub unsafe fn jack_release_timebase(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_release_timebase_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_release_timebase_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_get_cycle_times(
     client: *const jack_client_t,
@@ -2828,29 +2830,35 @@ pub unsafe fn jack_get_cycle_times(
     next_usecs: *mut jack_time_t,
     period_usecs: *mut ::libc::c_float,
 ) -> Option<::libc::c_int> {
-    let f = FUNCTIONS.jack_get_cycle_times_impl?;
-    Some(f(
-        client,
-        current_frames,
-        current_usecs,
-        next_usecs,
-        period_usecs,
-    ))
+    unsafe {
+        let f = FUNCTIONS.jack_get_cycle_times_impl?;
+        Some(f(
+            client,
+            current_frames,
+            current_usecs,
+            next_usecs,
+            period_usecs,
+        ))
+    }
 }
 pub unsafe fn jack_set_sync_callback(
     client: *mut jack_client_t,
     sync_callback: JackSyncCallback,
     sync_arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_sync_callback_impl;
-    f(client, sync_callback, sync_arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_sync_callback_impl;
+        f(client, sync_callback, sync_arg)
+    }
 }
 pub unsafe fn jack_set_sync_timeout(
     client: *mut jack_client_t,
     timeout: jack_time_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_sync_timeout_impl;
-    f(client, timeout)
+    unsafe {
+        let f = FUNCTIONS.jack_set_sync_timeout_impl;
+        f(client, timeout)
+    }
 }
 pub unsafe fn jack_set_timebase_callback(
     client: *mut jack_client_t,
@@ -2858,286 +2866,391 @@ pub unsafe fn jack_set_timebase_callback(
     timebase_callback: TimebaseCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_timebase_callback_impl;
-    f(client, conditional, timebase_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_timebase_callback_impl;
+        f(client, conditional, timebase_callback, arg)
+    }
 }
 pub unsafe fn jack_transport_locate(
     client: *mut jack_client_t,
     frame: jack_nframes_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_transport_locate_impl;
-    f(client, frame)
+    unsafe {
+        let f = FUNCTIONS.jack_transport_locate_impl;
+        f(client, frame)
+    }
 }
 pub unsafe fn jack_transport_query(
     client: *const jack_client_t,
     pos: *mut jack_position_t,
 ) -> jack_transport_state_t {
-    let f = FUNCTIONS.jack_transport_query_impl;
-    f(client, pos)
+    unsafe {
+        let f = FUNCTIONS.jack_transport_query_impl;
+        f(client, pos)
+    }
 }
 pub unsafe fn jack_get_current_transport_frame(client: *const jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_get_current_transport_frame_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_current_transport_frame_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_transport_reposition(
     client: *mut jack_client_t,
     pos: *const jack_position_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_transport_reposition_impl;
-    f(client, pos)
+    unsafe {
+        let f = FUNCTIONS.jack_transport_reposition_impl;
+        f(client, pos)
+    }
 }
 pub unsafe fn jack_transport_start(client: *mut jack_client_t) -> () {
-    let f = FUNCTIONS.jack_transport_start_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_transport_start_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_transport_stop(client: *mut jack_client_t) -> () {
-    let f = FUNCTIONS.jack_transport_stop_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_transport_stop_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_get_transport_info(
     client: *mut jack_client_t,
     tinfo: *mut jack_transport_info_t,
 ) -> () {
-    let f = FUNCTIONS.jack_get_transport_info_impl;
-    f(client, tinfo)
+    unsafe {
+        let f = FUNCTIONS.jack_get_transport_info_impl;
+        f(client, tinfo)
+    }
 }
 pub unsafe fn jack_set_transport_info(
     client: *mut jack_client_t,
     tinfo: *mut jack_transport_info_t,
 ) -> () {
-    let f = FUNCTIONS.jack_set_transport_info_impl;
-    f(client, tinfo)
+    unsafe {
+        let f = FUNCTIONS.jack_set_transport_info_impl;
+        f(client, tinfo)
+    }
 }
 pub unsafe fn jack_client_open(
     client_name: *const ::libc::c_char,
     options: jack_options_t,
     status: *mut jack_status_t,
 ) -> *mut jack_client_t {
-    let f = FUNCTIONS.jack_client_open_impl;
-    f(client_name, options, status)
+    unsafe {
+        let f = FUNCTIONS.jack_client_open_impl;
+        f(client_name, options, status)
+    }
+}
+/// Calls `jack_client_open` with `JackServerName` set, passing `server_name` as the variadic
+/// argument that option requires.
+pub unsafe fn jack_client_open_with_server_name(
+    client_name: *const ::libc::c_char,
+    options: jack_options_t,
+    status: *mut jack_status_t,
+    server_name: *const ::libc::c_char,
+) -> *mut jack_client_t {
+    unsafe {
+        let f = FUNCTIONS.jack_client_open_impl;
+        f(client_name, options | JackServerName, status, server_name)
+    }
 }
 pub unsafe fn jack_client_new(client_name: *const ::libc::c_char) -> *mut jack_client_t {
-    let f = FUNCTIONS.jack_client_new_impl;
-    f(client_name)
+    unsafe {
+        let f = FUNCTIONS.jack_client_new_impl;
+        f(client_name)
+    }
 }
 pub unsafe fn jack_client_close(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_client_close_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_client_close_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_client_name_size() -> ::libc::c_int {
-    let f = FUNCTIONS.jack_client_name_size_impl;
-    f()
+    unsafe {
+        let f = FUNCTIONS.jack_client_name_size_impl;
+        f()
+    }
 }
 pub unsafe fn jack_get_client_name(client: *mut jack_client_t) -> *mut ::libc::c_char {
-    let f = FUNCTIONS.jack_get_client_name_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_client_name_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_get_uuid_for_client_name(
     client: *mut jack_client_t,
     client_name: *const ::libc::c_char,
 ) -> *mut ::libc::c_char {
-    let f = FUNCTIONS.jack_get_uuid_for_client_name_impl;
-    f(client, client_name)
+    unsafe {
+        let f = FUNCTIONS.jack_get_uuid_for_client_name_impl;
+        f(client, client_name)
+    }
 }
 pub unsafe fn jack_get_client_name_by_uuid(
     client: *mut jack_client_t,
     client_uuid: *const ::libc::c_char,
 ) -> *mut ::libc::c_char {
-    let f = FUNCTIONS.jack_get_client_name_by_uuid_impl;
-    f(client, client_uuid)
+    unsafe {
+        let f = FUNCTIONS.jack_get_client_name_by_uuid_impl;
+        f(client, client_uuid)
+    }
 }
 pub unsafe fn jack_internal_client_new(
     client_name: *const ::libc::c_char,
     load_name: *const ::libc::c_char,
     load_init: *const ::libc::c_char,
 ) -> Option<::libc::c_int> {
-    let f = FUNCTIONS.jack_internal_client_new_impl?;
-    Some(f(client_name, load_name, load_init))
+    unsafe {
+        let f = FUNCTIONS.jack_internal_client_new_impl?;
+        Some(f(client_name, load_name, load_init))
+    }
 }
 pub unsafe fn jack_internal_client_close(client_name: *const ::libc::c_char) -> Option<()> {
-    let f = FUNCTIONS.jack_internal_client_close_impl?;
-    Some(f(client_name))
+    unsafe {
+        let f = FUNCTIONS.jack_internal_client_close_impl?;
+        Some(f(client_name))
+    }
 }
 pub unsafe fn jack_activate(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_activate_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_activate_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_deactivate(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_deactivate_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_deactivate_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_get_client_pid(name: *const ::libc::c_char) -> Option<::libc::c_int> {
-    let f = FUNCTIONS.jack_get_client_pid_impl?;
-    Some(f(name))
+    unsafe {
+        let f = FUNCTIONS.jack_get_client_pid_impl?;
+        Some(f(name))
+    }
 }
 pub unsafe fn jack_is_realtime(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_is_realtime_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_is_realtime_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_thread_wait(
     client: *mut jack_client_t,
     status: ::libc::c_int,
 ) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_thread_wait_impl;
-    f(client, status)
+    unsafe {
+        let f = FUNCTIONS.jack_thread_wait_impl;
+        f(client, status)
+    }
 }
 pub unsafe fn jack_cycle_wait(client: *mut jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_cycle_wait_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_cycle_wait_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_cycle_signal(client: *mut jack_client_t, status: ::libc::c_int) -> () {
-    let f = FUNCTIONS.jack_cycle_signal_impl;
-    f(client, status)
+    unsafe {
+        let f = FUNCTIONS.jack_cycle_signal_impl;
+        f(client, status)
+    }
 }
 pub unsafe fn jack_set_process_thread(
     client: *mut jack_client_t,
     thread_callback: JackThreadCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_process_thread_impl;
-    f(client, thread_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_process_thread_impl;
+        f(client, thread_callback, arg)
+    }
 }
 pub unsafe fn jack_set_thread_init_callback(
     client: *mut jack_client_t,
     thread_init_callback: JackThreadInitCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_thread_init_callback_impl;
-    f(client, thread_init_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_thread_init_callback_impl;
+        f(client, thread_init_callback, arg)
+    }
 }
 pub unsafe fn jack_on_shutdown(
     client: *mut jack_client_t,
     callback: JackShutdownCallback,
     arg: *mut ::libc::c_void,
 ) -> () {
-    let f = FUNCTIONS.jack_on_shutdown_impl;
-    f(client, callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_on_shutdown_impl;
+        f(client, callback, arg)
+    }
 }
 pub unsafe fn jack_on_info_shutdown(
     client: *mut jack_client_t,
     callback: JackInfoShutdownCallback,
     arg: *mut ::libc::c_void,
 ) -> () {
-    let f = FUNCTIONS.jack_on_info_shutdown_impl;
-    f(client, callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_on_info_shutdown_impl;
+        f(client, callback, arg)
+    }
 }
 pub unsafe fn jack_set_process_callback(
     client: *mut jack_client_t,
     process_callback: JackProcessCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_process_callback_impl;
-    f(client, process_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_process_callback_impl;
+        f(client, process_callback, arg)
+    }
 }
 pub unsafe fn jack_set_freewheel_callback(
     client: *mut jack_client_t,
     freewheel_callback: JackFreewheelCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_freewheel_callback_impl;
-    f(client, freewheel_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_freewheel_callback_impl;
+        f(client, freewheel_callback, arg)
+    }
 }
 pub unsafe fn jack_set_buffer_size_callback(
     client: *mut jack_client_t,
     bufsize_callback: JackBufferSizeCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_buffer_size_callback_impl;
-    f(client, bufsize_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_buffer_size_callback_impl;
+        f(client, bufsize_callback, arg)
+    }
 }
 pub unsafe fn jack_get_sample_rate(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_get_sample_rate_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_sample_rate_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_set_sample_rate_callback(
     client: *mut jack_client_t,
     srate_callback: JackSampleRateCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_sample_rate_callback_impl;
-    f(client, srate_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_sample_rate_callback_impl;
+        f(client, srate_callback, arg)
+    }
 }
 pub unsafe fn jack_set_client_registration_callback(
     client: *mut jack_client_t,
     registration_callback: JackClientRegistrationCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_client_registration_callback_impl;
-    f(client, registration_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_client_registration_callback_impl;
+        f(client, registration_callback, arg)
+    }
 }
 pub unsafe fn jack_set_port_registration_callback(
     client: *mut jack_client_t,
     registration_callback: JackPortRegistrationCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_port_registration_callback_impl;
-    f(client, registration_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_port_registration_callback_impl;
+        f(client, registration_callback, arg)
+    }
 }
 pub unsafe fn jack_set_port_connect_callback(
     client: *mut jack_client_t,
     connect_callback: JackPortConnectCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_port_connect_callback_impl;
-    f(client, connect_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_port_connect_callback_impl;
+        f(client, connect_callback, arg)
+    }
 }
 pub unsafe fn jack_set_port_rename_callback(
     client: *mut jack_client_t,
     rename_callback: JackPortRenameCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_port_rename_callback_impl;
-    f(client, rename_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_port_rename_callback_impl;
+        f(client, rename_callback, arg)
+    }
 }
 pub unsafe fn jack_set_graph_order_callback(
     client: *mut jack_client_t,
     graph_callback: JackGraphOrderCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_graph_order_callback_impl;
-    f(client, graph_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_graph_order_callback_impl;
+        f(client, graph_callback, arg)
+    }
 }
 pub unsafe fn jack_set_xrun_callback(
     client: *mut jack_client_t,
     xrun_callback: JackXRunCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_xrun_callback_impl;
-    f(client, xrun_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_xrun_callback_impl;
+        f(client, xrun_callback, arg)
+    }
 }
 pub unsafe fn jack_set_latency_callback(
     client: *mut jack_client_t,
     latency_callback: JackLatencyCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_latency_callback_impl;
-    f(client, latency_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_latency_callback_impl;
+        f(client, latency_callback, arg)
+    }
 }
 pub unsafe fn jack_set_freewheel(
     client: *mut jack_client_t,
     onoff: ::libc::c_int,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_freewheel_impl;
-    f(client, onoff)
+    unsafe {
+        let f = FUNCTIONS.jack_set_freewheel_impl;
+        f(client, onoff)
+    }
 }
 pub unsafe fn jack_set_buffer_size(
     client: *mut jack_client_t,
     nframes: jack_nframes_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_buffer_size_impl;
-    f(client, nframes)
+    unsafe {
+        let f = FUNCTIONS.jack_set_buffer_size_impl;
+        f(client, nframes)
+    }
 }
 pub unsafe fn jack_get_buffer_size(client: *mut jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_get_buffer_size_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_buffer_size_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_engine_takeover_timebase(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_engine_takeover_timebase_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_engine_takeover_timebase_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_cpu_load(client: *mut jack_client_t) -> ::libc::c_float {
-    let f = FUNCTIONS.jack_cpu_load_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_cpu_load_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_port_register(
     client: *mut jack_client_t,
@@ -3146,217 +3259,291 @@ pub unsafe fn jack_port_register(
     flags: ::libc::c_ulong,
     buffer_size: ::libc::c_ulong,
 ) -> *mut jack_port_t {
-    let f = FUNCTIONS.jack_port_register_impl;
-    f(client, port_name, port_type, flags, buffer_size)
+    unsafe {
+        let f = FUNCTIONS.jack_port_register_impl;
+        f(client, port_name, port_type, flags, buffer_size)
+    }
 }
 pub unsafe fn jack_port_unregister(
     client: *mut jack_client_t,
     port: *mut jack_port_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_unregister_impl;
-    f(client, port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_unregister_impl;
+        f(client, port)
+    }
 }
 pub unsafe fn jack_port_get_buffer(
     port: *mut jack_port_t,
     nframes: jack_nframes_t,
 ) -> *mut ::libc::c_void {
-    let f = FUNCTIONS.jack_port_get_buffer_impl;
-    f(port, nframes)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_buffer_impl;
+        f(port, nframes)
+    }
 }
 pub unsafe fn jack_port_uuid(port: *mut jack_port_t) -> jack_uuid_t {
-    let f = FUNCTIONS.jack_port_uuid_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_uuid_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_name(port: *mut jack_port_t) -> *const ::libc::c_char {
-    let f = FUNCTIONS.jack_port_name_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_name_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_short_name(port: *mut jack_port_t) -> *const ::libc::c_char {
-    let f = FUNCTIONS.jack_port_short_name_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_short_name_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_flags(port: *mut jack_port_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_flags_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_flags_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_type(port: *const jack_port_t) -> *const ::libc::c_char {
-    let f = FUNCTIONS.jack_port_type_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_type_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_type_id(port: *const jack_port_t) -> Option<jack_port_type_id_t> {
-    let f = FUNCTIONS.jack_port_type_id_impl?;
-    Some(f(port))
+    unsafe {
+        let f = FUNCTIONS.jack_port_type_id_impl?;
+        Some(f(port))
+    }
 }
 pub unsafe fn jack_port_is_mine(
     client: *const jack_client_t,
     port: *const jack_port_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_is_mine_impl;
-    f(client, port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_is_mine_impl;
+        f(client, port)
+    }
 }
 pub unsafe fn jack_port_connected(port: *const jack_port_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_connected_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_connected_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_connected_to(
     port: *const jack_port_t,
     port_name: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_connected_to_impl;
-    f(port, port_name)
+    unsafe {
+        let f = FUNCTIONS.jack_port_connected_to_impl;
+        f(port, port_name)
+    }
 }
 pub unsafe fn jack_port_get_connections(port: *const jack_port_t) -> *mut *const ::libc::c_char {
-    let f = FUNCTIONS.jack_port_get_connections_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_connections_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_get_all_connections(
     client: *const jack_client_t,
     port: *const jack_port_t,
 ) -> *mut *const ::libc::c_char {
-    let f = FUNCTIONS.jack_port_get_all_connections_impl;
-    f(client, port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_all_connections_impl;
+        f(client, port)
+    }
 }
 pub unsafe fn jack_port_tie(src: *mut jack_port_t, dst: *mut jack_port_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_tie_impl;
-    f(src, dst)
+    unsafe {
+        let f = FUNCTIONS.jack_port_tie_impl;
+        f(src, dst)
+    }
 }
 pub unsafe fn jack_port_untie(port: *mut jack_port_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_untie_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_untie_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_set_name(
     port: *mut jack_port_t,
     port_name: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_set_name_impl;
-    f(port, port_name)
+    unsafe {
+        let f = FUNCTIONS.jack_port_set_name_impl;
+        f(port, port_name)
+    }
 }
 pub unsafe fn jack_port_set_alias(
     port: *mut jack_port_t,
     alias: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_set_alias_impl;
-    f(port, alias)
+    unsafe {
+        let f = FUNCTIONS.jack_port_set_alias_impl;
+        f(port, alias)
+    }
 }
 pub unsafe fn jack_port_unset_alias(
     port: *mut jack_port_t,
     alias: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_unset_alias_impl;
-    f(port, alias)
+    unsafe {
+        let f = FUNCTIONS.jack_port_unset_alias_impl;
+        f(port, alias)
+    }
 }
 pub unsafe fn jack_port_get_aliases(
     port: *const jack_port_t,
     aliases: *mut *mut ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_get_aliases_impl;
-    f(port, aliases)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_aliases_impl;
+        f(port, aliases)
+    }
 }
 pub unsafe fn jack_port_request_monitor(
     port: *mut jack_port_t,
     onoff: ::libc::c_int,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_request_monitor_impl;
-    f(port, onoff)
+    unsafe {
+        let f = FUNCTIONS.jack_port_request_monitor_impl;
+        f(port, onoff)
+    }
 }
 pub unsafe fn jack_port_request_monitor_by_name(
     client: *mut jack_client_t,
     port_name: *const ::libc::c_char,
     onoff: ::libc::c_int,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_request_monitor_by_name_impl;
-    f(client, port_name, onoff)
+    unsafe {
+        let f = FUNCTIONS.jack_port_request_monitor_by_name_impl;
+        f(client, port_name, onoff)
+    }
 }
 pub unsafe fn jack_port_ensure_monitor(
     port: *mut jack_port_t,
     onoff: ::libc::c_int,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_ensure_monitor_impl;
-    f(port, onoff)
+    unsafe {
+        let f = FUNCTIONS.jack_port_ensure_monitor_impl;
+        f(port, onoff)
+    }
 }
 pub unsafe fn jack_port_monitoring_input(port: *mut jack_port_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_monitoring_input_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_monitoring_input_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_connect(
     client: *mut jack_client_t,
     source_port: *const ::libc::c_char,
     destination_port: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_connect_impl;
-    f(client, source_port, destination_port)
+    unsafe {
+        let f = FUNCTIONS.jack_connect_impl;
+        f(client, source_port, destination_port)
+    }
 }
 pub unsafe fn jack_disconnect(
     client: *mut jack_client_t,
     source_port: *const ::libc::c_char,
     destination_port: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_disconnect_impl;
-    f(client, source_port, destination_port)
+    unsafe {
+        let f = FUNCTIONS.jack_disconnect_impl;
+        f(client, source_port, destination_port)
+    }
 }
 pub unsafe fn jack_port_disconnect(
     client: *mut jack_client_t,
     port: *mut jack_port_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_disconnect_impl;
-    f(client, port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_disconnect_impl;
+        f(client, port)
+    }
 }
 pub unsafe fn jack_port_name_size() -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_name_size_impl;
-    f()
+    unsafe {
+        let f = FUNCTIONS.jack_port_name_size_impl;
+        f()
+    }
 }
 pub unsafe fn jack_port_type_size() -> ::libc::c_int {
-    let f = FUNCTIONS.jack_port_type_size_impl;
-    f()
+    unsafe {
+        let f = FUNCTIONS.jack_port_type_size_impl;
+        f()
+    }
 }
 pub unsafe fn jack_port_type_get_buffer_size(
     client: *mut jack_client_t,
     port_type: *const ::libc::c_char,
 ) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_port_type_get_buffer_size_impl;
-    f(client, port_type)
+    unsafe {
+        let f = FUNCTIONS.jack_port_type_get_buffer_size_impl;
+        f(client, port_type)
+    }
 }
 pub unsafe fn jack_port_set_latency(port: *mut jack_port_t, arg1: jack_nframes_t) -> () {
-    let f = FUNCTIONS.jack_port_set_latency_impl;
-    f(port, arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_port_set_latency_impl;
+        f(port, arg1)
+    }
 }
 pub unsafe fn jack_port_get_latency_range(
     port: *mut jack_port_t,
     mode: jack_latency_callback_mode_t,
     range: *mut jack_latency_range_t,
 ) -> () {
-    let f = FUNCTIONS.jack_port_get_latency_range_impl;
-    f(port, mode, range)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_latency_range_impl;
+        f(port, mode, range)
+    }
 }
 pub unsafe fn jack_port_set_latency_range(
     port: *mut jack_port_t,
     mode: jack_latency_callback_mode_t,
     range: *mut jack_latency_range_t,
 ) -> () {
-    let f = FUNCTIONS.jack_port_set_latency_range_impl;
-    f(port, mode, range)
+    unsafe {
+        let f = FUNCTIONS.jack_port_set_latency_range_impl;
+        f(port, mode, range)
+    }
 }
 pub unsafe fn jack_recompute_total_latencies(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_recompute_total_latencies_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_recompute_total_latencies_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_port_get_latency(port: *mut jack_port_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_port_get_latency_impl;
-    f(port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_latency_impl;
+        f(port)
+    }
 }
 pub unsafe fn jack_port_get_total_latency(
     client: *mut jack_client_t,
     port: *mut jack_port_t,
 ) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_port_get_total_latency_impl;
-    f(client, port)
+    unsafe {
+        let f = FUNCTIONS.jack_port_get_total_latency_impl;
+        f(client, port)
+    }
 }
 pub unsafe fn jack_recompute_total_latency(
     arg1: *mut jack_client_t,
     port: *mut jack_port_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_recompute_total_latency_impl;
-    f(arg1, port)
+    unsafe {
+        let f = FUNCTIONS.jack_recompute_total_latency_impl;
+        f(arg1, port)
+    }
 }
 pub unsafe fn jack_get_ports(
     client: *mut jack_client_t,
@@ -3364,99 +3551,135 @@ pub unsafe fn jack_get_ports(
     type_name_pattern: *const ::libc::c_char,
     flags: ::libc::c_ulong,
 ) -> *mut *const ::libc::c_char {
-    let f = FUNCTIONS.jack_get_ports_impl;
-    f(client, port_name_pattern, type_name_pattern, flags)
+    unsafe {
+        let f = FUNCTIONS.jack_get_ports_impl;
+        f(client, port_name_pattern, type_name_pattern, flags)
+    }
 }
 pub unsafe fn jack_port_by_name(
     client: *mut jack_client_t,
     port_name: *const ::libc::c_char,
 ) -> *mut jack_port_t {
-    let f = FUNCTIONS.jack_port_by_name_impl;
-    f(client, port_name)
+    unsafe {
+        let f = FUNCTIONS.jack_port_by_name_impl;
+        f(client, port_name)
+    }
 }
 pub unsafe fn jack_port_by_id(
     client: *mut jack_client_t,
     port_id: jack_port_id_t,
 ) -> *mut jack_port_t {
-    let f = FUNCTIONS.jack_port_by_id_impl;
-    f(client, port_id)
+    unsafe {
+        let f = FUNCTIONS.jack_port_by_id_impl;
+        f(client, port_id)
+    }
 }
 pub unsafe fn jack_frames_since_cycle_start(arg1: *const jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_frames_since_cycle_start_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_frames_since_cycle_start_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_frame_time(arg1: *const jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_frame_time_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_frame_time_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_last_frame_time(client: *const jack_client_t) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_last_frame_time_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_last_frame_time_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_frames_to_time(
     client: *const jack_client_t,
     arg1: jack_nframes_t,
 ) -> jack_time_t {
-    let f = FUNCTIONS.jack_frames_to_time_impl;
-    f(client, arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_frames_to_time_impl;
+        f(client, arg1)
+    }
 }
 pub unsafe fn jack_time_to_frames(
     client: *const jack_client_t,
     arg1: jack_time_t,
 ) -> jack_nframes_t {
-    let f = FUNCTIONS.jack_time_to_frames_impl;
-    f(client, arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_time_to_frames_impl;
+        f(client, arg1)
+    }
 }
 pub unsafe fn jack_get_time() -> jack_time_t {
-    let f = FUNCTIONS.jack_get_time_impl;
-    f()
+    unsafe {
+        let f = FUNCTIONS.jack_get_time_impl;
+        f()
+    }
 }
 pub unsafe fn jack_set_error_function(
     func: ::std::option::Option<unsafe extern "C" fn(arg1: *const ::libc::c_char) -> ()>,
 ) -> () {
-    let f = FUNCTIONS.jack_set_error_function_impl;
-    f(func)
+    unsafe {
+        let f = FUNCTIONS.jack_set_error_function_impl;
+        f(func)
+    }
 }
 pub unsafe fn jack_set_info_function(
     func: ::std::option::Option<unsafe extern "C" fn(arg1: *const ::libc::c_char) -> ()>,
 ) -> () {
-    let f = FUNCTIONS.jack_set_info_function_impl;
-    f(func)
+    unsafe {
+        let f = FUNCTIONS.jack_set_info_function_impl;
+        f(func)
+    }
 }
 pub unsafe fn jack_free(ptr: *mut ::libc::c_void) -> () {
-    let f = FUNCTIONS.jack_free_impl;
-    f(ptr)
+    unsafe {
+        let f = FUNCTIONS.jack_free_impl;
+        f(ptr)
+    }
 }
 pub unsafe fn jack_client_real_time_priority(arg1: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_client_real_time_priority_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_client_real_time_priority_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_client_max_real_time_priority(arg1: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_client_max_real_time_priority_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_client_max_real_time_priority_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_set_session_callback(
     client: *mut jack_client_t,
     session_callback: JackSessionCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_session_callback_impl;
-    f(client, session_callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_session_callback_impl;
+        f(client, session_callback, arg)
+    }
 }
 pub unsafe fn jack_session_reply(
     client: *mut jack_client_t,
     event: *mut jack_session_event_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_session_reply_impl;
-    f(client, event)
+    unsafe {
+        let f = FUNCTIONS.jack_session_reply_impl;
+        f(client, event)
+    }
 }
 pub unsafe fn jack_session_event_free(event: *mut jack_session_event_t) -> () {
-    let f = FUNCTIONS.jack_session_event_free_impl;
-    f(event)
+    unsafe {
+        let f = FUNCTIONS.jack_session_event_free_impl;
+        f(event)
+    }
 }
 pub unsafe fn jack_client_get_uuid(client: *mut jack_client_t) -> *mut ::libc::c_char {
-    let f = FUNCTIONS.jack_client_get_uuid_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_client_get_uuid_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_session_notify(
     client: *mut jack_client_t,
@@ -3464,35 +3687,47 @@ pub unsafe fn jack_session_notify(
     _type: jack_session_event_type_t,
     path: *const ::libc::c_char,
 ) -> *mut jack_session_command_t {
-    let f = FUNCTIONS.jack_session_notify_impl;
-    f(client, target, _type, path)
+    unsafe {
+        let f = FUNCTIONS.jack_session_notify_impl;
+        f(client, target, _type, path)
+    }
 }
 pub unsafe fn jack_session_commands_free(cmds: *mut jack_session_command_t) -> () {
-    let f = FUNCTIONS.jack_session_commands_free_impl;
-    f(cmds)
+    unsafe {
+        let f = FUNCTIONS.jack_session_commands_free_impl;
+        f(cmds)
+    }
 }
 pub unsafe fn jack_reserve_client_name(
     client: *mut jack_client_t,
     name: *const ::libc::c_char,
     uuid: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_reserve_client_name_impl;
-    f(client, name, uuid)
+    unsafe {
+        let f = FUNCTIONS.jack_reserve_client_name_impl;
+        f(client, name, uuid)
+    }
 }
 pub unsafe fn jack_client_has_session_callback(
     client: *mut jack_client_t,
     client_name: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_client_has_session_callback_impl;
-    f(client, client_name)
+    unsafe {
+        let f = FUNCTIONS.jack_client_has_session_callback_impl;
+        f(client, client_name)
+    }
 }
 pub unsafe fn jackctl_setup_signals(flags: ::libc::c_uint) -> Option<*mut jackctl_sigmask_t> {
-    let f = FUNCTIONS.jackctl_setup_signals_impl?;
-    Some(f(flags))
+    unsafe {
+        let f = FUNCTIONS.jackctl_setup_signals_impl?;
+        Some(f(flags))
+    }
 }
 pub unsafe fn jackctl_wait_signals(signals: *mut jackctl_sigmask_t) -> Option<()> {
-    let f = FUNCTIONS.jackctl_wait_signals_impl?;
-    Some(f(signals))
+    unsafe {
+        let f = FUNCTIONS.jackctl_wait_signals_impl?;
+        Some(f(signals))
+    }
 }
 pub unsafe fn jackctl_server_create(
     on_device_acquire: ::std::option::Option<
@@ -3502,231 +3737,307 @@ pub unsafe fn jackctl_server_create(
         unsafe extern "C" fn(device_name: *const ::libc::c_char) -> (),
     >,
 ) -> Option<*mut jackctl_server_t> {
-    let f = FUNCTIONS.jackctl_server_create_impl?;
-    Some(f(on_device_acquire, on_device_release))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_create_impl?;
+        Some(f(on_device_acquire, on_device_release))
+    }
 }
 pub unsafe fn jackctl_server_destroy(server: *mut jackctl_server_t) -> Option<()> {
-    let f = FUNCTIONS.jackctl_server_destroy_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_destroy_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_open(
     server: *mut jackctl_server_t,
     driver: *mut jackctl_driver_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_open_impl?;
-    Some(f(server, driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_open_impl?;
+        Some(f(server, driver))
+    }
 }
 pub unsafe fn jackctl_server_start(server: *mut jackctl_server_t) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_start_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_start_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_stop(server: *mut jackctl_server_t) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_stop_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_stop_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_close(server: *mut jackctl_server_t) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_close_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_close_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_get_drivers_list(
     server: *mut jackctl_server_t,
 ) -> Option<*const JSList> {
-    let f = FUNCTIONS.jackctl_server_get_drivers_list_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_get_drivers_list_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_get_parameters(
     server: *mut jackctl_server_t,
 ) -> Option<*const JSList> {
-    let f = FUNCTIONS.jackctl_server_get_parameters_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_get_parameters_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_get_internals_list(
     server: *mut jackctl_server_t,
 ) -> Option<*const JSList> {
-    let f = FUNCTIONS.jackctl_server_get_internals_list_impl?;
-    Some(f(server))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_get_internals_list_impl?;
+        Some(f(server))
+    }
 }
 pub unsafe fn jackctl_server_load_internal(
     server: *mut jackctl_server_t,
     internal: *mut jackctl_internal_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_load_internal_impl?;
-    Some(f(server, internal))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_load_internal_impl?;
+        Some(f(server, internal))
+    }
 }
 pub unsafe fn jackctl_server_unload_internal(
     server: *mut jackctl_server_t,
     internal: *mut jackctl_internal_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_unload_internal_impl?;
-    Some(f(server, internal))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_unload_internal_impl?;
+        Some(f(server, internal))
+    }
 }
 pub unsafe fn jackctl_server_add_slave(
     server: *mut jackctl_server_t,
     driver: *mut jackctl_driver_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_add_slave_impl?;
-    Some(f(server, driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_add_slave_impl?;
+        Some(f(server, driver))
+    }
 }
 pub unsafe fn jackctl_server_remove_slave(
     server: *mut jackctl_server_t,
     driver: *mut jackctl_driver_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_remove_slave_impl?;
-    Some(f(server, driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_remove_slave_impl?;
+        Some(f(server, driver))
+    }
 }
 pub unsafe fn jackctl_server_switch_master(
     server: *mut jackctl_server_t,
     driver: *mut jackctl_driver_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_server_switch_master_impl?;
-    Some(f(server, driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_server_switch_master_impl?;
+        Some(f(server, driver))
+    }
 }
 pub unsafe fn jackctl_driver_get_name(
     driver: *mut jackctl_driver_t,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_driver_get_name_impl?;
-    Some(f(driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_driver_get_name_impl?;
+        Some(f(driver))
+    }
 }
 pub unsafe fn jackctl_driver_get_type(
     driver: *mut jackctl_driver_t,
 ) -> Option<jackctl_driver_type_t> {
-    let f = FUNCTIONS.jackctl_driver_get_type_impl?;
-    Some(f(driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_driver_get_type_impl?;
+        Some(f(driver))
+    }
 }
 pub unsafe fn jackctl_driver_get_parameters(
     driver: *mut jackctl_driver_t,
 ) -> Option<*const JSList> {
-    let f = FUNCTIONS.jackctl_driver_get_parameters_impl?;
-    Some(f(driver))
+    unsafe {
+        let f = FUNCTIONS.jackctl_driver_get_parameters_impl?;
+        Some(f(driver))
+    }
 }
 pub unsafe fn jackctl_driver_params_parse(
     driver: *mut jackctl_driver_t,
     argc: ::libc::c_int,
     argv: *mut *mut ::libc::c_char,
 ) -> Option<::libc::c_int> {
-    let f = FUNCTIONS.jackctl_driver_params_parse_impl?;
-    Some(f(driver, argc, argv))
+    unsafe {
+        let f = FUNCTIONS.jackctl_driver_params_parse_impl?;
+        Some(f(driver, argc, argv))
+    }
 }
 pub unsafe fn jackctl_internal_get_name(
     internal: *mut jackctl_internal_t,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_internal_get_name_impl?;
-    Some(f(internal))
+    unsafe {
+        let f = FUNCTIONS.jackctl_internal_get_name_impl?;
+        Some(f(internal))
+    }
 }
 pub unsafe fn jackctl_internal_get_parameters(
     internal: *mut jackctl_internal_t,
 ) -> Option<*const JSList> {
-    let f = FUNCTIONS.jackctl_internal_get_parameters_impl?;
-    Some(f(internal))
+    unsafe {
+        let f = FUNCTIONS.jackctl_internal_get_parameters_impl?;
+        Some(f(internal))
+    }
 }
 pub unsafe fn jackctl_parameter_get_name(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_parameter_get_name_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_name_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_short_description(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_parameter_get_short_description_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_short_description_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_long_description(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_parameter_get_long_description_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_long_description_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_type(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<jackctl_param_type_t> {
-    let f = FUNCTIONS.jackctl_parameter_get_type_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_type_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_id(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<::libc::c_char> {
-    let f = FUNCTIONS.jackctl_parameter_get_id_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_id_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_is_set(parameter: *mut jackctl_parameter_t) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_is_set_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_is_set_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_reset(parameter: *mut jackctl_parameter_t) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_reset_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_reset_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_value(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<Union_jackctl_parameter_value> {
-    let f = FUNCTIONS.jackctl_parameter_get_value_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_value_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_set_value(
     parameter: *mut jackctl_parameter_t,
     value_ptr: *const Union_jackctl_parameter_value,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_set_value_impl?;
-    Some(f(parameter, value_ptr))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_set_value_impl?;
+        Some(f(parameter, value_ptr))
+    }
 }
 pub unsafe fn jackctl_parameter_get_default_value(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<Union_jackctl_parameter_value> {
-    let f = FUNCTIONS.jackctl_parameter_get_default_value_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_default_value_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_has_range_constraint(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_has_range_constraint_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_has_range_constraint_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_has_enum_constraint(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_has_enum_constraint_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_has_enum_constraint_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_enum_constraints_count(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<u32> {
-    let f = FUNCTIONS.jackctl_parameter_get_enum_constraints_count_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_enum_constraints_count_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_get_enum_constraint_value(
     parameter: *mut jackctl_parameter_t,
     index: u32,
 ) -> Option<Union_jackctl_parameter_value> {
-    let f = FUNCTIONS.jackctl_parameter_get_enum_constraint_value_impl?;
-    Some(f(parameter, index))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_enum_constraint_value_impl?;
+        Some(f(parameter, index))
+    }
 }
 pub unsafe fn jackctl_parameter_get_enum_constraint_description(
     parameter: *mut jackctl_parameter_t,
     index: u32,
 ) -> Option<*const ::libc::c_char> {
-    let f = FUNCTIONS.jackctl_parameter_get_enum_constraint_description_impl?;
-    Some(f(parameter, index))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_enum_constraint_description_impl?;
+        Some(f(parameter, index))
+    }
 }
 pub unsafe fn jackctl_parameter_get_range_constraint(
     parameter: *mut jackctl_parameter_t,
     min_ptr: *mut Union_jackctl_parameter_value,
     max_ptr: *mut Union_jackctl_parameter_value,
 ) -> Option<()> {
-    let f = FUNCTIONS.jackctl_parameter_get_range_constraint_impl?;
-    Some(f(parameter, min_ptr, max_ptr))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_get_range_constraint_impl?;
+        Some(f(parameter, min_ptr, max_ptr))
+    }
 }
 pub unsafe fn jackctl_parameter_constraint_is_strict(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_constraint_is_strict_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_constraint_is_strict_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jackctl_parameter_constraint_is_fake_value(
     parameter: *mut jackctl_parameter_t,
 ) -> Option<u8> {
-    let f = FUNCTIONS.jackctl_parameter_constraint_is_fake_value_impl?;
-    Some(f(parameter))
+    unsafe {
+        let f = FUNCTIONS.jackctl_parameter_constraint_is_fake_value_impl?;
+        Some(f(parameter))
+    }
 }
 pub unsafe fn jack_set_property(
     arg1: *mut jack_client_t,
@@ -3735,8 +4046,10 @@ pub unsafe fn jack_set_property(
     value: *const ::libc::c_char,
     _type: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_property_impl;
-    f(arg1, subject, key, value, _type)
+    unsafe {
+        let f = FUNCTIONS.jack_set_property_impl;
+        f(arg1, subject, key, value, _type)
+    }
 }
 pub unsafe fn jack_get_property(
     subject: jack_uuid_t,
@@ -3744,68 +4057,88 @@ pub unsafe fn jack_get_property(
     value: *mut *mut ::libc::c_char,
     _type: *mut *mut ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_get_property_impl;
-    f(subject, key, value, _type)
+    unsafe {
+        let f = FUNCTIONS.jack_get_property_impl;
+        f(subject, key, value, _type)
+    }
 }
 pub unsafe fn jack_free_description(
     desc: *mut jack_description_t,
     free_description_itself: ::libc::c_int,
 ) -> () {
-    let f = FUNCTIONS.jack_free_description_impl;
-    f(desc, free_description_itself)
+    unsafe {
+        let f = FUNCTIONS.jack_free_description_impl;
+        f(desc, free_description_itself)
+    }
 }
 pub unsafe fn jack_get_properties(
     subject: jack_uuid_t,
     desc: *mut jack_description_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_get_properties_impl;
-    f(subject, desc)
+    unsafe {
+        let f = FUNCTIONS.jack_get_properties_impl;
+        f(subject, desc)
+    }
 }
 pub unsafe fn jack_get_all_properties(descs: *mut *mut jack_description_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_get_all_properties_impl;
-    f(descs)
+    unsafe {
+        let f = FUNCTIONS.jack_get_all_properties_impl;
+        f(descs)
+    }
 }
 pub unsafe fn jack_remove_property(
     client: *mut jack_client_t,
     subject: jack_uuid_t,
     key: *const ::libc::c_char,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_remove_property_impl;
-    f(client, subject, key)
+    unsafe {
+        let f = FUNCTIONS.jack_remove_property_impl;
+        f(client, subject, key)
+    }
 }
 pub unsafe fn jack_remove_properties(
     client: *mut jack_client_t,
     subject: jack_uuid_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_remove_properties_impl;
-    f(client, subject)
+    unsafe {
+        let f = FUNCTIONS.jack_remove_properties_impl;
+        f(client, subject)
+    }
 }
 pub unsafe fn jack_remove_all_properties(client: *mut jack_client_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_remove_all_properties_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_remove_all_properties_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_set_property_change_callback(
     client: *mut jack_client_t,
     callback: JackPropertyChangeCallback,
     arg: *mut ::libc::c_void,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_set_property_change_callback_impl;
-    f(client, callback, arg)
+    unsafe {
+        let f = FUNCTIONS.jack_set_property_change_callback_impl;
+        f(client, callback, arg)
+    }
 }
 pub unsafe fn jack_get_internal_client_name(
     client: *mut jack_client_t,
     intclient: jack_intclient_t,
 ) -> Option<*mut ::libc::c_char> {
-    let f = FUNCTIONS.jack_get_internal_client_name_impl?;
-    Some(f(client, intclient))
+    unsafe {
+        let f = FUNCTIONS.jack_get_internal_client_name_impl?;
+        Some(f(client, intclient))
+    }
 }
 pub unsafe fn jack_internal_client_handle(
     client: *mut jack_client_t,
     client_name: *const ::libc::c_char,
     status: *mut jack_status_t,
 ) -> Option<jack_intclient_t> {
-    let f = FUNCTIONS.jack_internal_client_handle_impl?;
-    Some(f(client, client_name, status))
+    unsafe {
+        let f = FUNCTIONS.jack_internal_client_handle_impl?;
+        Some(f(client, client_name, status))
+    }
 }
 pub unsafe fn jack_internal_client_load(
     client: *mut jack_client_t,
@@ -3815,62 +4148,84 @@ pub unsafe fn jack_internal_client_load(
     load_name: *const ::libc::c_char,
     load_init: *const ::libc::c_char,
 ) -> Option<jack_intclient_t> {
-    let f = FUNCTIONS.jack_internal_client_load_impl?;
-    Some(f(
-        client,
-        client_name,
-        options,
-        status,
-        load_name,
-        load_init,
-    ))
+    unsafe {
+        let f = FUNCTIONS.jack_internal_client_load_impl?;
+        // `load_name` and `load_init` are C varargs. libjack only reads them when the matching option
+        // bit is set, in that order, so only pass the ones that will be consumed.
+        let has_name = options & JackLoadName != 0;
+        let has_init = options & JackLoadInit != 0;
+        Some(match (has_name, has_init) {
+            (true, true) => f(client, client_name, options, status, load_name, load_init),
+            (true, false) => f(client, client_name, options, status, load_name),
+            (false, true) => f(client, client_name, options, status, load_init),
+            (false, false) => f(client, client_name, options, status),
+        })
+    }
 }
 pub unsafe fn jack_internal_client_unload(
     client: *mut jack_client_t,
     intclient: jack_intclient_t,
 ) -> Option<jack_status_t> {
-    let f = FUNCTIONS.jack_internal_client_unload_impl?;
-    Some(f(client, intclient))
+    unsafe {
+        let f = FUNCTIONS.jack_internal_client_unload_impl?;
+        Some(f(client, intclient))
+    }
 }
 pub unsafe fn jack_get_max_delayed_usecs(client: *mut jack_client_t) -> ::libc::c_float {
-    let f = FUNCTIONS.jack_get_max_delayed_usecs_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_max_delayed_usecs_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_get_xrun_delayed_usecs(client: *mut jack_client_t) -> ::libc::c_float {
-    let f = FUNCTIONS.jack_get_xrun_delayed_usecs_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_get_xrun_delayed_usecs_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_reset_max_delayed_usecs(client: *mut jack_client_t) -> () {
-    let f = FUNCTIONS.jack_reset_max_delayed_usecs_impl;
-    f(client)
+    unsafe {
+        let f = FUNCTIONS.jack_reset_max_delayed_usecs_impl;
+        f(client)
+    }
 }
 pub unsafe fn jack_midi_get_event_count(port_buffer: *mut ::libc::c_void) -> u32 {
-    let f = FUNCTIONS.jack_midi_get_event_count_impl;
-    f(port_buffer)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_get_event_count_impl;
+        f(port_buffer)
+    }
 }
 pub unsafe fn jack_midi_event_get(
     event: *mut jack_midi_event_t,
     port_buffer: *mut ::libc::c_void,
     event_index: u32,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_midi_event_get_impl;
-    f(event, port_buffer, event_index)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_event_get_impl;
+        f(event, port_buffer, event_index)
+    }
 }
 pub unsafe fn jack_midi_clear_buffer(port_buffer: *mut ::libc::c_void) -> () {
-    let f = FUNCTIONS.jack_midi_clear_buffer_impl;
-    f(port_buffer)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_clear_buffer_impl;
+        f(port_buffer)
+    }
 }
 pub unsafe fn jack_midi_max_event_size(port_buffer: *mut ::libc::c_void) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_midi_max_event_size_impl;
-    f(port_buffer)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_max_event_size_impl;
+        f(port_buffer)
+    }
 }
 pub unsafe fn jack_midi_event_reserve(
     port_buffer: *mut ::libc::c_void,
     time: jack_nframes_t,
     data_size: ::libc::size_t,
 ) -> *mut jack_midi_data_t {
-    let f = FUNCTIONS.jack_midi_event_reserve_impl;
-    f(port_buffer, time, data_size)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_event_reserve_impl;
+        f(port_buffer, time, data_size)
+    }
 }
 pub unsafe fn jack_midi_event_write(
     port_buffer: *mut ::libc::c_void,
@@ -3878,111 +4233,155 @@ pub unsafe fn jack_midi_event_write(
     data: *const jack_midi_data_t,
     data_size: ::libc::size_t,
 ) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_midi_event_write_impl;
-    f(port_buffer, time, data, data_size)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_event_write_impl;
+        f(port_buffer, time, data, data_size)
+    }
 }
 pub unsafe fn jack_midi_get_lost_event_count(port_buffer: *mut ::libc::c_void) -> u32 {
-    let f = FUNCTIONS.jack_midi_get_lost_event_count_impl;
-    f(port_buffer)
+    unsafe {
+        let f = FUNCTIONS.jack_midi_get_lost_event_count_impl;
+        f(port_buffer)
+    }
 }
 pub unsafe fn jack_ringbuffer_create(sz: ::libc::size_t) -> *mut jack_ringbuffer_t {
-    let f = FUNCTIONS.jack_ringbuffer_create_impl;
-    f(sz)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_create_impl;
+        f(sz)
+    }
 }
 pub unsafe fn jack_ringbuffer_free(rb: *mut jack_ringbuffer_t) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_free_impl;
-    f(rb)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_free_impl;
+        f(rb)
+    }
 }
 pub unsafe fn jack_ringbuffer_get_read_vector(
     rb: *const jack_ringbuffer_t,
     vec: *mut jack_ringbuffer_data_t,
 ) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_get_read_vector_impl;
-    f(rb, vec)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_get_read_vector_impl;
+        f(rb, vec)
+    }
 }
 pub unsafe fn jack_ringbuffer_get_write_vector(
     rb: *const jack_ringbuffer_t,
     vec: *mut jack_ringbuffer_data_t,
 ) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_get_write_vector_impl;
-    f(rb, vec)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_get_write_vector_impl;
+        f(rb, vec)
+    }
 }
 pub unsafe fn jack_ringbuffer_read(
     rb: *mut jack_ringbuffer_t,
     dest: *mut ::libc::c_char,
     cnt: ::libc::size_t,
 ) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_ringbuffer_read_impl;
-    f(rb, dest, cnt)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_read_impl;
+        f(rb, dest, cnt)
+    }
 }
 pub unsafe fn jack_ringbuffer_peek(
     rb: *mut jack_ringbuffer_t,
     dest: *mut ::libc::c_char,
     cnt: ::libc::size_t,
 ) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_ringbuffer_peek_impl;
-    f(rb, dest, cnt)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_peek_impl;
+        f(rb, dest, cnt)
+    }
 }
 pub unsafe fn jack_ringbuffer_read_advance(rb: *mut jack_ringbuffer_t, cnt: ::libc::size_t) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_read_advance_impl;
-    f(rb, cnt)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_read_advance_impl;
+        f(rb, cnt)
+    }
 }
 pub unsafe fn jack_ringbuffer_read_space(rb: *const jack_ringbuffer_t) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_ringbuffer_read_space_impl;
-    f(rb)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_read_space_impl;
+        f(rb)
+    }
 }
 pub unsafe fn jack_ringbuffer_mlock(rb: *mut jack_ringbuffer_t) -> ::libc::c_int {
-    let f = FUNCTIONS.jack_ringbuffer_mlock_impl;
-    f(rb)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_mlock_impl;
+        f(rb)
+    }
 }
 pub unsafe fn jack_ringbuffer_reset(rb: *mut jack_ringbuffer_t) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_reset_impl;
-    f(rb)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_reset_impl;
+        f(rb)
+    }
 }
 pub unsafe fn jack_ringbuffer_write(
     rb: *mut jack_ringbuffer_t,
     src: *const ::libc::c_char,
     cnt: ::libc::size_t,
 ) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_ringbuffer_write_impl;
-    f(rb, src, cnt)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_write_impl;
+        f(rb, src, cnt)
+    }
 }
 pub unsafe fn jack_ringbuffer_write_advance(rb: *mut jack_ringbuffer_t, cnt: ::libc::size_t) -> () {
-    let f = FUNCTIONS.jack_ringbuffer_write_advance_impl;
-    f(rb, cnt)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_write_advance_impl;
+        f(rb, cnt)
+    }
 }
 pub unsafe fn jack_ringbuffer_write_space(rb: *const jack_ringbuffer_t) -> ::libc::size_t {
-    let f = FUNCTIONS.jack_ringbuffer_write_space_impl;
-    f(rb)
+    unsafe {
+        let f = FUNCTIONS.jack_ringbuffer_write_space_impl;
+        f(rb)
+    }
 }
 pub unsafe fn jack_uuid_to_index(arg1: jack_uuid_t) -> u32 {
-    let f = FUNCTIONS.jack_uuid_to_index_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_to_index_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_uuid_compare(arg1: jack_uuid_t, arg2: jack_uuid_t) -> ::std::os::raw::c_int {
-    let f = FUNCTIONS.jack_uuid_compare_impl;
-    f(arg1, arg2)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_compare_impl;
+        f(arg1, arg2)
+    }
 }
 pub unsafe fn jack_uuid_copy(dst: *mut jack_uuid_t, src: jack_uuid_t) -> () {
-    let f = FUNCTIONS.jack_uuid_copy_impl;
-    f(dst, src)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_copy_impl;
+        f(dst, src)
+    }
 }
 pub unsafe fn jack_uuid_clear(arg1: *mut jack_uuid_t) -> () {
-    let f = FUNCTIONS.jack_uuid_clear_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_clear_impl;
+        f(arg1)
+    }
 }
 pub unsafe fn jack_uuid_parse(
     buf: *const ::std::os::raw::c_char,
     arg1: *mut jack_uuid_t,
 ) -> ::std::os::raw::c_int {
-    let f = FUNCTIONS.jack_uuid_parse_impl;
-    f(buf, arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_parse_impl;
+        f(buf, arg1)
+    }
 }
 pub unsafe fn jack_uuid_unparse(arg1: jack_uuid_t, buf: *mut ::std::os::raw::c_char) -> () {
-    let f = FUNCTIONS.jack_uuid_unparse_impl;
-    f(arg1, buf)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_unparse_impl;
+        f(arg1, buf)
+    }
 }
 pub unsafe fn jack_uuid_empty(arg1: jack_uuid_t) -> ::std::os::raw::c_int {
-    let f = FUNCTIONS.jack_uuid_empty_impl;
-    f(arg1)
+    unsafe {
+        let f = FUNCTIONS.jack_uuid_empty_impl;
+        f(arg1)
+    }
 }

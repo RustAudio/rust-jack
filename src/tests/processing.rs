@@ -7,9 +7,10 @@ fn panic_in_process_handler_propagates_as_error_in_deactivate() {
         panic!("panic should convert to error!");
     });
     let ac = client.activate_async((), process_handler).unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
@@ -26,9 +27,10 @@ fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
         move |_, _, _| crate::Control::Continue,
     );
     let ac = client.activate_async((), handler).unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
@@ -48,9 +50,10 @@ fn quitting_stops_calling_process() {
     eprintln!("Activating client.");
     let ac = client.activate_async((), process_handler).unwrap();
     eprintln!("Waiting for async response.");
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     ac.deactivate().unwrap();
 }
 
@@ -69,9 +72,10 @@ fn quitting_buffer_size_never_runs_process() {
         },
     );
     let ac = client.activate_async((), handler).unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     // Give the process handler some time to try to run.
     std::thread::sleep(std::time::Duration::from_millis(500));
     ac.deactivate().unwrap();
@@ -97,9 +101,10 @@ fn buffer_size_is_called_before_process() {
         },
     );
     let ac = client.activate_async((), process_handler).unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(5))
+            .unwrap()
+    );
     assert_eq!(ac.deactivate().unwrap().2.state, "processing");
 }
 
@@ -141,9 +146,10 @@ fn signals_in_audio_ports_are_forwarded() {
     ac.as_client()
         .connect_ports_by_name(&output_name, &input_name)
         .unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     ac.deactivate().unwrap();
 }
 
@@ -190,9 +196,10 @@ fn messages_in_midi_ports_are_forwarded() {
     ac.as_client()
         .connect_ports_by_name(&output_name, &input_name)
         .unwrap();
-    assert!(recv
-        .recv_timeout(std::time::Duration::from_secs(1))
-        .unwrap());
+    assert!(
+        recv.recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap()
+    );
     ac.deactivate().unwrap();
 }
 

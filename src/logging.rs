@@ -96,47 +96,55 @@ fn set_logger_impl(logger: LoggerType) {
 
 #[cfg(feature = "log")]
 unsafe extern "C" fn error_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::error!("{}", msg),
-        Err(err) => log::error!("failed to log to JACK error: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
+    unsafe {
+        let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+            Ok(msg) => log::error!("{}", msg),
+            Err(err) => log::error!("failed to log to JACK error: {:?}", err),
+        });
+        if let Err(err) = res {
+            eprintln!("{err:?}");
+            std::mem::forget(err);
+        }
     }
 }
 
 #[cfg(feature = "log")]
 unsafe extern "C" fn info_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => log::info!("{}", msg),
-        Err(err) => log::error!("failed to log to JACK info: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
+    unsafe {
+        let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+            Ok(msg) => log::info!("{}", msg),
+            Err(err) => log::error!("failed to log to JACK info: {:?}", err),
+        });
+        if let Err(err) = res {
+            eprintln!("{err:?}");
+            std::mem::forget(err);
+        }
     }
 }
 
 unsafe extern "C" fn stderr_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => eprintln!("{}", msg),
-        Err(err) => eprintln!("failed to log to JACK error: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
+    unsafe {
+        let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+            Ok(msg) => eprintln!("{}", msg),
+            Err(err) => eprintln!("failed to log to JACK error: {:?}", err),
+        });
+        if let Err(err) = res {
+            eprintln!("{err:?}");
+            std::mem::forget(err);
+        }
     }
 }
 
 unsafe extern "C" fn stdout_handler(msg: *const libc::c_char) {
-    let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
-        Ok(msg) => println!("{}", msg),
-        Err(err) => println!("failed to log to JACK info: {:?}", err),
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
+    unsafe {
+        let res = catch_unwind(|| match std::ffi::CStr::from_ptr(msg).to_str() {
+            Ok(msg) => println!("{}", msg),
+            Err(err) => println!("failed to log to JACK info: {:?}", err),
+        });
+        if let Err(err) = res {
+            eprintln!("{err:?}");
+            std::mem::forget(err);
+        }
     }
 }
 

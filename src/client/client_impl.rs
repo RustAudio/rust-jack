@@ -220,16 +220,18 @@ impl Client {
 
     //helper to get client name from uuid string.
     unsafe fn name_by_uuid_raw(&self, uuid: *const ::libc::c_char) -> Option<String> {
-        let name_ptr = j::jack_get_client_name_by_uuid(self.raw(), uuid);
-        if name_ptr.is_null() {
-            None
-        } else {
-            Some(
-                ffi::CStr::from_ptr(name_ptr)
-                    .to_str()
-                    .expect("name convert to a valid str")
-                    .to_string(),
-            )
+        unsafe {
+            let name_ptr = j::jack_get_client_name_by_uuid(self.raw(), uuid);
+            if name_ptr.is_null() {
+                None
+            } else {
+                Some(
+                    ffi::CStr::from_ptr(name_ptr)
+                        .to_str()
+                        .expect("name convert to a valid str")
+                        .to_string(),
+                )
+            }
         }
     }
 
@@ -628,8 +630,10 @@ impl Client {
     ///
     /// * This function may only be called in a buffer size callback.
     pub unsafe fn type_buffer_size(&self, port_type: &str) -> usize {
-        let port_type = ffi::CString::new(port_type).unwrap();
-        j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr())
+        unsafe {
+            let port_type = ffi::CString::new(port_type).unwrap();
+            j::jack_port_type_get_buffer_size(self.raw(), port_type.as_ptr())
+        }
     }
 
     /// Expose the underlying ffi pointer.

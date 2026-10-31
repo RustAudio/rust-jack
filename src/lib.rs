@@ -36,14 +36,14 @@
 #[allow(deprecated)]
 pub use crate::client::ClosureProcessHandler;
 pub use crate::client::{
-    AsyncClient, Client, ClientHandle, ClientOptions, ClientStatus, CycleTimes, InternalClientID,
-    NotificationHandler, ProcessHandler, ProcessScope, CLIENT_NAME_SIZE,
+    AsyncClient, CLIENT_NAME_SIZE, Client, ClientHandle, ClientOptions, ClientStatus, CycleTimes,
+    InternalClientID, NotificationHandler, ProcessHandler, ProcessScope,
 };
 pub use crate::jack_enums::{Control, Error, LatencyType};
-pub use crate::logging::{set_logger, LoggerType};
+pub use crate::logging::{LoggerType, set_logger};
 pub use crate::port::{
-    AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, Port, PortFlags, PortSpec, RawMidi,
-    Unowned, PORT_NAME_SIZE, PORT_TYPE_SIZE,
+    AudioIn, AudioOut, MidiIn, MidiIter, MidiOut, MidiWriter, PORT_NAME_SIZE, PORT_TYPE_SIZE, Port,
+    PortFlags, PortSpec, RawMidi, Unowned,
 };
 pub use crate::primitive_types::{Frames, PortId, Time};
 pub use crate::properties::*;

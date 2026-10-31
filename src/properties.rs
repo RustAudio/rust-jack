@@ -31,27 +31,29 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
 ) where
     P: PropertyChangeHandler,
 {
-    let res = catch_unwind(|| {
-        let h: &mut P = &mut *(arg as *mut P);
-        let key_c = std::ffi::CStr::from_ptr(key);
-        let key = key_c.to_str().expect("to convert key to valid str");
-        let c = match change {
-            j::PropertyCreated => PropertyChange::Created { subject, key },
-            j::PropertyDeleted => PropertyChange::Deleted { subject, key },
-            _ => PropertyChange::Changed { subject, key },
-        };
-        h.property_changed(&c);
-    });
-    if let Err(err) = res {
-        eprintln!("{err:?}");
-        std::mem::forget(err);
+    unsafe {
+        let res = catch_unwind(|| {
+            let h: &mut P = &mut *(arg as *mut P);
+            let key_c = std::ffi::CStr::from_ptr(key);
+            let key = key_c.to_str().expect("to convert key to valid str");
+            let c = match change {
+                j::PropertyCreated => PropertyChange::Created { subject, key },
+                j::PropertyDeleted => PropertyChange::Deleted { subject, key },
+                _ => PropertyChange::Changed { subject, key },
+            };
+            h.property_changed(&c);
+        });
+        if let Err(err) = res {
+            eprintln!("{err:?}");
+            std::mem::forget(err);
+        }
     }
 }
 
 pub use metadata::*;
 
 mod metadata {
-    use super::{j, uuid, PropertyChange, PropertyChangeHandler};
+    use super::{PropertyChange, PropertyChangeHandler, j, uuid};
     use crate::Error;
     use std::{
         collections::HashMap,
@@ -122,14 +124,16 @@ mod metadata {
     /// Convert a property type from JACK. Servers report a missing type either as NULL (jackd2) or
     /// as an empty string (PipeWire), so both become `None`.
     unsafe fn property_type(typ: *const ::libc::c_char) -> Option<String> {
-        if typ.is_null() {
-            return None;
-        }
-        let typ = ffi::CStr::from_ptr(typ).to_string_lossy();
-        if typ.is_empty() {
-            None
-        } else {
-            Some(typ.into_owned())
+        unsafe {
+            if typ.is_null() {
+                return None;
+            }
+            let typ = ffi::CStr::from_ptr(typ).to_string_lossy();
+            if typ.is_empty() {
+                None
+            } else {
+                Some(typ.into_owned())
+            }
         }
     }
 
@@ -137,26 +141,28 @@ mod metadata {
     unsafe fn description_to_map_free(
         description: *mut j::jack_description_t,
     ) -> Option<PropertyMap> {
-        let description = NonNull::new(description)?;
-        let mut properties = HashMap::new();
-        let len = description.as_ref().property_cnt;
-        // The check is required as from_raw_parts doesn't like receiving a null ptr, even if the
-        // length is 0.
-        if len > 0 {
-            let properties_slice =
-                std::slice::from_raw_parts(description.as_ref().properties, len as usize);
-            for prop in properties_slice {
-                // Lossy conversions so that non-UTF-8 data from other clients can't panic and leak
-                // `description`.
-                let typ = property_type(prop._type);
-                properties.insert(
-                    ffi::CStr::from_ptr(prop.key).to_string_lossy().into_owned(),
-                    Property::new(ffi::CStr::from_ptr(prop.data).to_string_lossy(), typ),
-                );
+        unsafe {
+            let description = NonNull::new(description)?;
+            let mut properties = HashMap::new();
+            let len = description.as_ref().property_cnt;
+            // The check is required as from_raw_parts doesn't like receiving a null ptr, even if the
+            // length is 0.
+            if len > 0 {
+                let properties_slice =
+                    std::slice::from_raw_parts(description.as_ref().properties, len as usize);
+                for prop in properties_slice {
+                    // Lossy conversions so that non-UTF-8 data from other clients can't panic and leak
+                    // `description`.
+                    let typ = property_type(prop._type);
+                    properties.insert(
+                        ffi::CStr::from_ptr(prop.key).to_string_lossy().into_owned(),
+                        Property::new(ffi::CStr::from_ptr(prop.data).to_string_lossy(), typ),
+                    );
+                }
             }
+            j::jack_free_description(description.as_ptr(), 0);
+            Some(properties)
         }
-        j::jack_free_description(description.as_ptr(), 0);
-        Some(properties)
     }
 
     impl Property {
@@ -362,7 +368,7 @@ mod metadata {
     mod tests {
         use super::*;
         use crate::client::{Client, ClientOptions};
-        use std::sync::mpsc::{channel, Sender};
+        use std::sync::mpsc::{Sender, channel};
 
         #[test]
         fn can_set_and_get() {

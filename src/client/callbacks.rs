@@ -127,18 +127,20 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        ctx.notification.thread_init(&ctx.client);
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            ctx.notification.thread_init(&ctx.client);
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -150,23 +152,25 @@ unsafe extern "C" fn shutdown<N, P>(
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        let cstr = ffi::CStr::from_ptr(reason);
-        let reason_str = cstr.to_str().unwrap_or("Failed to interpret error.");
-        ctx.notification.shutdown(
-            ClientStatus::from_bits(code).unwrap_or_else(ClientStatus::empty),
-            reason_str,
-        );
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            let cstr = ffi::CStr::from_ptr(reason);
+            let reason_str = cstr.to_str().unwrap_or("Failed to interpret error.");
+            ctx.notification.shutdown(
+                ClientStatus::from_bits(code).unwrap_or_else(ClientStatus::empty),
+                reason_str,
+            );
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -175,32 +179,34 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let Some(ctx_ref) = (unsafe { (data as *const CallbackContext<N, P>).as_ref() }) else {
-        return Control::Quit.to_ffi();
-    };
-    let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
-        return Control::Quit.to_ffi();
-    };
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
+    unsafe {
+        let Some(ctx_ref) = (data as *const CallbackContext<N, P>).as_ref() else {
+            return Control::Quit.to_ffi();
         };
-        let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
-        let c = ctx.process.process(&ctx.client, &scope);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(res) => res.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+        let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
+            return Control::Quit.to_ffi();
+        };
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let scope = ProcessScope::from_raw(n_frames, ctx.client.raw());
+            let c = ctx.process.process(&ctx.client, &scope);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("JACK process callback panicked.\n{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(res) => res.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("JACK process callback panicked.\n{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -214,30 +220,32 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return false;
-        };
-        let is_ready = ctx.process.sync(
-            &ctx.client,
-            crate::Transport::state_from_ffi(state),
-            &*(pos as *mut crate::TransportPosition),
-        );
-        if !is_ready {
-            ctx.mark_invalid(false);
-        }
-        is_ready
-    });
-    match res {
-        Ok(true) => 1,
-        Ok(false) => 0,
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return false;
+            };
+            let is_ready = ctx.process.sync(
+                &ctx.client,
+                crate::Transport::state_from_ffi(state),
+                &*(pos as *mut crate::TransportPosition),
+            );
+            if !is_ready {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            0
+            is_ready
+        });
+        match res {
+            Ok(true) => 1,
+            Ok(false) => 0,
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                0
+            }
         }
     }
 }
@@ -247,19 +255,21 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        let is_starting = !matches!(starting, 0);
-        ctx.notification.freewheel(&ctx.client, is_starting);
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            let is_starting = !matches!(starting, 0);
+            ctx.notification.freewheel(&ctx.client, is_starting);
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -268,31 +278,33 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let Some(ctx_ref) = (unsafe { (data as *const CallbackContext<N, P>).as_ref() }) else {
-        return Control::Quit.to_ffi();
-    };
-    let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
-        return Control::Quit.to_ffi();
-    };
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
+    unsafe {
+        let Some(ctx_ref) = (data as *const CallbackContext<N, P>).as_ref() else {
+            return Control::Quit.to_ffi();
         };
-        let c = ctx.process.buffer_size(&ctx.client, n_frames);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(c) => c.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+        let Ok(_guard) = ctx_ref.callback_lock.try_lock() else {
+            return Control::Quit.to_ffi();
+        };
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let c = ctx.process.buffer_size(&ctx.client, n_frames);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(c) => c.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -302,25 +314,27 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
-        };
-        let c = ctx.notification.sample_rate(&ctx.client, n_frames);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(c) => c.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let c = ctx.notification.sample_rate(&ctx.client, n_frames);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(c) => c.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -333,21 +347,23 @@ unsafe extern "C" fn client_registration<N, P>(
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        let name = ffi::CStr::from_ptr(name).to_str().unwrap();
-        let register = !matches!(register, 0);
-        ctx.notification
-            .client_registration(&ctx.client, name, register);
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            let name = ffi::CStr::from_ptr(name).to_str().unwrap();
+            let register = !matches!(register, 0);
+            ctx.notification
+                .client_registration(&ctx.client, name, register);
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -359,20 +375,22 @@ unsafe extern "C" fn port_registration<N, P>(
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        let register = !matches!(register, 0);
-        ctx.notification
-            .port_registration(&ctx.client, port_id, register);
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            let register = !matches!(register, 0);
+            ctx.notification
+                .port_registration(&ctx.client, port_id, register);
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -387,29 +405,31 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
-        };
-        let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
-        let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
-        let c = ctx
-            .notification
-            .port_rename(&ctx.client, port_id, old_name, new_name);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(c) => c.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let old_name = ffi::CStr::from_ptr(old_name).to_str().unwrap();
+            let new_name = ffi::CStr::from_ptr(new_name).to_str().unwrap();
+            let c = ctx
+                .notification
+                .port_rename(&ctx.client, port_id, old_name, new_name);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(c) => c.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -423,20 +443,22 @@ unsafe extern "C" fn port_connect<N, P>(
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return;
-        };
-        let are_connected = !matches!(connect, 0);
-        ctx.notification
-            .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected);
-    });
-    if let Err(err) = res {
-        if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-            ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return;
+            };
+            let are_connected = !matches!(connect, 0);
+            ctx.notification
+                .ports_connected(&ctx.client, port_id_a, port_id_b, are_connected);
+        });
+        if let Err(err) = res {
+            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                ctx.mark_invalid(true)
+            }
+            eprintln!("{err:?}");
+            std::mem::forget(err);
         }
-        eprintln!("{err:?}");
-        std::mem::forget(err);
     }
 }
 
@@ -445,25 +467,27 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
-        };
-        let c = ctx.notification.graph_reorder(&ctx.client);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(c) => c.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let c = ctx.notification.graph_reorder(&ctx.client);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(c) => c.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -473,25 +497,27 @@ where
     N: 'static + Send + Sync + NotificationHandler,
     P: 'static + Send + ProcessHandler,
 {
-    let res = catch_unwind(|| {
-        let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
-            return Control::Quit;
-        };
-        let c = ctx.notification.xrun(&ctx.client);
-        if c == Control::Quit {
-            ctx.mark_invalid(false);
-        }
-        c
-    });
-    match res {
-        Ok(c) => c.to_ffi(),
-        Err(err) => {
-            if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
-                ctx.mark_invalid(true)
+    unsafe {
+        let res = catch_unwind(|| {
+            let Some(ctx) = CallbackContext::<N, P>::from_raw(data) else {
+                return Control::Quit;
+            };
+            let c = ctx.notification.xrun(&ctx.client);
+            if c == Control::Quit {
+                ctx.mark_invalid(false);
             }
-            eprintln!("{err:?}");
-            std::mem::forget(err);
-            Control::Quit.to_ffi()
+            c
+        });
+        match res {
+            Ok(c) => c.to_ffi(),
+            Err(err) => {
+                if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
+                    ctx.mark_invalid(true)
+                }
+                eprintln!("{err:?}");
+                std::mem::forget(err);
+                Control::Quit.to_ffi()
+            }
         }
     }
 }
@@ -507,26 +533,28 @@ unsafe extern "C" fn noop_thread_init_callback(_: *mut libc::c_void) {}
 /// # Safety
 /// The pointer must refer to a valid, inactive JACK client.
 pub unsafe fn clear_callbacks(client: *mut j::jack_client_t) -> Result<(), Error> {
-    let data = std::ptr::null_mut();
-    j::jack_on_info_shutdown(client, None, data);
-    let results = [
-        // jackd2 rejects a null thread init callback, so install a no-op instead.
-        j::jack_set_thread_init_callback(client, Some(noop_thread_init_callback), data),
-        j::jack_set_process_callback(client, None, data),
-        j::jack_set_sync_callback(client, None, data),
-        j::jack_set_freewheel_callback(client, None, data),
-        j::jack_set_buffer_size_callback(client, None, data),
-        j::jack_set_sample_rate_callback(client, None, data),
-        j::jack_set_client_registration_callback(client, None, data),
-        j::jack_set_port_registration_callback(client, None, data),
-        j::jack_set_port_connect_callback(client, None, data),
-        j::jack_set_graph_order_callback(client, None, data),
-        j::jack_set_xrun_callback(client, None, data),
-    ];
-    if results.iter().any(|&result| result != 0) {
-        Err(Error::CallbackDeregistrationError)
-    } else {
-        Ok(())
+    unsafe {
+        let data = std::ptr::null_mut();
+        j::jack_on_info_shutdown(client, None, data);
+        let results = [
+            // jackd2 rejects a null thread init callback, so install a no-op instead.
+            j::jack_set_thread_init_callback(client, Some(noop_thread_init_callback), data),
+            j::jack_set_process_callback(client, None, data),
+            j::jack_set_sync_callback(client, None, data),
+            j::jack_set_freewheel_callback(client, None, data),
+            j::jack_set_buffer_size_callback(client, None, data),
+            j::jack_set_sample_rate_callback(client, None, data),
+            j::jack_set_client_registration_callback(client, None, data),
+            j::jack_set_port_registration_callback(client, None, data),
+            j::jack_set_port_connect_callback(client, None, data),
+            j::jack_set_graph_order_callback(client, None, data),
+            j::jack_set_xrun_callback(client, None, data),
+        ];
+        if results.iter().any(|&result| result != 0) {
+            Err(Error::CallbackDeregistrationError)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -558,13 +586,15 @@ where
     P: 'static + Send + ProcessHandler,
 {
     pub unsafe fn from_raw<'a>(ptr: *mut libc::c_void) -> Option<&'a mut CallbackContext<N, P>> {
-        debug_assert!(!ptr.is_null());
-        let obj_ptr = ptr as *mut CallbackContext<N, P>;
-        let obj_ref = &mut *obj_ptr;
-        if obj_ref.is_valid_for_callback.load(Ordering::Relaxed) {
-            Some(obj_ref)
-        } else {
-            None
+        unsafe {
+            debug_assert!(!ptr.is_null());
+            let obj_ptr = ptr as *mut CallbackContext<N, P>;
+            let obj_ref = &mut *obj_ptr;
+            if obj_ref.is_valid_for_callback.load(Ordering::Relaxed) {
+                Some(obj_ref)
+            } else {
+                None
+            }
         }
     }
 
@@ -613,28 +643,34 @@ where
     /// * makes ffi calls
     /// * `handler` will not be automatically deallocated.
     pub unsafe fn register_callbacks(b: &mut Box<Self>) -> Result<(), Error> {
-        let data_ptr = CallbackContext::raw(b);
-        let client = b.client.raw();
-        j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
-        j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
-        j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
-        if P::SLOW_SYNC {
-            j::jack_set_sync_callback(client, Some(sync::<N, P>), data_ptr);
+        unsafe {
+            let data_ptr = CallbackContext::raw(b);
+            let client = b.client.raw();
+            j::jack_set_thread_init_callback(client, Some(thread_init_callback::<N, P>), data_ptr);
+            j::jack_on_info_shutdown(client, Some(shutdown::<N, P>), data_ptr);
+            j::jack_set_process_callback(client, Some(process::<N, P>), data_ptr);
+            if P::SLOW_SYNC {
+                j::jack_set_sync_callback(client, Some(sync::<N, P>), data_ptr);
+            }
+            j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
+            j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
+            j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
+            j::jack_set_client_registration_callback(
+                client,
+                Some(client_registration::<N, P>),
+                data_ptr,
+            );
+            j::jack_set_port_registration_callback(
+                client,
+                Some(port_registration::<N, P>),
+                data_ptr,
+            );
+            // doesn't compile for testing since it is a weak export
+            // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
+            j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
+            j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
+            j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
+            Ok(())
         }
-        j::jack_set_freewheel_callback(client, Some(freewheel::<N, P>), data_ptr);
-        j::jack_set_buffer_size_callback(client, Some(buffer_size::<N, P>), data_ptr);
-        j::jack_set_sample_rate_callback(client, Some(sample_rate::<N, P>), data_ptr);
-        j::jack_set_client_registration_callback(
-            client,
-            Some(client_registration::<N, P>),
-            data_ptr,
-        );
-        j::jack_set_port_registration_callback(client, Some(port_registration::<N, P>), data_ptr);
-        // doesn't compile for testing since it is a weak export
-        // j::jack_set_port_rename_callback(client, Some(port_rename::<N, P), data_ptr);
-        j::jack_set_port_connect_callback(client, Some(port_connect::<N, P>), data_ptr);
-        j::jack_set_graph_order_callback(client, Some(graph_order::<N, P>), data_ptr);
-        j::jack_set_xrun_callback(client, Some(xrun::<N, P>), data_ptr);
-        Ok(())
     }
 }

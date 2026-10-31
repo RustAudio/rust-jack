@@ -255,8 +255,18 @@ pub unsafe fn jack_internal_client_unload(
 ) -> Option<jack_status_t> {
     None
 }
+/// Calls `jack_client_open` with `JackServerName` set, passing `server_name` as the variadic
+/// argument that option requires.
+pub unsafe fn jack_client_open_with_server_name(
+    client_name: *const ::libc::c_char,
+    options: jack_options_t,
+    status: *mut jack_status_t,
+    server_name: *const ::libc::c_char,
+) -> *mut jack_client_t {
+    unsafe { jack_client_open(client_name, options | JackServerName, status, server_name) }
+}
 #[link(name = "jack")]
-extern "C" {
+unsafe extern "C" {
     pub fn jack_release_timebase(client: *mut jack_client_t) -> ::libc::c_int;
     pub fn jack_set_sync_callback(
         client: *mut jack_client_t,
@@ -264,7 +274,7 @@ extern "C" {
         sync_arg: *mut ::libc::c_void,
     ) -> ::libc::c_int;
     pub fn jack_set_sync_timeout(client: *mut jack_client_t, timeout: jack_time_t)
-        -> ::libc::c_int;
+    -> ::libc::c_int;
     pub fn jack_set_timebase_callback(
         client: *mut jack_client_t,
         conditional: ::libc::c_int,
@@ -298,6 +308,7 @@ extern "C" {
         client_name: *const ::libc::c_char,
         options: jack_options_t,
         status: *mut jack_status_t,
+        ...
     ) -> *mut jack_client_t;
     pub fn jack_client_new(client_name: *const ::libc::c_char) -> *mut jack_client_t;
     pub fn jack_client_close(client: *mut jack_client_t) -> ::libc::c_int;
@@ -454,7 +465,7 @@ extern "C" {
         aliases: *mut *mut ::libc::c_char,
     ) -> ::libc::c_int;
     pub fn jack_port_request_monitor(port: *mut jack_port_t, onoff: ::libc::c_int)
-        -> ::libc::c_int;
+    -> ::libc::c_int;
     pub fn jack_port_request_monitor_by_name(
         client: *mut jack_client_t,
         port_name: *const ::libc::c_char,
@@ -514,7 +525,7 @@ extern "C" {
         port_name: *const ::libc::c_char,
     ) -> *mut jack_port_t;
     pub fn jack_port_by_id(client: *mut jack_client_t, port_id: jack_port_id_t)
-        -> *mut jack_port_t;
+    -> *mut jack_port_t;
     pub fn jack_frames_since_cycle_start(arg1: *const jack_client_t) -> jack_nframes_t;
     pub fn jack_frame_time(arg1: *const jack_client_t) -> jack_nframes_t;
     pub fn jack_last_frame_time(client: *const jack_client_t) -> jack_nframes_t;

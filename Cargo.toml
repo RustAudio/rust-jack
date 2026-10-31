@@ -2,7 +2,7 @@
 authors = ["Will S. Medrano <will.s.medrano@gmail.com>"]
 description = "Real time audio and midi with JACK."
 documentation = "https://docs.rs/jack"
-edition = "2018"
+edition = "2024"
 keywords = ["jack", "realtime", "audio", "midi", "music"]
 license = "MIT"
 name = "jack"

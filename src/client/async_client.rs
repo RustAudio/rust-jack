@@ -5,9 +5,9 @@ use std::sync::atomic::AtomicBool;
 
 use super::callbacks::clear_callbacks;
 use super::callbacks::{CallbackContext, NotificationHandler, ProcessHandler};
+use crate::Error;
 use crate::client::client_impl::Client;
 use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
-use crate::Error;
 
 /// A JACK client that is processing data asynchronously, in real-time.
 ///
@@ -196,9 +196,9 @@ mod tests {
     use super::*;
     use crate::{AudioIn, ClientOptions, Control, Port, ProcessScope, Unowned};
     use std::sync::{
-        atomic::{AtomicUsize, Ordering},
-        mpsc::{sync_channel, SyncSender},
         Arc,
+        atomic::{AtomicUsize, Ordering},
+        mpsc::{SyncSender, sync_channel},
     };
 
     struct Handler {
