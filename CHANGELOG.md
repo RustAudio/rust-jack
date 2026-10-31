@@ -40,6 +40,7 @@
   respected in Pipewire.
 - Use lossy string decoding for non-UTF8 names. May affect reading metadata from
   non-Rust clients.
+- Report missing JACK symbols as error instead of panicking
 
 ## 0.9.0
 

@@ -88,6 +88,11 @@ fn set_logger_impl(logger: LoggerType) {
     if let Ok(mut f) = ERROR_FN.lock() {
         *f = Some(error_fn);
     }
+    // Without the JACK library there is nothing to configure, and calling into it would panic.
+    #[cfg(feature = "dynamic_loading")]
+    if jack_sys::load_functions().is_err() {
+        return;
+    }
     unsafe {
         jack_sys::jack_set_error_function(Some(error_fn));
         jack_sys::jack_set_info_function(Some(info_fn));

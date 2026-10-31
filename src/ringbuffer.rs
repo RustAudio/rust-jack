@@ -25,6 +25,10 @@ pub struct RingBuffer(*mut j::jack_ringbuffer_t);
 impl RingBuffer {
     /// Allocates a ringbuffer of a specified size.
     pub fn new(size: usize) -> Result<Self, crate::Error> {
+        #[cfg(feature = "dynamic_loading")]
+        if let Err(err) = j::load_functions() {
+            return Err(crate::Error::LibraryError(err.to_string()));
+        }
         let insize = size as libc::size_t;
         let handle = unsafe { j::jack_ringbuffer_create(insize) };
 

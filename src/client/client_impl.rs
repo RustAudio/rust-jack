@@ -63,8 +63,8 @@ impl Client {
     /// Opens a JACK client with the given name and options. If the client is successfully opened,
     /// then `Ok(client)` is returned. If the JACK server returned an error, then
     /// `Err(Error::ClientError(status))` will be returned. And if the `dynamic_loading` feature is
-    /// enabled and the JACK library could not be loaded, an `Err(Error::LibraryError(message))` is
-    /// returned.
+    /// enabled and the JACK library, or a function this crate requires from it, could not be loaded,
+    /// `Err(Error::LibraryError(message))` is returned.
     ///
     /// Although the client may be successful in opening, there still may be some errors minor
     /// errors when attempting to opening. To access these, check the returned `ClientStatus`.
@@ -113,10 +113,10 @@ impl Client {
 
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
 
-        // All of the jack_sys functions below assume the client library is loaded and will panic if
-        // it is not
+        // All of the jack_sys functions below assume the client library and all of its required
+        // symbols are loaded, and will panic if they are not.
         #[cfg(feature = "dynamic_loading")]
-        if let Err(err) = jack_sys::library() {
+        if let Err(err) = jack_sys::load_functions() {
             return Err(Error::LibraryError(err.to_string()));
         }
 
