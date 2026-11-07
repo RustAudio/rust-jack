@@ -1,7 +1,5 @@
 use std::sync::LazyLock;
 
-use ctor::ctor;
-
 use crate::{Client, ClientOptions};
 
 mod client;
@@ -16,8 +14,3 @@ pub static DEFAULT_TEST_CLIENT: LazyLock<Client> = LazyLock::new(|| {
         .unwrap()
         .0
 });
-
-#[ctor]
-fn log_to_stdio() {
-    crate::set_logger(crate::LoggerType::Stdio);
-}

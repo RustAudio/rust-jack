@@ -1,6 +1,6 @@
 use crate::types::*;
-use lazy_static::lazy_static;
 use std::ops::Deref;
+use std::sync::LazyLock;
 
 pub struct JackFunctions {
     jack_release_timebase_impl: unsafe extern "C" fn(*mut jack_client_t) -> ::libc::c_int,
@@ -524,9 +524,8 @@ fn missing_symbol(name: &'static str, source: libloading::Error) -> LoadError {
     LoadError::MissingSymbol { name, source }
 }
 
-lazy_static! {
-    static ref FUNCTIONS: Result<JackFunctions, LoadError> = unsafe { load_jack_functions() };
-}
+static FUNCTIONS: LazyLock<Result<JackFunctions, LoadError>> =
+    LazyLock::new(|| unsafe { load_jack_functions() });
 
 /// Loads the JACK library and every symbol this crate requires from it.
 ///
