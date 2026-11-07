@@ -28,5 +28,5 @@ fn can_set_logger() {
         }
     })
     .ok();
-    super::log_to_stdio(); // Revert to enable debugging in other tests.
+    crate::set_logger(crate::LoggerType::Stdio); // Revert to enable debugging in other tests.
 }

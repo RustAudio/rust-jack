@@ -2,7 +2,7 @@
 authors = ["Patrick Reisert"]
 description = "Low-level binding to the JACK audio API."
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 links = "jack"
 name = "jack-sys"
@@ -10,9 +10,8 @@ repository = "https://github.com/RustAudio/rust-jack/tree/main/jack-sys"
 version = "0.6.0"
 
 [dependencies]
-lazy_static = "1.4"
 libc = "0.2"
-libloading = "0.8"
+libloading = "0.9"
 log = "0.4"
 
 [build-dependencies]

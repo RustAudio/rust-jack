@@ -50,12 +50,17 @@ pub enum LoggerType {
 }
 
 impl Default for LoggerType {
-    #[cfg(feature = "log")]
+    #[cfg(test)]
+    fn default() -> LoggerType {
+        LoggerType::Stdio
+    }
+
+    #[cfg(all(not(test), feature = "log"))]
     fn default() -> LoggerType {
         LoggerType::Log
     }
 
-    #[cfg(not(feature = "log"))]
+    #[cfg(all(not(test), not(feature = "log")))]
     fn default() -> LoggerType {
         LoggerType::Stdio
     }

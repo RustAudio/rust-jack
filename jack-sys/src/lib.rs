@@ -1,5 +1,5 @@
 #![allow(non_camel_case_types, non_upper_case_globals)]
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
 mod consts;
 mod types;
@@ -15,12 +15,11 @@ pub use functions::dynamic_linking::*;
 #[cfg(feature = "dynamic_loading")]
 pub use functions::dynamic_loading::*;
 
-lazy_static! {
-    static ref LIB_RESULT: Result<libloading::Library, libloading::Error> = unsafe {
+static LIB_RESULT: LazyLock<Result<libloading::Library, libloading::Error>> =
+    LazyLock::new(|| unsafe {
         log::info!("Loading jack from {}.", JACK_LIB);
         libloading::Library::new(JACK_LIB)
-    };
-}
+    });
 
 /// Get the underlying library handle used for dynamic loading. Can be used to extract symbols from
 /// the library.

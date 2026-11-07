@@ -1,23 +1,22 @@
 use jack_sys as j;
-use lazy_static::lazy_static;
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::marker::Sized;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::{Arc, LazyLock};
 use std::{ffi, fmt, iter};
 
 use crate::jack_utils::to_cstring;
 use crate::{ClientHandle, Error, Frames, LatencyType, PortFlags};
 
-lazy_static! {
-    /// The maximum string length for port names.
-    pub static ref PORT_NAME_SIZE: usize = unsafe { j::jack_port_name_size() - 1 } as usize;
+/// The maximum string length for port names.
+pub static PORT_NAME_SIZE: LazyLock<usize> =
+    LazyLock::new(|| unsafe { j::jack_port_name_size() - 1 } as usize);
 
-    /// The maximum string length for jack type names.
-    pub static ref PORT_TYPE_SIZE: usize = unsafe { j::jack_port_type_size() - 1 } as usize;
-}
+/// The maximum string length for jack type names.
+pub static PORT_TYPE_SIZE: LazyLock<usize> =
+    LazyLock::new(|| unsafe { j::jack_port_type_size() - 1 } as usize);
 
 /// Defines the configuration for a certain port to JACK, ie 32 bit floating audio input, 8 bit raw
 /// midi output, etc...
