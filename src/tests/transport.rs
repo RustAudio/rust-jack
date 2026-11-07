@@ -5,7 +5,7 @@ use std::{
 
 use crate::{Client, TransportPosition, TransportState};
 
-#[test]
+#[test_log::test]
 fn new_transport_is_not_valid() {
     assert!(!TransportPosition::default().valid_bbt());
     assert!(!TransportPosition::default().valid_bbt_frame_offset());
@@ -16,7 +16,7 @@ fn new_transport_is_not_valid() {
     assert_eq!(TransportPosition::default().usecs(), None);
 }
 
-#[test]
+#[test_log::test]
 fn starting_transport_sets_state_to_started() {
     let (client, _) = Client::new("", Default::default()).unwrap();
     let ac = client.activate_async((), ()).unwrap();

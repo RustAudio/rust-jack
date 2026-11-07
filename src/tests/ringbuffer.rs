@@ -1,11 +1,11 @@
 use crate::RingBuffer;
 
-#[test]
+#[test_log::test]
 fn ringbuffer_new_creates_new_ringbuffer() {
     RingBuffer::new(1024).unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn advancing_transfers_space_from_writer_to_reader() {
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (reader, mut writer) = ringbuf.into_reader_writer();
@@ -18,7 +18,7 @@ fn advancing_transfers_space_from_writer_to_reader() {
     assert_eq!(reader.space(), 23);
 }
 
-#[test]
+#[test_log::test]
 fn writing_to_writer_sends_to_reader() {
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (mut reader, mut writer) = ringbuf.into_reader_writer();
@@ -29,7 +29,7 @@ fn writing_to_writer_sends_to_reader() {
     assert_eq!(reader.read_slice(&mut tmp_buffer), &[0, 1, 2, 3]);
 }
 
-#[test]
+#[test_log::test]
 fn written_bytes_can_be_peaked() {
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (reader, mut writer) = ringbuf.into_reader_writer();
@@ -41,7 +41,7 @@ fn written_bytes_can_be_peaked() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn advancing_and_writing_shifts_vector() {
     let ringbuf = RingBuffer::new(8).unwrap();
     let (mut reader, mut writer) = ringbuf.into_reader_writer();
@@ -64,7 +64,7 @@ fn advancing_and_writing_shifts_vector() {
     assert_eq!(reader.peek_iter().copied().collect::<Vec<_>>(), &[0, 1, 2]);
 }
 
-#[test]
+#[test_log::test]
 fn writing_and_advancing_produces_data_on_reader() {
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (mut reader, mut writer) = ringbuf.into_reader_writer();
@@ -76,7 +76,7 @@ fn writing_and_advancing_produces_data_on_reader() {
     assert_eq!(reader.read_slice(&mut [0; 8]), &[0, 1, 2, 3]);
 }
 
-#[test]
+#[test_log::test]
 fn reading_and_writing_from_separate_threads_is_ok() {
     let ringbuf = RingBuffer::new(1024).unwrap();
     let (mut reader, mut writer) = ringbuf.into_reader_writer();

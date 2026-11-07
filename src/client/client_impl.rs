@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
-use std::{ffi, fmt, ptr};
+use std::{ffi, fmt};
 
 use crate::client::common::CREATE_OR_DESTROY_CLIENT_MUTEX;
 use crate::jack_enums::CodeOrMessage;
@@ -868,11 +868,12 @@ impl Client {
 impl Drop for ClientHandle {
     fn drop(&mut self) {
         let _m = CREATE_OR_DESTROY_CLIENT_MUTEX.lock().ok();
-        // Rep invariant.
-        debug_assert!(!self.client_ptr.is_null());
+        let ptr = std::mem::take(&mut self.client_ptr);
+        if ptr.is_null() {
+            return;
+        }
         // Best effort close client.
-        let _res = unsafe { j::jack_client_close(self.client_ptr) };
-        self.client_ptr = ptr::null_mut();
+        let _res = unsafe { j::jack_client_close(ptr) };
     }
 }
 
@@ -989,9 +990,10 @@ pub struct CycleTimes {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ptr;
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    #[test]
+    #[test_log::test]
     fn removed_port_state_survives_handle_drops_and_pruning() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let handle = client.handle();
@@ -1018,7 +1020,7 @@ mod tests {
         assert!(!handle.get_or_create_port_state(untracked_key).is_valid());
     }
 
-    #[test]
+    #[test_log::test]
     fn registration_at_the_same_pointer_preserves_old_invalidation() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let handle = client.handle();
@@ -1048,7 +1050,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn property_handler_lives_until_client_handle_closes() {
         let (mut client, _) = Client::new("", Default::default()).unwrap();
         // Registration must also work after other owners have been created.

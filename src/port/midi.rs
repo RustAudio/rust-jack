@@ -248,7 +248,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn empty_iter_has_no_events() {
         let mut iter = empty_iter();
         assert_eq!(iter.size_hint(), (0, Some(0)));
@@ -258,7 +258,7 @@ mod tests {
         assert_eq!(iter.last(), None);
     }
 
-    #[test]
+    #[test_log::test]
     fn nth_past_the_end_does_not_underflow() {
         let mut iter = empty_iter();
         assert_eq!(iter.nth(5), None);
@@ -268,7 +268,7 @@ mod tests {
         assert_eq!(iter.size_hint(), (0, Some(0)));
     }
 
-    #[test]
+    #[test_log::test]
     fn next_past_the_end_does_not_underflow() {
         let mut iter = empty_iter();
         for _ in 0..3 {

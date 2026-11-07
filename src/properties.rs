@@ -13,6 +13,7 @@ use jack_sys as j;
 /// properties of `subject` were removed (see [`Client::property_remove_subject`]), or when all
 /// properties of all subjects were removed (see [`Client::property_remove_all`]), in which case
 /// `subject` is the empty UUID `0`.
+/// Both null and empty keys from JACK are represented as `None`.
 ///
 /// Non-UTF-8 keys are converted lossily, invalid bytes are replaced with `U+FFFD`.
 ///
@@ -54,12 +55,12 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
     unsafe {
         let res = catch_unwind(|| {
             let h: &mut P = &mut *(arg as *mut P);
-            // JACK passes a NULL key when all properties of a subject (or of all subjects) were
-            // deleted.
+            // JACK can report bulk changes with either a NULL key or an empty string.
             let key = if key.is_null() {
                 None
             } else {
-                Some(std::ffi::CStr::from_ptr(key).to_string_lossy())
+                let key = std::ffi::CStr::from_ptr(key).to_string_lossy();
+                if key.is_empty() { None } else { Some(key) }
             };
             let c = match change {
                 j::PropertyCreated => PropertyChange::Created { subject, key },
@@ -74,6 +75,9 @@ pub(crate) unsafe extern "C" fn property_changed<P>(
                 .copied()
                 .or_else(|| err.downcast_ref::<String>().map(String::as_str))
                 .unwrap_or("unknown panic");
+            #[cfg(feature = "log")]
+            log::error!("panic in property change handler: {msg}");
+            #[cfg(not(feature = "log"))]
             eprintln!("panic in property change handler: {msg}");
             std::mem::forget(err);
         }
@@ -403,7 +407,7 @@ mod metadata {
         use crate::client::{Client, ClientOptions};
         use std::sync::mpsc::{Sender, channel};
 
-        #[test]
+        #[test_log::test]
         fn can_set_and_get() {
             let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
 
@@ -442,7 +446,7 @@ mod metadata {
             assert_eq!(sub.get("asdf"), None);
         }
 
-        #[test]
+        #[test_log::test]
         fn property_get_subject_without_properties_is_empty() {
             let (c, _) = Client::new("", ClientOptions::default()).unwrap();
             // A subject that was never given any properties. Fill the stack with junk first so that
@@ -457,7 +461,7 @@ mod metadata {
             }
         }
 
-        #[test]
+        #[test_log::test]
         fn non_utf8_properties_do_not_panic() {
             let (c, _) = Client::new("non_utf8", ClientOptions::default()).unwrap();
             let key = ffi::CString::new(&b"non-utf8-key-\xff"[..]).unwrap();
@@ -490,7 +494,7 @@ mod metadata {
             unsafe { j::jack_remove_property(c.raw(), c.uuid(), key.as_ptr()) };
         }
 
-        #[test]
+        #[test_log::test]
         #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn can_remove() {
             let (c1, _) = Client::new("client1", ClientOptions::default()).unwrap();
@@ -541,7 +545,7 @@ mod metadata {
             assert_eq!(Ok(()), c1.property_remove_subject(c1.uuid()));
         }
 
-        #[test]
+        #[test_log::test]
         #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn can_property_remove_all() {
             let (c, _) = Client::new("dummy", ClientOptions::default()).unwrap();
@@ -564,7 +568,7 @@ mod metadata {
             assert_eq!(0, all.len());
         }
 
-        #[test]
+        #[test_log::test]
         #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn client_callbacks() {
             let timeout = std::time::Duration::from_millis(50);
@@ -673,7 +677,7 @@ mod metadata {
             receiver.iter().collect()
         }
 
-        #[test]
+        #[test_log::test]
         fn property_changed_null_key() {
             assert_eq!(
                 call_property_changed(ptr::null(), j::PropertyDeleted),
@@ -684,7 +688,18 @@ mod metadata {
             );
         }
 
-        #[test]
+        #[test_log::test]
+        fn property_changed_empty_key() {
+            assert_eq!(
+                call_property_changed(c"".as_ptr(), j::PropertyDeleted),
+                vec![PropertyChangeOwned::Deleted {
+                    subject: 42,
+                    key: None
+                }]
+            );
+        }
+
+        #[test_log::test]
         fn property_changed_non_utf8_key() {
             let key = ffi::CString::new(&b"key-\xff"[..]).unwrap();
             assert_eq!(
@@ -696,7 +711,7 @@ mod metadata {
             );
         }
 
-        #[test]
+        #[test_log::test]
         #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
         fn client_callbacks_remove_subject_and_all() {
             let timeout = std::time::Duration::from_millis(50);
@@ -734,7 +749,7 @@ mod metadata {
             ));
         }
 
-        #[test]
+        #[test_log::test]
         #[should_panic]
         fn double_register() {
             let (mut c, _) = Client::new("client1", ClientOptions::default()).unwrap();

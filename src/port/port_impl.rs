@@ -544,7 +544,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn ports_keep_client_alive_until_last_port_is_dropped() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let port = client
@@ -571,7 +571,7 @@ mod tests {
         assert!(life.upgrade().is_none());
     }
 
-    #[test]
+    #[test_log::test]
     fn unregistering_a_port_invalidates_every_handle_to_it() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let port = client.register_port("p", AudioIn::default()).unwrap();
@@ -600,7 +600,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn reregistering_a_port_name_gives_a_fresh_valid_port() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let port = client.register_port("p", AudioIn::default()).unwrap();
@@ -616,7 +616,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn removed_port_lookups_stay_absent_after_all_handles_are_dropped() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let name = format!("{}:p", client.name());
@@ -658,7 +658,7 @@ mod tests {
         assert!(client.port_by_name(&name).is_none());
     }
 
-    #[test]
+    #[test_log::test]
     fn failing_to_unregister_a_foreign_port_leaves_it_valid() {
         let (owner, _) = Client::new("", Default::default()).unwrap();
         let (other, _) = Client::new("", Default::default()).unwrap();
@@ -678,7 +678,7 @@ mod tests {
         assert_eq!(kept.name(), Ok(name));
     }
 
-    #[test]
+    #[test_log::test]
     fn active_client_detects_foreign_port_unregistration_and_reregistration() {
         let (owner, _) = Client::new("", Default::default()).unwrap();
         let name = format!("{}:p", owner.name());
@@ -736,7 +736,7 @@ mod tests {
         assert!(!foreign.is_valid());
     }
 
-    #[test]
+    #[test_log::test]
     fn dangling_ports_have_no_buffers() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let audio_in = client.register_port("in", AudioIn::default()).unwrap();

@@ -1,6 +1,6 @@
 use crate::{Error::InteriorNul, tests::DEFAULT_TEST_CLIENT};
 
-#[test]
+#[test_log::test]
 fn client_can_open() {
     let (client, status) =
         crate::Client::new("my new client", crate::ClientOptions::default()).unwrap();
@@ -14,7 +14,7 @@ fn client_can_open() {
     assert!(cpu_load >= 0.0, "client.cpu_load() = {}", cpu_load);
 }
 
-#[test]
+#[test_log::test]
 fn client_new_rejects_options_that_need_extra_arguments() {
     for flag in [
         crate::ClientOptions::SERVER_NAME,
@@ -28,7 +28,7 @@ fn client_new_rejects_options_that_need_extra_arguments() {
     }
 }
 
-#[test]
+#[test_log::test]
 fn client_can_open_with_server_name() {
     let (client, _) = crate::Client::new_with_server_name(
         "server name client",
@@ -47,7 +47,7 @@ fn client_can_open_with_server_name() {
     .unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn client_with_server_name_rejects_other_options_that_need_extra_arguments() {
     for flag in [
         crate::ClientOptions::LOAD_NAME,
@@ -61,7 +61,7 @@ fn client_with_server_name_rejects_other_options_that_need_extra_arguments() {
     }
 }
 
-#[test]
+#[test_log::test]
 fn time_is_montonically_increasing() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let ac = client.activate_async((), ()).unwrap();
@@ -76,7 +76,7 @@ fn time_is_montonically_increasing() {
     assert_ne!(client.frame_time(), frame_time0);
 }
 
-#[test]
+#[test_log::test]
 #[ignore = "unsupported on pipewire-jack; CI runs ignored tests with JACK2"]
 fn maybe_client_can_set_buffer_size() {
     let initial_buffer_size = DEFAULT_TEST_CLIENT.buffer_size();
@@ -90,7 +90,7 @@ fn maybe_client_can_set_buffer_size() {
         .unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn client_uuid_are_unique() {
     let (client1, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (client2, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
@@ -102,7 +102,7 @@ fn client_uuid_are_unique() {
     assert_ne!(client1.uuid(), client2.uuid());
 }
 
-#[test]
+#[test_log::test]
 fn uuid_can_map_to_client_name() {
     let (client1, _) =
         crate::Client::new("uuid-client-1", crate::ClientOptions::default()).unwrap();
@@ -127,7 +127,7 @@ fn uuid_can_map_to_client_name() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn nonexistant_uuid_to_client_name_returns_none() {
     let (client, _) =
         crate::Client::new("dropped-client", crate::ClientOptions::default()).unwrap();
@@ -138,7 +138,7 @@ fn nonexistant_uuid_to_client_name_returns_none() {
     assert_eq!(DEFAULT_TEST_CLIENT.name_by_uuid(uuid), None);
 }
 
-#[test]
+#[test_log::test]
 fn unregistering_another_clients_port_is_an_unregistration_error() {
     let (owner, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (other, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
@@ -153,7 +153,7 @@ fn unregistering_another_clients_port_is_an_unregistration_error() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn registering_an_unowned_port_is_an_error() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     assert_eq!(
@@ -162,7 +162,7 @@ fn registering_an_unowned_port_is_an_error() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn client_with_unknown_server_name_fails_to_open() {
     // Proves the server name actually reaches JACK, rather than being dropped.
     let err = crate::Client::new_with_server_name(
@@ -190,7 +190,7 @@ fn open_non_utf8_client(name: &[u8]) -> crate::Client {
     unsafe { crate::Client::from_raw(ptr) }
 }
 
-#[test]
+#[test_log::test]
 fn non_utf8_client_name_is_decoded_lossily() {
     let client = open_non_utf8_client(b"non-utf8-\xff");
     assert_eq!(client.name(), "non-utf8-\u{fffd}");
@@ -200,7 +200,7 @@ fn non_utf8_client_name_is_decoded_lossily() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn non_utf8_client_registration_does_not_stop_processing() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
@@ -243,7 +243,7 @@ fn non_utf8_client_registration_does_not_stop_processing() {
     ac.deactivate().unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn client_open_rejects_interior_nul() {
     let nul = "a\0b";
     let options = crate::ClientOptions::default();
@@ -257,7 +257,7 @@ fn client_open_rejects_interior_nul() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn client_methods_reject_interior_nul() {
     let nul = "a\0b";
     let client = &*DEFAULT_TEST_CLIENT;
@@ -287,7 +287,7 @@ fn client_methods_reject_interior_nul() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn property_methods_reject_interior_nul() {
     let nul = "a\0b";
     let client = &*DEFAULT_TEST_CLIENT;
@@ -304,7 +304,7 @@ fn property_methods_reject_interior_nul() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn lookups_with_interior_nul_find_nothing() {
     let nul = "a\0b";
     let client = &*DEFAULT_TEST_CLIENT;
@@ -317,7 +317,7 @@ fn lookups_with_interior_nul_find_nothing() {
     assert!(client.ports(None, Some(nul), flags).is_empty());
 }
 
-#[test]
+#[test_log::test]
 fn port_methods_reject_interior_nul() {
     let nul = "a\0b";
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();

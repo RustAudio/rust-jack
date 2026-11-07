@@ -138,6 +138,9 @@ where
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -169,6 +172,9 @@ unsafe extern "C" fn shutdown<N, P>(
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -204,6 +210,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("JACK process callback panicked.\n{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("JACK process callback panicked.\n{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
@@ -243,6 +252,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 0
@@ -268,6 +280,9 @@ where
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -302,6 +317,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
@@ -332,6 +350,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
@@ -362,6 +383,9 @@ unsafe extern "C" fn client_registration<N, P>(
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -399,6 +423,9 @@ unsafe extern "C" fn port_registration<N, P>(
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -437,6 +464,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
@@ -467,6 +497,9 @@ unsafe extern "C" fn port_connect<N, P>(
             if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                 ctx.mark_invalid(true)
             }
+            #[cfg(feature = "log")]
+            log::error!("{err:?}");
+            #[cfg(not(feature = "log"))]
             eprintln!("{err:?}");
             std::mem::forget(err);
         }
@@ -495,6 +528,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
@@ -525,6 +561,9 @@ where
                 if let Some(ctx) = CallbackContext::<N, P>::from_raw(data) {
                     ctx.mark_invalid(true)
                 }
+                #[cfg(feature = "log")]
+                log::error!("{err:?}");
+                #[cfg(not(feature = "log"))]
                 eprintln!("{err:?}");
                 std::mem::forget(err);
                 Control::Quit.to_ffi()
