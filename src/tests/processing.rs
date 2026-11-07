@@ -1,4 +1,4 @@
-#[test]
+#[test_log::test]
 fn panic_in_process_handler_propagates_as_error_in_deactivate() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(1);
@@ -14,17 +14,17 @@ fn panic_in_process_handler_propagates_as_error_in_deactivate() {
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
-#[test]
+#[test_log::test]
 fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
     let handler = crate::contrib::ClosureProcessHandler::with_state(
         (),
+        |_, _, _| panic!("buffer_size panicked, so process should not be called"),
         move |_, _, _| {
             send.try_send(true).unwrap();
             panic!("intentional panic here");
         },
-        move |_, _, _| crate::Control::Continue,
     );
     let ac = client.activate_async((), handler).unwrap();
     assert!(
@@ -34,22 +34,18 @@ fn panic_in_buffer_size_handler_propagates_as_error_in_deactivate() {
     assert_eq!(ac.deactivate().err(), Some(crate::Error::ClientPanicked));
 }
 
-#[test]
+#[test_log::test]
 fn quitting_stops_calling_process() {
-    eprintln!("Creating client.");
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let mut calls = 0;
     let (send, recv) = std::sync::mpsc::sync_channel(2);
-    eprintln!("Creating callback.");
     let process_handler = crate::contrib::ClosureProcessHandler::new(move |_, _| {
         send.try_send(true).unwrap();
         calls += 1;
         assert_eq!(calls, 1);
         crate::Control::Quit
     });
-    eprintln!("Activating client.");
     let ac = client.activate_async((), process_handler).unwrap();
-    eprintln!("Waiting for async response.");
     assert!(
         recv.recv_timeout(std::time::Duration::from_secs(1))
             .unwrap()
@@ -57,7 +53,7 @@ fn quitting_stops_calling_process() {
     ac.deactivate().unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn quitting_buffer_size_never_runs_process() {
     // JACK calls `buffer_size` once before the first `process`. If it quits, `process` must never
     // be called.
@@ -81,7 +77,7 @@ fn quitting_buffer_size_never_runs_process() {
     ac.deactivate().unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn buffer_size_is_called_before_process() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let (send, recv) = std::sync::mpsc::sync_channel(2);
@@ -108,7 +104,7 @@ fn buffer_size_is_called_before_process() {
     assert_eq!(ac.deactivate().unwrap().2.state, "processing");
 }
 
-#[test]
+#[test_log::test]
 fn signals_in_audio_ports_are_forwarded() {
     // Setup clients and ports.
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
@@ -153,7 +149,7 @@ fn signals_in_audio_ports_are_forwarded() {
     ac.deactivate().unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn messages_in_midi_ports_are_forwarded() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
 
@@ -203,7 +199,7 @@ fn messages_in_midi_ports_are_forwarded() {
     ac.deactivate().unwrap();
 }
 
-#[test]
+#[test_log::test]
 fn activating_client_notifies_buffer_size_before_beginning() {
     let (client, _) = crate::Client::new("", crate::ClientOptions::default()).unwrap();
     let initial_buffer_size = client.buffer_size() as usize;

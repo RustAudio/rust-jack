@@ -268,17 +268,17 @@ mod tests {
         assert!(life.upgrade().is_none());
     }
 
-    #[test]
+    #[test_log::test]
     fn activation_failure_detaches_callbacks_and_drops_handlers() {
         check_activation_failure(false);
     }
 
-    #[test]
+    #[test_log::test]
     fn activation_failure_after_start_detaches_callbacks_and_drops_handlers() {
         check_activation_failure(true);
     }
 
-    #[test]
+    #[test_log::test]
     fn dropping_async_client_detaches_callbacks_while_port_keeps_client_alive() {
         let (client, _) = Client::new("", ClientOptions::default()).unwrap();
         let port = client.register_port("input", AudioIn::default()).unwrap();

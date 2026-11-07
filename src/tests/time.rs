@@ -19,7 +19,7 @@ fn active_client() -> crate::AsyncClient<(), impl crate::ProcessHandler> {
     ac
 }
 
-#[test]
+#[test_log::test]
 fn frame_and_time_are_convertable() {
     let ac = active_client();
     let client = ac.as_client();
@@ -31,7 +31,7 @@ fn frame_and_time_are_convertable() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn one_frame_duration_is_inverse_of_sample_rate() {
     let ac = active_client();
     let client = ac.as_client();
@@ -43,7 +43,7 @@ fn one_frame_duration_is_inverse_of_sample_rate() {
     );
 }
 
-#[test]
+#[test_log::test]
 fn one_second_is_sample_rate_frames() {
     let ac = active_client();
     let client = ac.as_client();

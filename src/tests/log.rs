@@ -1,7 +1,7 @@
 unsafe extern "C" fn test_info_callback(_msg: *const libc::c_char) {}
 unsafe extern "C" fn test_error_callback(_msg: *const libc::c_char) {}
 
-#[test]
+#[test_log::test]
 fn can_set_logger() {
     // TODO: This passes on JACK2 1.9.22, but not 1.9.20 which is used in the GitHub runners.
     std::panic::catch_unwind(|| {

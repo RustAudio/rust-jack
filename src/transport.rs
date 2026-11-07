@@ -483,7 +483,7 @@ mod tests {
     use super::*;
     use crate::Client;
 
-    #[test]
+    #[test_log::test]
     fn transport_keeps_client_alive_until_dropped() {
         let (client, _) = Client::new("", Default::default()).unwrap();
         let transport = client.transport();
@@ -500,7 +500,7 @@ mod tests {
         assert!(life.upgrade().is_none());
     }
 
-    #[test]
+    #[test_log::test]
     fn bbt_validation_rejects_non_finite_values() {
         use TransportBBTValidationError::*;
         assert_eq!(
