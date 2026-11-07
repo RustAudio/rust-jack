@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Fix `Client::new` now returns an error when used with the server name
+## 0.14.0
+
+- `Client::new` now returns an error when used with the server name
   option. Introduced `Client::new_with_server_name` for this use case.
 - Ports and transport objects now hold strong references to their JACK client and remain
   usable after `Client` is dropped.
@@ -18,7 +20,7 @@
 - `Client::register_port` with the `Unowned` spec now returns `Err(Error::PortRegistrationError)`.
 - `Unowned::jack_buffer_size` now returns `0` instead of panicking.
 - `MidiIter` no longer dereferences a null port buffer.
-- `MidiIter` `next`, `nth`, `count`and `size_hint` no longer overflow or
+- `MidiIter` `next`, `nth`, `count` and `size_hint` no longer overflow or
   underflow when iterating past the end.
 - `Client::property_get_subject` now returns an empty `PropertyMap` instead of `None` for a
   subject without properties, on both jackd2 and PipeWire. It also no longer reads an
@@ -40,7 +42,9 @@
   respected in Pipewire.
 - Use lossy string decoding for non-UTF8 names. May affect reading metadata from
   non-Rust clients.
-- Report missing JACK symbols as error instead of panicking
+- With dynamic loading enabled, client creation now returns `Error::LibraryError` when
+  required JACK symbols are missing instead of panicking.
+- Set the minimum supported Rust version for `jack` to 1.88.
 
 ## 0.9.0
 

@@ -9,11 +9,11 @@ license = "MIT"
 name = "jack"
 readme = "README.md"
 repository = "https://github.com/RustAudio/rust-jack"
-version = "0.13.5"
+version = "0.14.0"
 
 [dependencies]
 bitflags = "2"
-jack-sys = {version = "0.6", path = "./jack-sys"}
+jack-sys = {version = "0.7", path = "./jack-sys"}
 libc = "0.2"
 log = { version = "0.4", optional = true}
 rtrb = { version = "0.4", optional = true }
